@@ -14,6 +14,7 @@ const nav = (active: string) => `
 <nav id="top-nav" class="top-nav">
   <a href="/" class="brand"><i class="fas fa-chess-knight"></i> DreamForge<span>· Cash 剧场</span></a>
   <div class="nav-links">
+    <a href="/comic" class="${active === 'comic' ? 'on' : ''}"><i class="fas fa-book-open"></i><b>漫剧</b></a>
     <a href="/" class="${active === 'play' ? 'on' : ''}"><i class="fas fa-play"></i><b>剧场</b></a>
     <a href="/console" class="${active === 'console' ? 'on' : ''}"><i class="fas fa-gauge-high"></i><b>后台</b></a>
     <a href="/agents" class="${active === 'agents' ? 'on' : ''}"><i class="fas fa-robot"></i><b>7-Agent</b></a>
@@ -52,4 +53,18 @@ ${nav('agents')}
 <main id="agents-main" class="agents-main"></main>
 <div id="toast" class="toast"></div>
 <script src="/static/agents.js"></script>
+</body></html>`
+
+export const comicPage = () => `${head('穹顶之下 · 对弈式漫剧 | DreamForge', '<link href="/static/comic.css" rel="stylesheet">')}
+<body class="comic-body">
+${nav('comic')}
+<main id="comic-wrap">
+  <section id="comic-stage" class="comic-stage">
+    <div id="panel-a" class="panel"></div><div id="panel-b" class="panel"></div>
+    <div id="comic-layer" class="comic-layer"></div>
+  </section>
+  <aside id="comic-side" class="comic-side"></aside>
+</main>
+<div id="modal-root"></div>
+<script src="/static/comic.js"></script>
 </body></html>`

@@ -9,7 +9,8 @@ import { modelHealth, predictiveQueue, rankVideoModels, submitVideo, buildVideoP
 import { branches, overview, scriptTree } from './agents/console'
 import { applyClipPlan, approveExtension, clipPairs, derive, generatePoems, ingestSignals, regulate } from './agents/deriver'
 import type { Bindings } from './gateway/llm'
-import { playerPage, consolePage, agentsPage } from './pages/shell'
+import { playerPage, consolePage, agentsPage, comicPage } from './pages/shell'
+import * as Comic from './comic/engine'
 
 const app = new Hono<{ Bindings: Bindings }>()
 app.use('/api/*', cors())
@@ -35,6 +36,7 @@ app.get('/', (c) => c.html(playerPage()))
 app.get('/play/:series', (c) => c.html(playerPage()))
 app.get('/console', (c) => c.html(consolePage()))
 app.get('/agents', (c) => c.html(agentsPage()))
+app.get('/comic', (c) => c.html(comicPage()))
 
 // ─────────────── Agent-1 · 蓝图 ───────────────
 app.get('/api/blueprint', (c) => c.json({ ...BLUEPRINT, agents: AGENTS }))
@@ -165,6 +167,27 @@ app.get('/api/agents/7/regulate', async (c) => c.json(await regulate(c.env, c.re
 app.post('/api/agents/7/signals', async (c) => { const b = await body(c); return c.json(await ingestSignals(c.env, b.series_id || DEMO_SERIES, b.items || [])) })
 app.get('/api/agents/7/clip-pairs', async (c) => c.json(await clipPairs(c.env, c.req.query('series_id') || DEMO_SERIES, { budget_clips: Number(c.req.query('budget') || 60) })))
 app.post('/api/agents/7/clip-pairs/apply', async (c) => { const b = await body(c); return c.json(await applyClipPlan(c.env, b.series_id || DEMO_SERIES, b.budget)) })
+
+// ─────────────── 漫剧 Comic 模式 ───────────────
+app.get('/api/comic/meta', async (c) => {
+  const id = uidOf(c)
+  return c.json({ series: Comic.COMIC.series, nodes: Comic.COMIC.nodes.length, total_endings: Comic.totalEndings(), my_endings: id ? await Comic.myEndings(c.env, id) : [], config: await Comic.getConfig(c.env) })
+})
+app.post('/api/comic/start', async (c) => { const b = await body(c); return c.json(await Comic.startRun(c.env, uidOf(c, b), b.nick)) })
+app.post('/api/comic/rounds/:id/bet', async (c) => { const b = await body(c); return c.json(await Comic.bet(c.env, { roundId: c.req.param('id'), userId: uidOf(c, b), optionId: b.option_id, amount: b.amount })) })
+app.post('/api/comic/rounds/:id/settle', async (c) => { const b = await body(c); return c.json(await Comic.settle(c.env, { roundId: c.req.param('id'), userId: uidOf(c, b) })) })
+app.post('/api/comic/rounds/:id/rewind', async (c) => { const b = await body(c); return c.json(await Comic.rewind(c.env, { roundId: c.req.param('id'), userId: uidOf(c, b), mode: b.mode })) })
+app.post('/api/comic/rounds/:id/next', async (c) => { const b = await body(c); return c.json(await Comic.advance(c.env, { roundId: c.req.param('id'), userId: uidOf(c, b) })) })
+app.get('/api/comic/rounds/:id/verify', async (c) => c.json(await Comic.verify(c.env, c.req.param('id'))))
+app.get('/api/comic/tree', (c) => c.json({ series: Comic.COMIC.series, prologue: Comic.COMIC.prologue, nodes: Comic.COMIC.nodes, segments: Object.fromEntries(Object.entries<any>(Comic.COMIC.segments).map(([k, v]) => [k, { title: v.title, mood: v.mood, image_url: v.image_url, lines: v.lines }])) }))
+app.get('/api/comic/config', async (c) => c.json(await Comic.getConfig(c.env)))
+app.post('/api/comic/config', async (c) => {
+  const cfg = await Comic.setConfig(c.env, await body(c))
+  await c.env.DB.prepare('INSERT INTO agent_runs (agent_no,action,status,detail,created_at) VALUES (4,?,?,?,?)').bind('comic_config', 'ok', `机制参数更新 jitter=${cfg.jitter} rake=${cfg.rake} twist=${cfg.twist_weight} 覆盖 ${Object.keys(cfg.overrides).length} 个节点`, Date.now()).run()
+  return c.json(cfg)
+})
+app.post('/api/comic/simulate', async (c) => { const b = await body(c); return c.json(await Comic.simulateTree(c.env, b.n || 2000)) })
+app.get('/api/comic/stats', async (c) => c.json(await Comic.comicStats(c.env)))
 
 app.get('/api/health', (c) => c.json({ ok: true, llm: !!c.env.OPENAI_API_KEY, video_provider: !!c.env.FAL_KEY, time: Date.now() }))
 

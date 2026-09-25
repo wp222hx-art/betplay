@@ -22,7 +22,7 @@ async function appendEvent(env: Env, roundId: string, type: string, payload: any
 }
 
 // ─────────────────────────── 复式记账 ForgeLedger ───────────────────────────
-async function post(env: Env, memo: string, ref: string, lines: [string, 'D' | 'C', number][]) {
+export async function post(env: Env, memo: string, ref: string, lines: [string, 'D' | 'C', number][]) {
   const d = lines.filter((l) => l[1] === 'D').reduce((a, l) => a + l[2], 0)
   const c = lines.filter((l) => l[1] === 'C').reduce((a, l) => a + l[2], 0)
   if (d !== c) throw new GameError('LEDGER_UNBALANCED', `借贷不平 ${d}≠${c}`)

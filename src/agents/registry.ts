@@ -48,6 +48,7 @@ export const BLUEPRINT = {
   name: 'DreamForge · Cash 剧场',
   motto: '结果先锁定，再开盘；剧情先生长，再揭晓。',
   terminals: [
+    { name: '对弈式漫剧《穹顶之下》', path: '/comic', owner: 5 },
     { name: '玩家端 Cash Stage', path: '/', owner: 5 },
     { name: '运营后台 Forge Console', path: '/console', owner: 6 },
     { name: 'Agent 指挥中心', path: '/agents', owner: 1 },

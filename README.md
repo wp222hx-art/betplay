@@ -7,9 +7,19 @@
 - **示范剧**：《天台》：3 场景 × 3 个 Cash 节点 × 9 个结局簇 × 27+ 变体，另有 3 个结局（内容由 LLM 生成）
 - **架构文档**：`docs/ARCHITECTURE.md`
 
+## 🆕 对弈式漫剧《穹顶之下》（/comic）
+- **规模**：34 个抉择点（4 幕：1→3→9→21），75 条常规分支，34 条悔棋隐藏分支，63 个结局（其中 21 个是隐藏结局）
+- **媒体**：112 幅 GPT Image 2 分镜（以角色设定图做参考，锁定人物一致性），316 条配音（edge-tts，旁白 + 5 个角色音色），全部提前生成
+- **机制概率**：每局概率 = 基础剧情权重 → 后台覆盖 → 悔棋变局 → 种子扰动（±jitter），所以同一抉择每次开局的概率和赔率都不同；公式可复算验证
+- **悔棋两种变局**：⚔ 二选一（排除刚发生的结果，剩下的重算概率和赔率）；✦ 新变数（多出一个隐藏选项，概率重新分配）。两种可以叠加
+- **后台**：`/console#comic`（机制参数 + 全树蒙特卡洛），`/console#comictree`（分支树、分镜预览、试听、按节点覆盖权重）
+- **API**：`/api/comic/meta|tree|start|rounds/:id/bet|settle|rewind{mode}|next|verify|config|simulate|stats`
+- **生产脚本**：`scripts/comic/gen_story.py`（LLM 剧情树）→ `normalize.py` → `produce.py`（图 + 音，可断点续跑）→ `build_data.py`
+
 ## 入口
 | 页面 | 路径 |
 |---|---|
+| 对弈式漫剧 | `/comic` |
 | 玩家端 Cash Stage | `/` |
 | 运营后台 Forge Console | `/console`（`#monitor #branches #script #derive #regulate #clips #pool #video #economy #rounds #tasks #qa`） |
 | 7-Agent 指挥中心 | `/agents` |

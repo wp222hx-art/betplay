@@ -16,6 +16,8 @@
 
   const PAGES = [
     { id: 'monitor', icon: 'fa-display', name: '局监控大屏', ag: 6 },
+    { id: 'comic', icon: 'fa-book-open', name: '漫剧机制概率', ag: 4 },
+    { id: 'comictree', icon: 'fa-sitemap', name: '漫剧分支树', ag: 7 },
     { id: 'branches', icon: 'fa-code-branch', name: '分支统计', ag: 6 },
     { id: 'script', icon: 'fa-diagram-project', name: '剧本管理', ag: 6 },
     { id: 'derive', icon: 'fa-wand-magic-sparkles', name: '实时衍生剧本', ag: 7 },
@@ -56,6 +58,59 @@
         ${d.agent_runs.map((r) => `<tr><td>${ts(r.created_at)}</td><td><span class="tag purple">A${r.agent_no}</span></td><td>${esc(r.action)}</td><td><span class="tag ${r.status === 'ok' ? 'green' : r.status === 'degraded' ? 'yellow' : 'red'}">${r.status}</span></td><td>${esc(r.detail)}</td></tr>`).join('')}</table></div>`
     kill()
     charts.push(new Chart($('#ch-h'), { type: 'bar', data: { labels: d.hourly.map((h) => new Date(h.t).toTimeString().slice(0, 5)), datasets: [{ data: d.hourly.map((h) => h.n), backgroundColor: '#f5c451' }] }, options: { plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#8b93b3' } }, y: { ticks: { color: '#8b93b3' }, grid: { color: '#1d2340' } } } } }))
+  }
+
+  V.comic = async () => {
+    const [cfg, st] = await Promise.all([api('/api/comic/config'), api('/api/comic/stats')])
+    const F = (k, l, min, max, step, tip) => `<div class="mb-3"><div style="display:flex;justify-content:space-between"><span class="sub">${l}</span><b id="v-${k}">${cfg[k]}</b></div><input type="range" data-k="${k}" min="${min}" max="${max}" step="${step}" value="${cfg[k]}" style="width:100%;accent-color:#f5c451"><div class="sub" style="font-size:11px">${tip}</div></div>`
+    main.innerHTML = header('fa-book-open', '漫剧机制概率 · 后台调控', '《穹顶之下》：每局 = 基础剧情权重 → 后台覆盖 → 悔棋变局（二选一/新变数）→ 种子机制扰动；调参后可一键全树蒙特卡洛看结局分布',
+      `<a class="btn" href="/comic" target="_blank"><i class="fas fa-book-open"></i> 打开漫剧</a>`) +
+      `<div class="grid md:grid-cols-3 gap-3">
+        <div class="card">${F('jitter', '机制扰动强度 jitter', 0, 0.6, 0.01, '每局用种子对各选项权重做 ±jitter 随机扰动 → 同一抉择每次概率/赔率都不同')}
+          ${F('twist_weight', '“新变数”隐藏选项概率', 0.1, 0.5, 0.01, '悔棋选择“新变数”时隐藏选项分得的概率，其余按比例缩放')}
+          ${F('rake', '抽水 rake', 0.05, 0.1, 0.005, '赔率 = (1−rake)/p')}
+          ${F('rewind_tax', '悔棋税倍率', 1.1, 3, 0.1, '第 n 次悔棋费用 = 最低下注 × 倍率^n')}
+          ${F('window_sec', '下注窗口（秒）', 8, 30, 1, '')}
+          ${F('max_rewinds', '每个抉择最多悔棋', 0, 2, 1, '')}
+          <button class="btn gold" id="save" style="width:100%;justify-content:center"><i class="fas fa-floppy-disk"></i> 保存机制参数（实时生效）</button></div>
+        <div class="card md:col-span-2"><div style="display:flex;justify-content:space-between;align-items:center"><div class="sub">全树蒙特卡洛：按当前参数模拟完整通关（常规路径）</div><button class="btn" id="sim"><i class="fas fa-dice"></i> 模拟 3000 次通关</button></div>
+          <div id="sim-out" class="mt-2 sub">点击模拟</div></div></div>
+      <div class="grid md:grid-cols-3 gap-3 mt-3">
+        <div class="kpi"><div class="l">漫剧通关次数</div><div class="v">${st.runs.n || 0}</div><div class="sub" style="font-size:11px">完成 ${st.runs.ended || 0} · 悔棋 ${st.runs.rewinds || 0}</div></div>
+        <div class="kpi"><div class="l">玩家累计盈亏</div><div class="v">${st.runs.pnl || 0}</div></div>
+        <div class="kpi"><div class="l">局面模式分布</div><div class="v" style="font-size:14px">${st.modes.map((m) => `${{ normal: '常规', binary: '二选一', plus: '新变数', binary_plus: '二选一+新变数' }[m.mode] || m.mode} ${m.n}`).join(' · ') || '—'}</div></div></div>`
+    main.querySelectorAll('input[data-k]').forEach((i) => (i.oninput = () => ($('#v-' + i.dataset.k).textContent = i.value)))
+    $('#save').onclick = (e) => busy(e.currentTarget, async () => { const b = {}; main.querySelectorAll('input[data-k]').forEach((i) => (b[i.dataset.k] = +i.value)); await api('/api/comic/config', { method: 'POST', body: b }); toast('机制参数已生效，下一局即按新参数开盘') })
+    $('#sim').onclick = (e) => busy(e.currentTarget, async () => {
+      const r = await api('/api/comic/simulate', { method: 'POST', body: { n: 3000 } })
+      $('#sim-out').innerHTML = `<div style="margin-bottom:8px">jitter=${r.jitter} · 模拟 ${r.n} 次 · 触达 <b style="color:var(--gold)">${r.distinct_endings}</b>/${r.total_regular_endings} 个常规结局（隐藏结局只能靠悔棋“新变数”解锁）</div><canvas id="ch-end" height="150"></canvas>`
+      kill(); charts.push(new Chart($('#ch-end'), { type: 'bar', data: { labels: r.endings.map((x) => x.title), datasets: [{ label: '结局占比 %', data: r.endings.map((x) => x.pct), backgroundColor: '#f5c451' }] }, options: { plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#8b93b3', font: { size: 9 } } }, y: { ticks: { color: '#8b93b3' }, grid: { color: '#1d2340' } } } } }))
+    })
+  }
+
+  V.comictree = async () => {
+    const [t, cfg, st] = await Promise.all([api('/api/comic/tree'), api('/api/comic/config'), api('/api/comic/stats')])
+    const hits = {}; st.rows.forEach((r) => (hits[r.outcome_id] = (hits[r.outcome_id] || 0) + r.n))
+    const N = Object.fromEntries(t.nodes.map((n) => [n.id, n]))
+    const reg = t.nodes.reduce((a, n) => a + n.options.filter((o) => !o.twist).length, 0), tw = t.nodes.reduce((a, n) => a + n.options.filter((o) => o.twist).length, 0)
+    const nodeCard = (id) => {
+      const n = N[id]; const ov = cfg.overrides[id] || {}
+      return `<details ${n.depth <= 2 ? 'open' : ''} style="margin:6px 0 6px ${(n.depth - 1) * 14}px;border-left:2px solid ${['#f5c451', '#22d3ee', '#a78bfa', '#fb7185'][n.depth - 1]};padding-left:10px">
+        <summary style="cursor:pointer"><b>${esc(n.id)}</b> · 第${n.depth}幕 · ${esc(n.question)} ${cfg.overrides[id] ? '<span class="tag yellow">已覆盖权重</span>' : ''}</summary>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0">${n.options.map((o) => { const seg = t.segments[o.id]; return `<div style="width:170px;background:#0f1325;border:1px solid ${o.twist ? '#8a5cff' : '#232945'};border-radius:10px;overflow:hidden">
+          ${seg.image_url ? `<img src="${seg.image_url}" loading="lazy" style="width:100%;aspect-ratio:9/12;object-fit:cover">` : ''}
+          <div style="padding:6px;font-size:11px"><b>${esc(o.label)}</b> ${o.twist ? '<span class="tag purple">悔棋隐藏</span>' : ''}${!o.next ? '<span class="tag red">结局</span>' : ''}
+          <div class="sub">${esc(seg.title)} · 到达 ${hits[o.id] || 0}</div>
+          ${o.twist ? '' : `<div>权重 <input class="inp" data-w="${id}" data-o="${o.id}" value="${ov[o.id] ?? o.weight}" style="width:60px;padding:2px 4px"></div>`}
+          <button class="btn" data-play="${o.id}" style="font-size:10px;padding:2px 8px;margin-top:4px"><i class="fas fa-volume-high"></i> 试听</button></div></div>` }).join('')}</div>
+        <button class="btn" data-savew="${id}" style="font-size:11px;padding:3px 10px">保存本节点权重</button> <button class="btn" data-resetw="${id}" style="font-size:11px;padding:3px 10px">恢复默认</button>
+        ${n.options.filter((o) => o.next && !o.twist).map((o) => nodeCard(o.next)).join('')}</details>`
+    }
+    main.innerHTML = header('fa-sitemap', '漫剧分支树 · 《穹顶之下》', `${t.nodes.length} 个抉择点 · ${reg} 条常规分支 · ${tw} 条悔棋隐藏分支 · ${Object.keys(t.segments).length} 幅 GPT Image 2 分镜 · 全部配音`) + `<div class="card">${nodeCard(t.nodes[0].id)}</div>`
+    const au = new Audio()
+    main.querySelectorAll('[data-play]').forEach((b) => (b.onclick = () => { const l = t.segments[b.dataset.play].lines; let i = 0; const nx = () => { if (i < l.length && l[i].audio) { au.src = l[i++].audio; au.play(); au.onended = nx } }; nx() }))
+    main.querySelectorAll('[data-savew]').forEach((b) => (b.onclick = () => busy(b, async () => { const id = b.dataset.savew; const w = {}; main.querySelectorAll(`[data-w="${id}"]`).forEach((i) => (w[i.dataset.o] = +i.value)); await api('/api/comic/config', { method: 'POST', body: { overrides: { [id]: w } } }); toast('已覆盖 ' + id + ' 权重') })))
+    main.querySelectorAll('[data-resetw]').forEach((b) => (b.onclick = () => busy(b, async () => { await api('/api/comic/config', { method: 'POST', body: { overrides: { [b.dataset.resetw]: null } } }); toast('已恢复默认'); V.comictree() })))
   }
 
   V.branches = async () => {
