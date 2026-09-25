@@ -83,7 +83,7 @@ const oddsOf = (p: number, rake: number) => Math.max(1.05, Math.floor(((1 - rake
 
 function segPayload(o: any) {
   const seg = COMIC.segments[o.id]
-  return JSON.stringify({ option_id: o.id, label: o.label, twist: !!o.twist, title: seg.title, mood: seg.mood, image: seg.image_url, video: seg.video_url || null, lines: seg.lines, next: o.next, ending_title: o.ending_title })
+  return JSON.stringify({ option_id: o.id, label: o.label, twist: !!o.twist, title: seg.title, mood: seg.mood, image: seg.image_url, video: seg.video_url || null, lines: seg.lines, ambience: seg.ambience, sfx: seg.sfx, sfx_at: seg.sfx_at, next: o.next, ending_title: o.ending_title })
 }
 
 async function openRound(env: Env, run: any, nodeId: string, p: { mode?: string; exclude?: string[]; rewindNo?: number; rewindOf?: string }) {
@@ -115,7 +115,7 @@ async function openRound(env: Env, run: any, nodeId: string, p: { mode?: string;
   return {
     round_id: rid, node_id: nodeId, depth: node.depth, question: node.question, mode, commit, rewind_no: p.rewindNo || 0,
     window_sec: cfg.window_sec, lock_at: lockAt, server_time: t, min_bet: Math.ceil(cfg.min_bet * taxMul), jitter: cfg.jitter,
-    options, preload: sorted.map((o) => ({ image: COMIC.segments[o.id].image_url, video: COMIC.segments[o.id].video_url || null, audio: COMIC.segments[o.id].lines?.[0]?.audio })),
+    options, preload: sorted.map((o) => ({ image: COMIC.segments[o.id].image_url, video: COMIC.segments[o.id].video_url || null, audio: COMIC.segments[o.id].lines?.[0]?.audio, ambience: COMIC.segments[o.id].ambience, sfx: COMIC.segments[o.id].sfx })),
     encrypted: slots.map((s, i) => ({ slot: i, iv: s.iv, ct: s.ct })),
     excluded: (p.exclude || []).map((id) => ({ id, label: NODES[nodeId].options.find((o: any) => o.id === id)?.label }))
   }

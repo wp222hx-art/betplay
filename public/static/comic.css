@@ -141,3 +141,11 @@
 .c-top,.c-depth,.c-chapter{flex-shrink:0}.comic-layer .spacer{min-height:0}
 .panel-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .dyn-badge{position:absolute;top:8px;right:8px}
+.cap .sp .av{width:18px;height:18px;border-radius:50%;background:var(--c);color:#0b0d17;font-size:10px;font-weight:900;display:inline-flex;align-items:center;justify-content:center}
+.cap .sp{color:#e7e9f3;font-weight:700}
+.cap .sp .emo{font-style:normal;font-size:10px;padding:0 6px;border-radius:6px;background:rgba(255,255,255,.1);color:#cbd2ee;font-weight:500}
+.cap[data-sp="渡鸦"]{border-color:rgba(255,93,115,.35)}
+.cap[data-sp="顾衡"]{border-color:rgba(229,231,235,.3)}
+.cap[data-sp="林夏"]{border-color:rgba(96,165,250,.35)}
+.cap[data-sp="陈默"]{border-color:rgba(245,196,81,.35)}
+.cap[data-sp="林小雨"]{border-color:rgba(251,191,36,.45)}

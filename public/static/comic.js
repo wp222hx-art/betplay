@@ -20,42 +20,56 @@
   const tone = (f, d = 0.08, type = 'sine', v = 0.12, when = 0) => { try { AC ||= new (window.AudioContext || window.webkitAudioContext)(); const o = AC.createOscillator(), g = AC.createGain(); o.type = type; o.frequency.value = f; g.gain.setValueAtTime(v, AC.currentTime + when); g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime + when + d); o.connect(g).connect(AC.destination); o.start(AC.currentTime + when); o.stop(AC.currentTime + when + d + 0.02) } catch {} }
   const SFX = { tick: () => tone(1200, 0.03, 'square', 0.03), heart: () => { tone(60, 0.12, 'sine', 0.35); tone(55, 0.12, 'sine', 0.25, 0.16) }, lock: () => { tone(180, 0.05, 'square', 0.22); tone(90, 0.12, 'triangle', 0.25, 0.04) }, win: () => [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.25, 'triangle', 0.1, i * 0.09)), lose: () => [300, 240].forEach((f, i) => tone(f, 0.3, 'sine', 0.08, i * 0.15)), sel: () => tone(880, 0.05, 'sine', 0.07), rewind: () => { for (let i = 0; i < 12; i++) tone(900 - i * 55, 0.06, 'sawtooth', 0.025, i * 0.12) } }
 
-  // ─── 氛围声场（WebAudio 实时合成：雨声 + 低频氛围 Pad + 悬念脉冲；零素材、零成本） ───
+  // ─── 混音引擎：ElevenLabs 环境音循环（场景间交叉淡化）+ 定点音效 + 对白闪避（ducking）+ 抉择张力层 ───
   const Amb = (() => {
-    let ctx, master, rainG, padG, pulseT, on = false, tension = 0
+    let ctx, master, ambBus, sfxBus, voiceBus, padG, pulseT, on = false, cur = null
+    const bufs = new Map()
+    const load = async (name) => {
+      if (!ctx) return null
+      if (bufs.has(name)) return bufs.get(name)
+      const p = fetch(`/static/comic/sfx/${name}.mp3`).then((r) => r.arrayBuffer()).then((a) => ctx.decodeAudioData(a)).catch(() => null)
+      bufs.set(name, p); return p
+    }
     const start = () => {
-      if (on || !S.bgm) return; on = true
+      if (on) return; on = true
       ctx = AC ||= new (window.AudioContext || window.webkitAudioContext)()
-      master = ctx.createGain(); master.gain.value = 0.0; master.connect(ctx.destination)
-      master.gain.linearRampToValueAtTime(0.9, ctx.currentTime + 2)
-      // 雨：粉噪 → 带通
-      const len = 2 * ctx.sampleRate, buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0)
-      let b0 = 0, b1 = 0, b2 = 0
-      for (let i = 0; i < len; i++) { const w = Math.random() * 2 - 1; b0 = 0.997 * b0 + w * 0.029; b1 = 0.985 * b1 + w * 0.032; b2 = 0.95 * b2 + w * 0.048; d[i] = (b0 + b1 + b2 + w * 0.02) * 0.6 }
-      const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true
-      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1800; bp.Q.value = 0.4
-      rainG = ctx.createGain(); rainG.gain.value = 0.10
-      src.connect(bp).connect(rainG).connect(master); src.start()
-      // Pad：小调和弦（A 小调）缓慢起伏
-      padG = ctx.createGain(); padG.gain.value = 0.035
-      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900
-      padG.connect(lp).connect(master)
-      ;[110, 130.81, 164.81, 220].forEach((f, i) => {
-        const o = ctx.createOscillator(); o.type = i % 2 ? 'triangle' : 'sawtooth'; o.frequency.value = f; o.detune.value = (i - 1.5) * 6
-        const g = ctx.createGain(); g.gain.value = 0.25
-        const lfo = ctx.createOscillator(); lfo.frequency.value = 0.05 + i * 0.03; const lg = ctx.createGain(); lg.gain.value = 0.18
-        lfo.connect(lg).connect(g.gain); o.connect(g).connect(padG); o.start(); lfo.start()
-      })
+      if (ctx.state === 'suspended') ctx.resume()
+      master = ctx.createGain(); master.gain.value = S.bgm ? 1 : 0; master.connect(ctx.destination)
+      ambBus = ctx.createGain(); ambBus.gain.value = 0.55; ambBus.connect(master)
+      sfxBus = ctx.createGain(); sfxBus.gain.value = 0.85; sfxBus.connect(master)
+      // 对白走 WebAudio：用于闪避环境音
+      const ms = ctx.createMediaElementSource(audio); voiceBus = ctx.createGain(); voiceBus.gain.value = 1
+      ms.connect(voiceBus).connect(ctx.destination)
+      audio.addEventListener('play', () => duck(true)); audio.addEventListener('pause', () => duck(false)); audio.addEventListener('ended', () => duck(false))
+      // 低频张力垫（只在抉择时抬起）
+      padG = ctx.createGain(); padG.gain.value = 0; const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 700; padG.connect(lp).connect(master)
+      ;[55, 82.41, 110, 130.81].forEach((f, i) => { const o = ctx.createOscillator(); o.type = i % 2 ? 'triangle' : 'sawtooth'; o.frequency.value = f; o.detune.value = (i - 1.5) * 7; const g = ctx.createGain(); g.gain.value = 0.22; o.connect(g).connect(padG); o.start() })
+      ;['rain_roof', 'rain_street', 'lock', 'reveal', 'rewind', 'heartbeat'].forEach(load)
     }
+    const duck = (d) => { if (!on) return; ambBus.gain.cancelScheduledValues(ctx.currentTime); ambBus.gain.linearRampToValueAtTime(d ? 0.22 : 0.55, ctx.currentTime + (d ? 0.15 : 0.9)) }
+    // 20s 素材 → 两路错位交叉淡化循环，听不出接缝
+    const ambience = async (name) => {
+      if (!on || !name || cur?.name === name) return
+      const buf = await load(name); if (!buf) return
+      const old = cur
+      const g = ctx.createGain(); g.gain.value = 0; g.connect(ambBus)
+      const period = buf.duration - 3, voices = []
+      const spawn = (t) => { const src = ctx.createBufferSource(); src.buffer = buf; const vg = ctx.createGain(); src.connect(vg).connect(g); vg.gain.setValueAtTime(0, t); vg.gain.linearRampToValueAtTime(1, t + 3); vg.gain.setValueAtTime(1, t + period); vg.gain.linearRampToValueAtTime(0, t + period + 3); src.start(t); src.stop(t + buf.duration); voices.push(src) }
+      let t = ctx.currentTime; spawn(t)
+      const timer = setInterval(() => { t += period; spawn(t); if (voices.length > 3) voices.shift() }, period * 1000)
+      g.gain.linearRampToValueAtTime(1, ctx.currentTime + 2.5)
+      cur = { name, g, timer, voices }
+      if (old) { old.g.gain.linearRampToValueAtTime(0, ctx.currentTime + 2.5); setTimeout(() => { clearInterval(old.timer); old.voices.forEach((v) => { try { v.stop() } catch {} }); old.g.disconnect() }, 2800) }
+    }
+    const sfx = async (name, vol = 1) => { if (!on || !name || name === 'none') return; const buf = await load(name); if (!buf) return; const s = ctx.createBufferSource(); s.buffer = buf; const g = ctx.createGain(); g.gain.value = vol; s.connect(g).connect(sfxBus); s.start() }
     const setTension = (t) => {
-      tension = t; if (!on) return
-      padG.gain.linearRampToValueAtTime(t ? 0.05 : 0.035, ctx.currentTime + 0.8)
-      clearInterval(pulseT)
-      if (t) pulseT = setInterval(() => { if (S.bgm) tone(55, 0.25, 'sine', 0.18) }, 900)
+      if (!on) return
+      padG.gain.linearRampToValueAtTime(t ? 0.05 : 0, ctx.currentTime + (t ? 1.5 : 0.6))
+      clearInterval(pulseT); if (t) { sfx('heartbeat', 0.5); pulseT = setInterval(() => sfx('heartbeat', 0.45), 3000) }
     }
-    const mood = (fx) => { if (on && fx === 'shake') { tone(45, 0.6, 'sawtooth', 0.2); rainG.gain.linearRampToValueAtTime(0.16, ctx.currentTime + 0.1); rainG.gain.linearRampToValueAtTime(0.10, ctx.currentTime + 2) } }
-    const toggle = (v) => { if (!on) return v && start(); master.gain.linearRampToValueAtTime(v ? 0.9 : 0, ctx.currentTime + 0.6); if (!v) clearInterval(pulseT) }
-    return { start, setTension, mood, toggle }
+    const mood = () => {}
+    const toggle = (v) => { if (!on) return v && start(); master.gain.linearRampToValueAtTime(v ? 1 : 0, ctx.currentTime + 0.6); if (!v) clearInterval(pulseT) }
+    return { start, ambience, sfx, setTension, mood, toggle, load }
   })()
 
   // ─── 分镜切换（双缓冲 + Ken Burns） ───
@@ -83,16 +97,19 @@
   }
   const panelFx = (c) => { front.classList.add(c); setTimeout(() => front.classList.remove(c), 600) }
 
-  // ─── 台词：逐字 + 配音同步 ───
+  // ─── 台词：逐字 + 配音同步（纯对白，角色色标 + 情绪标签） ───
+  const CAST = { 林夏: '#60a5fa', 陈默: '#f5c451', 渡鸦: '#ff5d73', 林小雨: '#fbbf24', 顾衡: '#e5e7eb' }
+  const EMO_ZH = { sad: '哽咽', angry: '怒', fearful: '惊惧', surprised: '震惊', happy: '笑', disgusted: '冷蔑' }
   async function speak(line, extra = '') {
-    const narr = line.speaker === '旁白'
+    const narr = false
     const chars = [...line.text].map((c) => `<span>${esc(c)}</span>`).join('')
     const box = document.createElement('div')
     box.className = 'cap' + (narr ? ' narr' : '')
-    box.innerHTML = `<div class="sp">${narr ? '<i class="fas fa-book-open"></i> 旁白' : `<i class="fas fa-comment"></i> ${esc(line.speaker)}`} ${S.voice && line.audio ? '<span class="wave"><i></i><i></i><i></i></span>' : ''}</div><div class="tx">${chars}</div>`
+    box.dataset.sp = line.speaker
+    box.innerHTML = `<div class="sp"><span class="av" style="--c:${CAST[line.speaker] || '#f5c451'}">${esc(line.speaker[0])}</span>${esc(line.speaker)}${line.emotion && line.emotion !== 'neutral' ? `<em class="emo">${EMO_ZH[line.emotion] || ''}</em>` : ''} ${S.voice && line.audio ? '<span class="wave"><i></i><i></i><i></i></span>' : ''}</div><div class="tx">${chars}</div>`
     const host = $('#cap-host'); host.innerHTML = ''; host.appendChild(box)
     const spans = box.querySelectorAll('.tx span')
-    const durMs = Math.max(1600, (line.dur || line.text.length * 0.22) * 1000)
+    const durMs = Math.max(900, (line.dur || line.text.length * 0.22) * 1000)
     let skip = false
     box.onclick = () => { skip = true }
     if (S.voice && line.audio) { audio.src = line.audio; audio.play().catch(() => {}) }
@@ -102,7 +119,7 @@
         const k = skip ? spans.length : Math.floor(((performance.now() - t0) / (durMs * 0.85)) * spans.length)
         spans.forEach((s, i) => i < k && s.classList.add('v'))
         if (skip) { audio.pause(); return res() }
-        if (performance.now() - t0 >= durMs + 350) return res()
+        if (performance.now() - t0 >= durMs + 180) return res()
         requestAnimationFrame(step)
       }
       step()
@@ -128,7 +145,15 @@
   async function playSegment(seg, opts = {}) {
     showPanel(seg.image_url || seg.image, opts.fx, seg.video_url || seg.video)
     frame(`${opts.header || ''}<div class="spacer"></div>${seg.title ? `<div class="seg-title">${esc(seg.title)}</div>` : ''}<div id="cap-host"></div>`)
-    for (const l of seg.lines || []) await speak(l)
+    Amb.ambience(seg.ambience)
+    const lines = seg.lines || []
+    for (const [i, l] of lines.entries()) {
+      if (seg.sfx && seg.sfx !== 'none' && i === Math.min(seg.sfx_at || 0, lines.length - 1)) {
+        Amb.sfx(seg.sfx)
+        if (/gunshot|explosion|thunder|glass_break/.test(seg.sfx)) panelFx('shake')
+      }
+      await speak(l)
+    }
   }
 
   // ─── 封面 ───
@@ -145,7 +170,7 @@
       <div class="lg">一夜之间，新港的命运系于一枚“星核”。每个抉择都在你下注之前锁定——你押的是人心。悔棋？可以。但故事会<b style="color:#d9c6ff">变成二选一</b>，或<b style="color:#d9c6ff">多出一个你没见过的选项</b>。</div>
       <div class="stats3"><div><b>${m.nodes}</b><span>抉择点</span></div><div><b>${regular}</b><span>常规分支</span></div><div><b>${twist}</b><span>悔棋隐藏支</span></div><div><b>${m.my_endings.length}/${m.total_endings}</b><span>我的结局</span></div></div>
       <button class="start2" id="st"><i class="fas fa-book-open"></i> 开始这一夜</button>
-      <div class="toggle"><label><input type="checkbox" id="tv" ${S.voice ? 'checked' : ''}> 配音</label><label><input type="checkbox" id="ta" ${S.auto ? 'checked' : ''}> 自动翻页</label><label><input type="checkbox" id="tb" ${S.bgm ? 'checked' : ''}> 雨声配乐</label></div></div>`)
+      <div class="toggle"><label><input type="checkbox" id="tv" ${S.voice ? 'checked' : ''}> 配音</label><label><input type="checkbox" id="ta" ${S.auto ? 'checked' : ''}> 自动翻页</label><label><input type="checkbox" id="tb" ${S.bgm ? 'checked' : ''}> 环境音效</label></div></div>`)
     $('#tv').onchange = (e) => { S.voice = e.target.checked; localStorage.df_voice = S.voice ? '1' : '0' }
     $('#ta').onchange = (e) => { S.auto = e.target.checked; localStorage.df_auto = S.auto ? '1' : '0' }
     $('#tb').onchange = (e) => { S.bgm = e.target.checked; localStorage.df_bgm = S.bgm ? '1' : '0'; Amb.toggle(S.bgm) }
@@ -153,14 +178,14 @@
   }
 
   async function start() {
-    SFX.sel()
+    SFX.sel(); Amb.start()
     try {
       const r = await api('/api/comic/start', { body: { nick } })
       S.run = r.run_id; S.balance = r.balance; S.round = null
       // 预载序章 + 第一抉择全部分镜
       r.prologue.forEach((p) => { preload(p.image_url); p.lines.forEach((l) => preA(l.audio)) })
       r.round.preload.forEach((p) => { preload(p.image); preA(p.audio) })
-      Amb.start(); renderSide()
+      renderSide()
       for (const [i, p] of r.prologue.entries()) await playSegment(p, { header: `<div class="c-chapter">序章 · ${i + 1}/${r.prologue.length}</div>` })
       decision(r.round)
     } catch (e) { toast(e.message) }
@@ -170,7 +195,7 @@
   function decision(rd, changed) {
     S.round = rd; S.sel = null; S.placed = false; S.offset = rd.server_time - Date.now()
     S.visited.add(rd.node_id)
-    rd.preload.forEach((p) => { preload(p.image); preA(p.audio); if (p.video && !cache.has(p.video)) { const l = document.createElement('link'); l.rel = 'preload'; l.as = 'video'; l.href = p.video; document.head.appendChild(l); cache.set(p.video, l) } })
+    rd.preload.forEach((p) => { preload(p.image); preA(p.audio); if (p.ambience) Amb.load(p.ambience); if (p.sfx) Amb.load(p.sfx); if (p.video && !cache.has(p.video)) { const l = document.createElement('link'); l.rel = 'preload'; l.as = 'video'; l.href = p.video; document.head.appendChild(l); cache.set(p.video, l) } })
     if (S.stake < rd.min_bet) S.stake = rd.min_bet
     SFX.heart(); panelFx('desat'); Amb.setTension(1)
     const modeTxt = { normal: '', binary: '<span style="color:#ff9aa8">⚔ 二选一变局</span>', plus: '<span style="color:#c4a8ff">✦ 新变数出现</span>', binary_plus: '<span style="color:#c4a8ff">⚔✦ 二选一 + 新变数</span>' }[rd.mode]
@@ -233,7 +258,7 @@
   async function reveal() {
     if (busy) return; busy = true
     try {
-      SFX.lock(); Amb.setTension(0)
+      SFX.lock(); Amb.sfx('lock'); Amb.setTension(0); setTimeout(() => Amb.sfx('reveal', 0.8), 450)
       L.insertAdjacentHTML('beforeend', '<div class="flash"></div><div class="stamp">LOCKED</div>')
       const st = await api(`/api/comic/rounds/${S.round.round_id}/settle`, { body: {} })
       const seg = await decrypt(S.round.encrypted[st.reveal.slot], st.reveal.key)
@@ -266,7 +291,7 @@
   }
 
   async function doRewind(rid, mode) {
-    SFX.rewind(); audio.pause()
+    SFX.rewind(); Amb.sfx('rewind'); audio.pause()
     L.insertAdjacentHTML('beforeend', '<div class="rewind-fx"></div><div class="rewind-clock"><i class="fas fa-clock-rotate-left"></i></div>')
     panelFx('desat')
     try {

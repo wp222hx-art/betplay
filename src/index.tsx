@@ -179,7 +179,7 @@ app.post('/api/comic/rounds/:id/settle', async (c) => { const b = await body(c);
 app.post('/api/comic/rounds/:id/rewind', async (c) => { const b = await body(c); return c.json(await Comic.rewind(c.env, { roundId: c.req.param('id'), userId: uidOf(c, b), mode: b.mode })) })
 app.post('/api/comic/rounds/:id/next', async (c) => { const b = await body(c); return c.json(await Comic.advance(c.env, { roundId: c.req.param('id'), userId: uidOf(c, b) })) })
 app.get('/api/comic/rounds/:id/verify', async (c) => c.json(await Comic.verify(c.env, c.req.param('id'))))
-app.get('/api/comic/tree', (c) => c.json({ series: Comic.COMIC.series, prologue: Comic.COMIC.prologue, nodes: Comic.COMIC.nodes, segments: Object.fromEntries(Object.entries<any>(Comic.COMIC.segments).map(([k, v]) => [k, { title: v.title, mood: v.mood, image_url: v.image_url, video_url: v.video_url || null, lines: v.lines }])) }))
+app.get('/api/comic/tree', (c) => c.json({ series: Comic.COMIC.series, prologue: Comic.COMIC.prologue, nodes: Comic.COMIC.nodes, segments: Object.fromEntries(Object.entries<any>(Comic.COMIC.segments).map(([k, v]) => [k, { title: v.title, mood: v.mood, image_url: v.image_url, video_url: v.video_url || null, lines: v.lines, ambience: v.ambience, sfx: v.sfx, sfx_at: v.sfx_at }])) }))
 app.get('/api/comic/config', async (c) => c.json(await Comic.getConfig(c.env)))
 app.post('/api/comic/config', async (c) => {
   const cfg = await Comic.setConfig(c.env, await body(c))

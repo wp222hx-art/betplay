@@ -9,11 +9,14 @@
 
 ## 🆕 对弈式漫剧《穹顶之下》（/comic）
 - **规模**：34 个抉择点（4 幕：1→3→9→21），75 条常规分支，34 条悔棋隐藏分支，63 个结局（其中 21 个是隐藏结局）
-- **媒体**：112 幅 GPT Image 2 分镜（以角色设定图做参考，锁定人物一致性），316 条配音（edge-tts，旁白 + 5 个角色音色），全部提前生成
+- **媒体**：112 幅 GPT Image 2 分镜（以角色设定图做参考，锁定人物一致性），全部提前生成
+- **V2 纯对白（没有旁白）**：LLM 把全部 112 段改写成纯对白，共 347 句，每句带情绪、语速、环境音和音效标签（`rewrite_dialogue.py` → `dialogue.json`）
+- **情感配音**：MiniMax Speech 2.8 HD 逐句按情绪合成，情绪包括 sad、angry、fearful、surprised、happy、disgusted、neutral，生成了 346 条（`produce_voice_v2.py`）。角色音色：林夏 Wise_Woman / 陈默 Determined_Man / 渡鸦 movie_trailer_deep / 顾衡 Elegant_Man / 林小雨 Lovely_Girl
+- **声场**：用 ElevenLabs 生成了 9 种环境底噪（屋顶雨、街雨、夜城、室内、机房、楼梯间、会议室、警报、黎明风）和 14 种音效（枪声、爆炸、雷、碎玻璃、狂奔、电梯、摔门、芯片、心跳、狙击上膛、人群惊呼，以及锁盘、揭晓、悔棋），由 `produce_sfx.py` 生成
+- **混音**：用 WebAudio 做了一个小混音台。底噪用双源交叠无缝循环，换场景时 2.5 秒交叉淡变；角色说话时底噪自动压低，说完再恢复；抉择时加紧张铺底和心跳；枪声、爆炸这类音效会让画面震动
 - **机制概率**：每局概率 = 基础剧情权重 → 后台覆盖 → 悔棋变局 → 种子扰动（±jitter），所以同一抉择每次开局的概率和赔率都不同；公式可复算验证
 - **悔棋两种变局**：⚔ 二选一（排除刚发生的结果，剩下的重算概率和赔率）；✦ 新变数（多出一个隐藏选项，概率重新分配）。两种可以叠加
 - **动态漫**：已用 Seedance 2.0 把关键分镜做成 5 秒动态画面（序章首镜 P1、首幕揭晓 O_RA）；播放器会自动用视频替换静帧，加载失败时退回静帧。可以继续用 `scripts/comic/produce_video.py <段落ID...>` 扩充，约 1,200 积分/段
-- **氛围声场**：雨声、低频氛围和弦、抉择时的心跳脉冲，都用 WebAudio 实时合成，不需要素材，封面可以开关
 - **后台**：`/console#comic`（机制参数 + 全树蒙特卡洛），`/console#comictree`（分支树、分镜预览、试听、按节点覆盖权重）
 - **API**：`/api/comic/meta|tree|start|rounds/:id/bet|settle|rewind{mode}|next|verify|config|simulate|stats`
 - **生产脚本**：`scripts/comic/gen_story.py`（LLM 剧情树）→ `normalize.py` → `produce.py`（图 + 音，可断点续跑）→ `build_data.py`
