@@ -12,6 +12,11 @@ for sid, seg in c['segments'].items():
     img = f'/static/comic/img/{sid}.webp'
     seg['lines'] = lines
     seg['image_url'] = img if os.path.exists(os.path.join(root, 'public' + img)) else None
+    vid = f'/static/comic/video/{sid}.mp4'
+    seg['video_url'] = vid if os.path.exists(os.path.join(root, 'public' + vid)) else None
+    # 无声台词（如“……”）不配音，按停顿时长呈现
+    for l in lines:
+        if not l['audio']: l['dur'] = max(l['dur'], 1.2)
     seg.pop('narration', None); seg.pop('dialogue', None)
 json.dump(c, open(os.path.join(root, 'src/comic/data.json'), 'w'), ensure_ascii=False)
 print('segments', len(c['segments']), 'with image', sum(1 for s in c['segments'].values() if s['image_url']))

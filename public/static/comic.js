@@ -12,7 +12,7 @@
     const j = await r.json(); if (!r.ok) throw new Error(j.message || j.error); return j
   }
   const toast = (m) => { const d = document.createElement('div'); d.className = 'tst'; d.textContent = m; document.body.appendChild(d); setTimeout(() => d.remove(), 2600) }
-  const S = { meta: null, tree: null, run: null, round: null, balance: 0, sel: null, stake: 50, placed: false, path: [], log: [], voice: localStorage.df_voice !== '0', auto: localStorage.df_auto !== '0', offset: 0, visited: new Set() }
+  const S = { meta: null, tree: null, run: null, round: null, balance: 0, sel: null, stake: 50, placed: false, path: [], log: [], voice: localStorage.df_voice !== '0', bgm: localStorage.df_bgm !== '0', auto: localStorage.df_auto !== '0', offset: 0, visited: new Set() }
 
   // ─── 音频 ───
   const audio = new Audio(); audio.preload = 'auto'
@@ -20,18 +20,66 @@
   const tone = (f, d = 0.08, type = 'sine', v = 0.12, when = 0) => { try { AC ||= new (window.AudioContext || window.webkitAudioContext)(); const o = AC.createOscillator(), g = AC.createGain(); o.type = type; o.frequency.value = f; g.gain.setValueAtTime(v, AC.currentTime + when); g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime + when + d); o.connect(g).connect(AC.destination); o.start(AC.currentTime + when); o.stop(AC.currentTime + when + d + 0.02) } catch {} }
   const SFX = { tick: () => tone(1200, 0.03, 'square', 0.03), heart: () => { tone(60, 0.12, 'sine', 0.35); tone(55, 0.12, 'sine', 0.25, 0.16) }, lock: () => { tone(180, 0.05, 'square', 0.22); tone(90, 0.12, 'triangle', 0.25, 0.04) }, win: () => [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.25, 'triangle', 0.1, i * 0.09)), lose: () => [300, 240].forEach((f, i) => tone(f, 0.3, 'sine', 0.08, i * 0.15)), sel: () => tone(880, 0.05, 'sine', 0.07), rewind: () => { for (let i = 0; i < 12; i++) tone(900 - i * 55, 0.06, 'sawtooth', 0.025, i * 0.12) } }
 
+  // ─── 氛围声场（WebAudio 实时合成：雨声 + 低频氛围 Pad + 悬念脉冲；零素材、零成本） ───
+  const Amb = (() => {
+    let ctx, master, rainG, padG, pulseT, on = false, tension = 0
+    const start = () => {
+      if (on || !S.bgm) return; on = true
+      ctx = AC ||= new (window.AudioContext || window.webkitAudioContext)()
+      master = ctx.createGain(); master.gain.value = 0.0; master.connect(ctx.destination)
+      master.gain.linearRampToValueAtTime(0.9, ctx.currentTime + 2)
+      // 雨：粉噪 → 带通
+      const len = 2 * ctx.sampleRate, buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0)
+      let b0 = 0, b1 = 0, b2 = 0
+      for (let i = 0; i < len; i++) { const w = Math.random() * 2 - 1; b0 = 0.997 * b0 + w * 0.029; b1 = 0.985 * b1 + w * 0.032; b2 = 0.95 * b2 + w * 0.048; d[i] = (b0 + b1 + b2 + w * 0.02) * 0.6 }
+      const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true
+      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1800; bp.Q.value = 0.4
+      rainG = ctx.createGain(); rainG.gain.value = 0.10
+      src.connect(bp).connect(rainG).connect(master); src.start()
+      // Pad：小调和弦（A 小调）缓慢起伏
+      padG = ctx.createGain(); padG.gain.value = 0.035
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900
+      padG.connect(lp).connect(master)
+      ;[110, 130.81, 164.81, 220].forEach((f, i) => {
+        const o = ctx.createOscillator(); o.type = i % 2 ? 'triangle' : 'sawtooth'; o.frequency.value = f; o.detune.value = (i - 1.5) * 6
+        const g = ctx.createGain(); g.gain.value = 0.25
+        const lfo = ctx.createOscillator(); lfo.frequency.value = 0.05 + i * 0.03; const lg = ctx.createGain(); lg.gain.value = 0.18
+        lfo.connect(lg).connect(g.gain); o.connect(g).connect(padG); o.start(); lfo.start()
+      })
+    }
+    const setTension = (t) => {
+      tension = t; if (!on) return
+      padG.gain.linearRampToValueAtTime(t ? 0.05 : 0.035, ctx.currentTime + 0.8)
+      clearInterval(pulseT)
+      if (t) pulseT = setInterval(() => { if (S.bgm) tone(55, 0.25, 'sine', 0.18) }, 900)
+    }
+    const mood = (fx) => { if (on && fx === 'shake') { tone(45, 0.6, 'sawtooth', 0.2); rainG.gain.linearRampToValueAtTime(0.16, ctx.currentTime + 0.1); rainG.gain.linearRampToValueAtTime(0.10, ctx.currentTime + 2) } }
+    const toggle = (v) => { if (!on) return v && start(); master.gain.linearRampToValueAtTime(v ? 0.9 : 0, ctx.currentTime + 0.6); if (!v) clearInterval(pulseT) }
+    return { start, setTension, mood, toggle }
+  })()
+
   // ─── 分镜切换（双缓冲 + Ken Burns） ───
   let front = PA, kbi = 0
   const cache = new Map()
   const preload = (src) => { if (!src || cache.has(src)) return; const i = new Image(); i.src = src; cache.set(src, i) }
   const preA = (src) => { if (src && !cache.has(src)) { const a = new Audio(); a.preload = 'auto'; a.src = src; cache.set(src, a) } }
-  function showPanel(src, fx = '') {
+  function showPanel(src, fx = '', video = null) {
     const back = front === PA ? PB : PA
     back.className = 'panel'
+    back.innerHTML = ''
     back.style.backgroundImage = src ? `url(${src})` : 'linear-gradient(160deg,#1b1030,#05060c)'
+    if (video) {
+      // 动态漫：Seedance 图生视频（静帧兜底：视频加载失败时仍显示分镜）
+      const v = document.createElement('video')
+      Object.assign(v, { src: video, muted: true, playsInline: true, loop: true, autoplay: true, poster: src || '' })
+      v.className = 'panel-video'; back.appendChild(v); v.play().catch(() => {})
+    }
     void back.offsetWidth
-    back.classList.add('show', 'kb' + ((kbi++ % 4) + 1)); if (fx) back.classList.add(fx)
-    front.classList.remove('show'); front = back
+    back.classList.add('show'); if (!video) back.classList.add('kb' + ((kbi++ % 4) + 1)); if (fx) back.classList.add(fx)
+    front.classList.remove('show')
+    const old = front; setTimeout(() => { if (!old.classList.contains('show')) old.innerHTML = '' }, 1200)
+    front = back
+    Amb.mood(fx)
   }
   const panelFx = (c) => { front.classList.add(c); setTimeout(() => front.classList.remove(c), 600) }
 
@@ -78,7 +126,7 @@
 
   // ─── 播放一个分镜段落 ───
   async function playSegment(seg, opts = {}) {
-    showPanel(seg.image_url || seg.image, opts.fx)
+    showPanel(seg.image_url || seg.image, opts.fx, seg.video_url || seg.video)
     frame(`${opts.header || ''}<div class="spacer"></div>${seg.title ? `<div class="seg-title">${esc(seg.title)}</div>` : ''}<div id="cap-host"></div>`)
     for (const l of seg.lines || []) await speak(l)
   }
@@ -97,9 +145,10 @@
       <div class="lg">一夜之间，新港的命运系于一枚“星核”。每个抉择都在你下注之前锁定——你押的是人心。悔棋？可以。但故事会<b style="color:#d9c6ff">变成二选一</b>，或<b style="color:#d9c6ff">多出一个你没见过的选项</b>。</div>
       <div class="stats3"><div><b>${m.nodes}</b><span>抉择点</span></div><div><b>${regular}</b><span>常规分支</span></div><div><b>${twist}</b><span>悔棋隐藏支</span></div><div><b>${m.my_endings.length}/${m.total_endings}</b><span>我的结局</span></div></div>
       <button class="start2" id="st"><i class="fas fa-book-open"></i> 开始这一夜</button>
-      <div class="toggle"><label><input type="checkbox" id="tv" ${S.voice ? 'checked' : ''}> 配音</label><label><input type="checkbox" id="ta" ${S.auto ? 'checked' : ''}> 自动翻页</label></div></div>`)
+      <div class="toggle"><label><input type="checkbox" id="tv" ${S.voice ? 'checked' : ''}> 配音</label><label><input type="checkbox" id="ta" ${S.auto ? 'checked' : ''}> 自动翻页</label><label><input type="checkbox" id="tb" ${S.bgm ? 'checked' : ''}> 雨声配乐</label></div></div>`)
     $('#tv').onchange = (e) => { S.voice = e.target.checked; localStorage.df_voice = S.voice ? '1' : '0' }
     $('#ta').onchange = (e) => { S.auto = e.target.checked; localStorage.df_auto = S.auto ? '1' : '0' }
+    $('#tb').onchange = (e) => { S.bgm = e.target.checked; localStorage.df_bgm = S.bgm ? '1' : '0'; Amb.toggle(S.bgm) }
     $('#st').onclick = start
   }
 
@@ -111,7 +160,7 @@
       // 预载序章 + 第一抉择全部分镜
       r.prologue.forEach((p) => { preload(p.image_url); p.lines.forEach((l) => preA(l.audio)) })
       r.round.preload.forEach((p) => { preload(p.image); preA(p.audio) })
-      renderSide()
+      Amb.start(); renderSide()
       for (const [i, p] of r.prologue.entries()) await playSegment(p, { header: `<div class="c-chapter">序章 · ${i + 1}/${r.prologue.length}</div>` })
       decision(r.round)
     } catch (e) { toast(e.message) }
@@ -121,9 +170,9 @@
   function decision(rd, changed) {
     S.round = rd; S.sel = null; S.placed = false; S.offset = rd.server_time - Date.now()
     S.visited.add(rd.node_id)
-    rd.preload.forEach((p) => { preload(p.image); preA(p.audio) })
+    rd.preload.forEach((p) => { preload(p.image); preA(p.audio); if (p.video && !cache.has(p.video)) { const l = document.createElement('link'); l.rel = 'preload'; l.as = 'video'; l.href = p.video; document.head.appendChild(l); cache.set(p.video, l) } })
     if (S.stake < rd.min_bet) S.stake = rd.min_bet
-    SFX.heart(); panelFx('desat')
+    SFX.heart(); panelFx('desat'); Amb.setTension(1)
     const modeTxt = { normal: '', binary: '<span style="color:#ff9aa8">⚔ 二选一变局</span>', plus: '<span style="color:#c4a8ff">✦ 新变数出现</span>', binary_plus: '<span style="color:#c4a8ff">⚔✦ 二选一 + 新变数</span>' }[rd.mode]
     const maxS = Math.max(rd.min_bet, Math.min(S.balance, 1000))
     frame(`<div class="c-chapter">第 ${rd.depth} 幕 · 抉择${rd.rewind_no ? ` · 悔棋 ${rd.rewind_no}` : ''}</div><div class="spacer"></div>
@@ -184,7 +233,7 @@
   async function reveal() {
     if (busy) return; busy = true
     try {
-      SFX.lock()
+      SFX.lock(); Amb.setTension(0)
       L.insertAdjacentHTML('beforeend', '<div class="flash"></div><div class="stamp">LOCKED</div>')
       const st = await api(`/api/comic/rounds/${S.round.round_id}/settle`, { body: {} })
       const seg = await decrypt(S.round.encrypted[st.reveal.slot], st.reveal.key)

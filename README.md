@@ -12,6 +12,8 @@
 - **媒体**：112 幅 GPT Image 2 分镜（以角色设定图做参考，锁定人物一致性），316 条配音（edge-tts，旁白 + 5 个角色音色），全部提前生成
 - **机制概率**：每局概率 = 基础剧情权重 → 后台覆盖 → 悔棋变局 → 种子扰动（±jitter），所以同一抉择每次开局的概率和赔率都不同；公式可复算验证
 - **悔棋两种变局**：⚔ 二选一（排除刚发生的结果，剩下的重算概率和赔率）；✦ 新变数（多出一个隐藏选项，概率重新分配）。两种可以叠加
+- **动态漫**：已用 Seedance 2.0 把关键分镜做成 5 秒动态画面（序章首镜 P1、首幕揭晓 O_RA）；播放器会自动用视频替换静帧，加载失败时退回静帧。可以继续用 `scripts/comic/produce_video.py <段落ID...>` 扩充，约 1,200 积分/段
+- **氛围声场**：雨声、低频氛围和弦、抉择时的心跳脉冲，都用 WebAudio 实时合成，不需要素材，封面可以开关
 - **后台**：`/console#comic`（机制参数 + 全树蒙特卡洛），`/console#comictree`（分支树、分镜预览、试听、按节点覆盖权重）
 - **API**：`/api/comic/meta|tree|start|rounds/:id/bet|settle|rewind{mode}|next|verify|config|simulate|stats`
 - **生产脚本**：`scripts/comic/gen_story.py`（LLM 剧情树）→ `normalize.py` → `produce.py`（图 + 音，可断点续跑）→ `build_data.py`
