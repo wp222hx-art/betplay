@@ -1,0 +1,7 @@
+{
+  "compilerOptions": {
+    "target": "ESNext", "module": "ESNext", "moduleResolution": "Bundler",
+    "strict": false, "skipLibCheck": true, "lib": ["ESNext", "WebWorker"],
+    "jsx": "react-jsx", "jsxImportSource": "hono/jsx"
+  }
+}

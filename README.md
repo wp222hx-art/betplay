@@ -1,0 +1,57 @@
+# DreamForge · Cash 剧场｜对弈式交互剧平台（7-Agent 协作版 MVP）
+
+> 结果先锁定，再开盘；剧情先生长，再揭晓。
+
+## 项目概述
+- **目标**：把 PRD《功能设计与系统工作流总纲 V1.0》落地为可玩、可运营、可验证的平台 MVP
+- **示范剧**：《天台》：3 场景 × 3 个 Cash 节点 × 9 个结局簇 × 27+ 变体，另有 3 个结局（内容由 LLM 生成）
+- **架构文档**：`docs/ARCHITECTURE.md`
+
+## 入口
+| 页面 | 路径 |
+|---|---|
+| 玩家端 Cash Stage | `/` |
+| 运营后台 Forge Console | `/console`（`#monitor #branches #script #derive #regulate #clips #pool #video #economy #rounds #tasks #qa`） |
+| 7-Agent 指挥中心 | `/agents` |
+
+## 主要 API
+- A1 `GET /api/blueprint` `GET /api/agents` `GET /api/agents/runs`
+- A4 `POST /api/rounds/open {node_id, mode:solo|arena}` → `/:id/bet {outcome_id, amount, idem_key}` → `/:id/cancel` → `/:id/settle` → `/:id/rewind`；`GET /:id/verify`；`GET /:id/live`；`POST /api/agents/4/simulate`
+- A2 `POST /api/agents/2/generate-variants {outcome_id,count}` `POST /api/agents/2/replenish` `GET /api/agents/2/water`
+- A3 `POST /api/agents/3/selftest` `GET /api/agents/3/video-models?tier=` `POST /api/agents/3/predictive {tier,limit,dry_run}` `POST /api/agents/3/video`
+- A6 `GET /api/console/overview|branches|script|tasks|rounds` `PATCH /api/console/nodes/:id` `PATCH /api/console/variants/:id`
+- A7 `POST /api/agents/7/derive` `POST /api/agents/7/approve` `POST /api/agents/7/poems` `GET /api/agents/7/regulate` `POST /api/agents/7/signals` `GET /api/agents/7/clip-pairs` `POST /api/agents/7/clip-pairs/apply`
+- 玩家 `GET /api/series/:id` `GET /api/me` `POST /api/me/faucet` `POST /api/me/limits`
+
+## 已完成
+- DFP 七态状态机、Commit-Reveal、事件哈希链、Branch Registry 去重、CAS 局级锁
+- 复式记账（零差错校验）、幂等下注、2 秒撤销、日限额/冷静期/自我排除、悔棋税 ×1.5（最多 2 次）
+- Solo 固定赔率与 Arena 全网彩池（parimutuel，实时赔率跳动）
+- 专属播放器：程序化雨夜镜头、节点冻结预告、倒计时环、WebAudio 音效、本地 AES-GCM 解密揭晓、筹码飞行动画、滑动悔棋 + 倒带、三步公平验证（浏览器本地 HMAC 复算）、战报卡、结局图鉴
+- Model Gateway：能力路由、reasoning_effort 分级、熔断、兜底模板、任务记账
+- 变体生成：LLM 生成 → 去重 → 评分 → 入池；WF-05 水位补货
+- 视频模型五维选型 + 预判生成（配置 FAL_KEY 后真实提交；未配置时降级为 motion-still 程序化渲染）
+- WF-06 剧情延展（六维评分，采纳后写入画布，剧场立即可玩）、七绝格律校验 + Critic 重写
+- 全网对弈监管（分歧度、一边倒、偏差、分裂）与对弈片对优化
+- Agent-3 的 11 项自动化验收，以及 Playwright UI 全流程测试（`tests/ui_play.py`）
+
+## 未实现 / 下一步
+1. 真实视频：配置 `FAL_KEY` 后接入队列轮询回调（目前只提交，还没做结果拉取 webhook）
+2. Duel 双人盲提交、真金 Cash 与 KYC（需牌照区）
+3. 外部平台（抖音 / 小红书 / B站）真实信号采集 API（目前是注入接口 + 模拟数据）
+4. RBAC 与 Four-Eyes 双人复核、生产 HSM
+5. 部署到 Cloudflare Pages（先创建 D1，并用 wrangler secret 设置 OPENAI_API_KEY / OPENAI_BASE_URL）
+
+## 本地开发
+```bash
+npm run build
+npx wrangler d1 migrations apply webapp-production --local
+pm2 start ecosystem.config.cjs
+node tests/e2e.mjs            # API 验收
+python3 tests/ui_play.py      # 浏览器全流程
+```
+
+## 技术栈
+Hono + Cloudflare Pages/Workers + D1 · Tailwind CDN · Chart.js · Web Crypto · Canvas 2D · WebAudio · OpenAI 兼容网关（gpt-5 系列）
+
+**状态**：沙盒运行中，尚未部署到生产环境。最后更新：2026-09-25

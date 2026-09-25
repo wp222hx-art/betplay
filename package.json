@@ -1,0 +1,23 @@
+{
+  "name": "webapp",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "wrangler pages dev dist",
+    "dev:d1": "wrangler pages dev dist --d1=webapp-production --local --ip 0.0.0.0 --port 3000",
+    "db:migrate:local": "wrangler d1 migrations apply webapp-production --local",
+    "db:seed": "wrangler d1 execute webapp-production --local --file=./seed.sql",
+    "db:reset": "rm -rf .wrangler/state/v3/d1 && npm run db:migrate:local && npm run db:seed",
+    "clean-port": "fuser -k 3000/tcp 2>/dev/null || true",
+    "test": "node tests/e2e.mjs"
+  },
+  "dependencies": { "hono": "^4.6.0" },
+  "devDependencies": {
+    "@hono/vite-build": "^1.2.0",
+    "@hono/vite-dev-server": "^0.18.0",
+    "vite": "^6.0.0",
+    "wrangler": "^4.0.0",
+    "typescript": "^5.6.0"
+  }
+}
