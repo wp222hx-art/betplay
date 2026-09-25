@@ -97,34 +97,62 @@
   }
   const panelFx = (c) => { front.classList.add(c); setTimeout(() => front.classList.remove(c), 600) }
 
-  // ─── 台词：逐字 + 配音同步（纯对白，角色色标 + 情绪标签） ───
-  const CAST = { 林夏: '#60a5fa', 陈默: '#f5c451', 渡鸦: '#ff5d73', 林小雨: '#fbbf24', 顾衡: '#e5e7eb' }
+  // ─── 对白舞台：角色立绘（说话的人高亮 + 声纹）+ 时间轴字幕，由整段连续对白轨驱动 ───
+  const CASTX = () => S.tree?.cast || {}
   const EMO_ZH = { sad: '哽咽', angry: '怒', fearful: '惊惧', surprised: '震惊', happy: '笑', disgusted: '冷蔑' }
-  async function speak(line, extra = '') {
-    const narr = false
-    const chars = [...line.text].map((c) => `<span>${esc(c)}</span>`).join('')
-    const box = document.createElement('div')
-    box.className = 'cap' + (narr ? ' narr' : '')
-    box.dataset.sp = line.speaker
-    box.innerHTML = `<div class="sp"><span class="av" style="--c:${CAST[line.speaker] || '#f5c451'}">${esc(line.speaker[0])}</span>${esc(line.speaker)}${line.emotion && line.emotion !== 'neutral' ? `<em class="emo">${EMO_ZH[line.emotion] || ''}</em>` : ''} ${S.voice && line.audio ? '<span class="wave"><i></i><i></i><i></i></span>' : ''}</div><div class="tx">${chars}</div>`
-    const host = $('#cap-host'); host.innerHTML = ''; host.appendChild(box)
-    const spans = box.querySelectorAll('.tx span')
-    const durMs = Math.max(900, (line.dur || line.text.length * 0.22) * 1000)
-    let skip = false
-    box.onclick = () => { skip = true }
-    if (S.voice && line.audio) { audio.src = line.audio; audio.play().catch(() => {}) }
-    const t0 = performance.now()
-    await new Promise((res) => {
+  const colorOf = (sp) => CASTX()[sp]?.color || '#f5c451'
+  function stageHtml(lines) {
+    const who = [...new Set((lines || []).map((l) => l.speaker))].filter((x) => CASTX()[x])
+    const L0 = who.filter((w) => CASTX()[w].side === 'L'), R0 = who.filter((w) => CASTX()[w].side !== 'L')
+    const pic = (w) => `<div class="cst" data-w="${esc(w)}" style="--c:${colorOf(w)}"><img src="${CASTX()[w].img}" alt="${esc(w)}"><b>${esc(w)}</b></div>`
+    return `<div class="cast-stage" id="cast-stage"><div class="cs-l">${L0.map(pic).join('')}</div><div class="cs-r">${R0.map(pic).join('')}</div></div><div id="cap-host"></div>`
+  }
+  function showCue(l, host = $('#cap-host')) {
+    if (!host) return null
+    document.querySelectorAll('#cast-stage .cst').forEach((e) => e.classList.toggle('on', e.dataset.w === l.speaker))
+    const side = CASTX()[l.speaker]?.side === 'L' ? 'l' : 'r'
+    host.innerHTML = `<div class="cap v3 ${side}" style="--c:${colorOf(l.speaker)}"><div class="sp"><span class="nm">${esc(l.speaker)}</span>${l.phone ? '<em class="emo ph"><i class="fas fa-headset"></i> 通讯</em>' : ''}${l.emotion && EMO_ZH[l.emotion] ? `<em class="emo">${EMO_ZH[l.emotion]}</em>` : ''}<span class="wave"><i></i><i></i><i></i></span></div><div class="tx">${[...l.text].map((c) => `<span>${esc(c)}</span>`).join('')}</div></div>`
+    return host.querySelectorAll('.tx span')
+  }
+  // 按时间轴播放一条对白轨（段落或抉择口播）；没有配音时按时长走同一条时间轴
+  let playTok = 0
+  function playTrack(track, dur, lines, opt = {}) {
+    const tok = ++playTok
+    return new Promise((res) => {
+      const useAudio = S.voice && track
+      let t0 = performance.now(), cur = -1, spans = null, fired = false, done = false, skipTo = null
+      const clock = () => (useAudio ? audio.currentTime : (performance.now() - t0) / 1000)
+      const finish = () => { if (done) return; done = true; host && (host.onclick = null); res() }
+      const host = opt.host || $('#cap-host')
+      if (host) host.onclick = () => { // 点一下：跳到下一句
+        const nx = lines[cur + 1]
+        if (!nx) { if (useAudio) audio.pause(); return finish() }
+        if (useAudio) audio.currentTime = nx.start; else t0 = performance.now() - nx.start * 1000
+      }
+      if (useAudio) { audio.src = track; audio.currentTime = 0; audio.play().catch(() => { t0 = performance.now() }) ; audio.onended = finish }
       const step = () => {
-        const k = skip ? spans.length : Math.floor(((performance.now() - t0) / (durMs * 0.85)) * spans.length)
-        spans.forEach((s, i) => i < k && s.classList.add('v'))
-        if (skip) { audio.pause(); return res() }
-        if (performance.now() - t0 >= durMs + 180) return res()
+        if (tok !== playTok || done) return finish()
+        const t = clock()
+        let k = -1; for (let i = 0; i < lines.length; i++) if (t >= lines[i].start - 0.05) k = i
+        if (k !== cur && k >= 0) { cur = k; spans = showCue(lines[k], host) }
+        if (spans && cur >= 0) { const l = lines[cur], f = Math.min(1, (t - l.start) / Math.max(0.4, (l.end - l.start) * 0.9)); const n = Math.floor(f * spans.length); spans.forEach((s, i) => i < n && s.classList.add('v')); host?.querySelector('.cap')?.classList.toggle('talk', t < l.end) }
+        if (!fired && opt.sfx && t >= (opt.sfx_t ?? 0)) { fired = true; opt.onSfx?.() }
+        if (t >= dur + 0.05 || (!useAudio && t >= dur)) { if (useAudio) audio.pause(); return finish() }
+        if (useAudio && audio.paused && audio.readyState >= 2 && t > 0.3 && !audio.ended) audio.play().catch(() => {})
         requestAnimationFrame(step)
       }
-      step()
+      requestAnimationFrame(step)
     })
-    if (!S.auto && !skip) await new Promise((r) => { box.onclick = r; box.insertAdjacentHTML('beforeend', '<div class="c-tap" style="color:#888;margin:4px 0 0;text-align:right">点击继续 ▸</div>') })
+  }
+  const stopVoice = () => { playTok++; audio.pause() }
+
+  // V2 兼容：逐句（没有连续轨时使用）
+  async function speak(line) {
+    const spans = showCue(line)
+    const durMs = Math.max(900, (line.dur || line.text.length * 0.22) * 1000)
+    if (S.voice && line.audio) { audio.src = line.audio; audio.play().catch(() => {}) }
+    const t0 = performance.now()
+    await new Promise((res) => { const step = () => { const k = Math.floor(((performance.now() - t0) / (durMs * 0.85)) * spans.length); spans.forEach((s, i) => i < k && s.classList.add('v')); if (performance.now() - t0 >= durMs + 120) return res(); requestAnimationFrame(step) }; step() })
   }
 
   const hud = () => {
@@ -141,19 +169,19 @@
   }
   const setBal = (v) => { S.balance = v; const e = $('#bal'); if (e) e.textContent = v; renderSide() }
 
-  // ─── 播放一个分镜段落 ───
+  // ─── 播放一个分镜段落：一条连续对白轨，字幕/立绘/音效都挂在同一时间轴上 ───
   async function playSegment(seg, opts = {}) {
     showPanel(seg.image_url || seg.image, opts.fx, seg.video_url || seg.video)
-    frame(`${opts.header || ''}<div class="spacer"></div>${seg.title ? `<div class="seg-title">${esc(seg.title)}</div>` : ''}<div id="cap-host"></div>`)
-    Amb.ambience(seg.ambience)
     const lines = seg.lines || []
-    for (const [i, l] of lines.entries()) {
-      if (seg.sfx && seg.sfx !== 'none' && i === Math.min(seg.sfx_at || 0, lines.length - 1)) {
-        Amb.sfx(seg.sfx)
-        if (/gunshot|explosion|thunder|glass_break/.test(seg.sfx)) panelFx('shake')
-      }
-      await speak(l)
+    frame(`${opts.header || ''}<div class="spacer"></div>${seg.title ? `<div class="seg-title">${esc(seg.title)}</div>` : ''}${stageHtml(lines)}`)
+    Amb.ambience(seg.ambience)
+    const hit = () => { Amb.sfx(seg.sfx); if (/gunshot|explosion|thunder|glass_break/.test(seg.sfx)) panelFx('shake') }
+    if (seg.track) {
+      await playTrack(seg.track, seg.track_dur, lines, { sfx: seg.sfx && seg.sfx !== 'none', sfx_t: seg.sfx_t, onSfx: hit })
+    } else {
+      for (const [i, l] of lines.entries()) { if (seg.sfx && i === Math.min(seg.sfx_at || 0, lines.length - 1)) hit(); await speak(l) }
     }
+    if (!S.auto) await new Promise((r) => { const h = $('#cap-host'); if (!h) return r(); h.insertAdjacentHTML('beforeend', '<div class="c-tap">点击继续 ▸</div>'); h.onclick = r })
   }
 
   // ─── 封面 ───
@@ -183,7 +211,7 @@
       const r = await api('/api/comic/start', { body: { nick } })
       S.run = r.run_id; S.balance = r.balance; S.round = null
       // 预载序章 + 第一抉择全部分镜
-      r.prologue.forEach((p) => { preload(p.image_url); p.lines.forEach((l) => preA(l.audio)) })
+      r.prologue.forEach((p) => { preload(p.image_url); preA(p.track); (p.lines || []).forEach((l) => preA(l.audio)) }); preA(r.round.cue?.track)
       r.round.preload.forEach((p) => { preload(p.image); preA(p.audio) })
       renderSide()
       for (const [i, p] of r.prologue.entries()) await playSegment(p, { header: `<div class="c-chapter">序章 · ${i + 1}/${r.prologue.length}</div>` })
@@ -217,6 +245,7 @@
         <div style="text-align:center;margin-top:3px"><button class="link2" id="watch">不押，直接看结果 →</button></div>
       </div>`)
     if (changed) toast(`悔棋生效：${changed.label} —— ${changed.desc}`)
+    if (rd.cue && !changed) { const qh = document.createElement('div'); qh.id = 'cue-host'; qh.className = 'cue-host'; $('#qc').before(qh); playTrack(rd.cue.track, rd.cue.dur, rd.cue.cues, { host: qh }).then(() => qh.classList.add('fade')) }
     const qc = $('#qc')
     const refresh = () => {
       qc.querySelectorAll('.opt2').forEach((e) => e.classList.toggle('sel', e.dataset.o === S.sel))
@@ -258,7 +287,7 @@
   async function reveal() {
     if (busy) return; busy = true
     try {
-      SFX.lock(); Amb.sfx('lock'); Amb.setTension(0); setTimeout(() => Amb.sfx('reveal', 0.8), 450)
+      stopVoice(); SFX.lock(); Amb.sfx('lock'); Amb.setTension(0); setTimeout(() => Amb.sfx('reveal', 0.8), 450)
       L.insertAdjacentHTML('beforeend', '<div class="flash"></div><div class="stamp">LOCKED</div>')
       const st = await api(`/api/comic/rounds/${S.round.round_id}/settle`, { body: {} })
       const seg = await decrypt(S.round.encrypted[st.reveal.slot], st.reveal.key)
@@ -284,14 +313,17 @@
           <div class="rw-pick">${modes.map((m) => `<button class="pb violet" data-rw="${m.mode}"><b>${m.mode === 'binary' ? '⚔ ' : '✦ '}${m.label}</b><small>${esc(m.desc)}</small></button>`).join('')}</div>` : ''}
         <div class="btns"><button class="pb" id="vf"><i class="fas fa-shield-halved"></i> 验证</button><button class="pb gold" id="nx">${seg.next ? '翻到下一幕' : '走向结局'} <i class="fas fa-forward"></i></button></div>
       </div>`)
-    $('#vf').onclick = () => verify(st.round_id)
-    $('#nx').onclick = () => next(st.round_id)
-    L.querySelectorAll('[data-rw]').forEach((x) => (x.onclick = () => doRewind(st.round_id, x.dataset.rw)))
-    // 预载下一幕
+    L.querySelectorAll('[data-rw]').forEach((x) => (x.onclick = () => { clearInterval(at); doRewind(st.round_id, x.dataset.rw) }))
+    // 一气呵成：6 秒后自动进入下一幕（悔棋 / 验证会打断倒计时）
+    let left = S.auto ? (modes.length ? 7 : 4) : 0, at = 0
+    const nx = $('#nx'), base = nx.innerHTML
+    if (left) at = setInterval(() => { if (!document.body.contains(nx)) return clearInterval(at); left--; nx.innerHTML = base.replace('</i>', `</i> <small>${left}s</small>`); if (left <= 0) { clearInterval(at); next(st.round_id) } }, 1000)
+    $('#vf').onclick = () => { clearInterval(at); nx.innerHTML = base; verify(st.round_id) }
+    nx.onclick = () => { clearInterval(at); next(st.round_id) }
   }
 
   async function doRewind(rid, mode) {
-    SFX.rewind(); Amb.sfx('rewind'); audio.pause()
+    SFX.rewind(); Amb.sfx('rewind'); stopVoice()
     L.insertAdjacentHTML('beforeend', '<div class="rewind-fx"></div><div class="rewind-clock"><i class="fas fa-clock-rotate-left"></i></div>')
     panelFx('desat')
     try {
@@ -307,7 +339,7 @@
       const r = await api(`/api/comic/rounds/${rid}/next`, { body: {} })
       S.path = r.path
       if (r.ended) return ending(r)
-      r.round.preload.forEach((p) => { preload(p.image); preA(p.audio) })
+      r.round.preload.forEach((p) => { preload(p.image); preA(p.audio) }); preA(r.round.cue?.track)
       decision(r.round)
     } catch (e) { toast(e.message) }
   }

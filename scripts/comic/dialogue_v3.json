@@ -1,0 +1,4236 @@
+{
+ "segments": {
+  "P1": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "[desperately] 林夏：别靠近——只换一次，别伤到小雨。",
+     "emotion": "fearful",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "[deadpan] 渡鸦：天穹授权，顾衡指令，交出星核。",
+     "emotion": "neutral",
+     "intensity": 0.4
+    },
+    {
+     "speaker": "林夏",
+     "text": "[breathing] 林夏：你真以为我会把小雨交给顾衡？别做梦。",
+     "emotion": "angry",
+     "intensity": 0.85
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：——目标只留一人。",
+     "emotion": "neutral",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "林夏",
+     "text": "[frustrated] 林夏：陈默！别让他——小雨在哪，谁知道？",
+     "emotion": "fearful",
+     "intensity": 0.95
+    }
+   ],
+   "ambience": "rain_roof",
+   "sfx": "sniper_bolt",
+   "sfx_at": 2
+  },
+  "P2": {
+   "lines": [
+    {
+     "speaker": "陈默",
+     "text": "[sighs] 陈默：林夏，别喊了，我去掩护你们撤。",
+     "emotion": "neutral",
+     "intensity": 0.3
+    },
+    {
+     "speaker": "林小雨",
+     "text": "[alarmed] 小雨：姐，我在这儿！我有星核，快来取！",
+     "emotion": "fearful",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "林夏",
+     "text": "[desperately] 林夏：小雨别动，别让渡鸦看到你——",
+     "emotion": "fearful",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "[deadpan] 渡鸦：静。目标已标注。",
+     "emotion": "neutral",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "陈默",
+     "text": "[breathing] 陈默：顾董的人别想碰她，我三年前欠的命，今夜还回——",
+     "emotion": "angry",
+     "intensity": 0.85
+    }
+   ],
+   "ambience": "rain_street",
+   "sfx": "footsteps_run",
+   "sfx_at": 2
+  },
+  "P3": {
+   "lines": [
+    {
+     "speaker": "顾衡",
+     "text": "顾衡：[laughs] 顾衡：陈默，你的命，我记下了。",
+     "emotion": "smug",
+     "intensity": 0.5
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 渡鸦：目标锁定，等待一击。",
+     "emotion": "neutral",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "顾衡",
+     "text": "顾衡：[sarcastic] 顾衡：林夏，星核交出来，别让我动手。",
+     "emotion": "disgusted",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 林夏：顾董，你别碰我妹妹，星核是她的证据。",
+     "emotion": "angry",
+     "intensity": 0.9
+    }
+   ],
+   "ambience": "boardroom",
+   "sfx": "sniper_bolt",
+   "sfx_at": 2
+  },
+  "O_RA": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 林夏：顾董，你别碰我妹妹——星核在我手里。",
+     "emotion": "fearful",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "顾衡",
+     "text": "顾衡：[sarcastic] 顾衡：林夏，交出来，别自欺欺人。",
+     "emotion": "angry",
+     "intensity": 0.5
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 渡鸦：拿着，别后悔。",
+     "emotion": "neutral",
+     "intensity": 0.2
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 林夏：给你，交换现在开始——接下来的决定在你们手里。",
+     "emotion": "fearful",
+     "intensity": 0.95
+    }
+   ],
+   "ambience": "rain_roof",
+   "sfx": "sniper_bolt",
+   "sfx_at": 2
+  },
+  "O_RB": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 林夏：顾董，你别碰我妹妹——我会照你说的来。",
+     "emotion": "fearful",
+     "intensity": 0.85
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 渡鸦：你的手，看起来干净。",
+     "emotion": "neutral",
+     "intensity": 0.2
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：[nervously] 林夏：请检查——照你说的来，眼睛别只盯那颗芯片。",
+     "emotion": "neutral",
+     "intensity": 0.4
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[sighs] 陈默：林夏，别冒险，下一步你准备怎么办？",
+     "emotion": "sad",
+     "intensity": 0.5
+    }
+   ],
+   "ambience": "rain_roof",
+   "sfx": "chip_beep",
+   "sfx_at": 2
+  },
+  "O_RC": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 林夏：顾董，你别碰我妹妹——现在！投影启动！",
+     "emotion": "fearful",
+     "intensity": 1.0
+    },
+    {
+     "speaker": "顾衡",
+     "text": "顾衡：[laughs] 顾衡：你以为一场把戏能动摇穹顶？",
+     "emotion": "disgusted",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[frustrated] 陈默：掩护撤离，我挡住他们，快走！",
+     "emotion": "angry",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 渡鸦：别让他们跑了——",
+     "emotion": "neutral",
+     "intensity": 0.4
+    }
+   ],
+   "ambience": "alarm",
+   "sfx": "explosion",
+   "sfx_at": 0
+  },
+  "T_R": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 林夏：顾董，你别碰我妹妹——小雨马上退开！",
+     "emotion": "fearful",
+     "intensity": 0.95
+    },
+    {
+     "speaker": "林小雨",
+     "text": "林小雨：[alarmed] 林小雨：姐，我不能让你一个人牺牲，我来了！",
+     "emotion": "surprised",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 渡鸦：动作——",
+     "emotion": "neutral",
+     "intensity": 0.3
+    },
+    {
+     "speaker": "林小雨",
+     "text": "林小雨：[desperately] 林小雨：我把星核还给你，姐，快——我挡着镜头！",
+     "emotion": "fearful",
+     "intensity": 0.95
+    }
+   ],
+   "ambience": "rain_street",
+   "sfx": "footsteps_run",
+   "sfx_at": 1
+  },
+  "O_RA1": {
+   "lines": [
+    {
+     "speaker": "顾衡",
+     "text": "[laughs] 顾衡：林夏，别冲动，把芯片放下，大家都安全。",
+     "emotion": "sarcastic",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "[deadpan] 渡鸦：把东西放桌上，别耍花样。",
+     "emotion": "neutral",
+     "intensity": 0.4
+    },
+    {
+     "speaker": "林夏",
+     "text": "[desperately] 林夏：这是换你们答应的，要人放我妹妹自由——",
+     "emotion": "fearful",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "陈默",
+     "text": "[sighs] 陈默：林夏，别做傻事，顾董会遵守协议的——我保证。",
+     "emotion": "neutral",
+     "intensity": 0.5
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "[deadpan] 渡鸦：开始交换，别浪费时间。",
+     "emotion": "neutral",
+     "intensity": 0.3
+    }
+   ],
+   "ambience": "rain_roof",
+   "sfx": "chip_beep",
+   "sfx_at": 1
+  },
+  "O_RA2": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "[desperately] 林夏：给你，交换现在开始——接下来的决定在你们手里。",
+     "emotion": "fearful",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "顾衡",
+     "text": "[warmly] 顾衡：很好，林夏，把星核放下，别让别人受伤。",
+     "emotion": "neutral",
+     "intensity": 0.5
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：不交换——星核不出我手，别想逼我。",
+     "emotion": "angry",
+     "intensity": 0.85
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "[deadpan] 渡鸦：违令者清除——",
+     "emotion": "neutral",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "陈默",
+     "text": "[sighs] 陈默：林夏，别让小雨被卷进来，快走——",
+     "emotion": "sad",
+     "intensity": 0.7
+    }
+   ],
+   "ambience": "rain_street",
+   "sfx": "sniper_bolt",
+   "sfx_at": 3
+  },
+  "O_RA3": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "[nervously] 林夏：给你，交换现在开始——桌上那块是复制品。",
+     "emotion": "curious",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "[deadpan] 渡鸦：复制？别耍滑头，展示真芯片。",
+     "emotion": "neutral",
+     "intensity": 0.5
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：真核在我手心，我先保着，先换人命——",
+     "emotion": "fearful",
+     "intensity": 0.95
+    },
+    {
+     "speaker": "顾衡",
+     "text": "[sarcastic] 顾衡：聪明，但别忘了穹顶有后手，别自信过头。",
+     "emotion": "disgusted",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "陈默",
+     "text": "[sighs] 陈默：林夏，赶紧撤，复制能骗一时不能骗一世——",
+     "emotion": "sad",
+     "intensity": 0.6
+    }
+   ],
+   "ambience": "city_night",
+   "sfx": "chip_beep",
+   "sfx_at": 0
+  },
+  "T_RA": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "[desperately] 林夏：给你，交换现在开始——接下来的决定在你们手里。",
+     "emotion": "fearful",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "陈默",
+     "text": "[sighs] 陈默：林夏，我得告诉你，我曾在穹顶情报部工作。",
+     "emotion": "sad",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：你早该说，陈默，你骗了我们多久？",
+     "emotion": "angry",
+     "intensity": 0.85
+    },
+    {
+     "speaker": "顾衡",
+     "text": "[warmly] 顾衡：哦？陈默，看来今晚有趣了，秘密换筹码——",
+     "emotion": "sarcastic",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "[deadpan] 渡鸦：动摇者一律清理，决定现在——",
+     "emotion": "neutral",
+     "intensity": 0.6
+    }
+   ],
+   "ambience": "boardroom",
+   "sfx": "heartbeat",
+   "sfx_at": 4
+  },
+  "O_RB1": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "林夏：[nervously] 林夏：陈默，我知道，可我必须按规矩走——",
+     "emotion": "neutral",
+     "intensity": 0.4
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 渡鸦：把东西递来。",
+     "emotion": "neutral",
+     "intensity": 0.3
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 林夏：顾董，你看看——这就是你要的星核，别再折腾小雨——",
+     "emotion": "fearful",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 渡鸦：别说废话，检验。",
+     "emotion": "neutral",
+     "intensity": 0.2
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[sighs] 陈默：林夏，别出格——你打算怎么收场？",
+     "emotion": "angry",
+     "intensity": 0.6
+    }
+   ],
+   "ambience": "rain_roof",
+   "sfx": "chip_beep",
+   "sfx_at": 2
+  },
+  "O_RB2": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "林夏：[nervously] 林夏：陈默，我……我手滑了，抱歉——",
+     "emotion": "fearful",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 渡鸦：别碰。",
+     "emotion": "neutral",
+     "intensity": 0.2
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 林夏：对不起，我只是紧张，别——小雨别靠近，顾董别——",
+     "emotion": "fearful",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 渡鸦：捡起来，慢。",
+     "emotion": "neutral",
+     "intensity": 0.3
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[sighs] 陈默：林夏，别装——这是诱敌还是自缚？",
+     "emotion": "angry",
+     "intensity": 0.6
+    }
+   ],
+   "ambience": "rain_roof",
+   "sfx": "sniper_bolt",
+   "sfx_at": 3
+  },
+  "O_RB3": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 林夏：陈默，我没别的选择——我把真星核摔上去！",
+     "emotion": "angry",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "顾衡",
+     "text": "顾衡：[sarcastic] 顾衡：林夏？你以为用把戏能动摇穹顶？",
+     "emotion": "disgusted",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "林小雨",
+     "text": "林小雨：[alarmed] 林小雨：姐！你真把那东西摔出来了？小雨在这儿——",
+     "emotion": "surprised",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 渡鸦：停。检验开始。",
+     "emotion": "neutral",
+     "intensity": 0.3
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[sighs] 陈默：天窗会亮，林夏，撑住——你准备好面对后果吗？",
+     "emotion": "fearful",
+     "intensity": 0.7
+    }
+   ],
+   "ambience": "city_night",
+   "sfx": "crowd_gasp",
+   "sfx_at": 2
+  },
+  "T_RB": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "林夏：[nervously] 林夏：陈默，等一下，我怀疑这只是复制品——",
+     "emotion": "surprised",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 渡鸦：复制？你在骗谁？",
+     "emotion": "disgusted",
+     "intensity": 0.4
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 林夏：不，顾董会把真货藏起来分散，我保留了真芯片——这是一场更大的博弈。",
+     "emotion": "angry",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "顾衡",
+     "text": "顾衡：[warmly] 顾衡：林夏，聪明反被聪明误，你敢这般背叛穹顶？",
+     "emotion": "disgusted",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[sighs] 陈默：如果是复制，那你现在能做的只有一件事——守住小雨。",
+     "emotion": "neutral",
+     "intensity": 0.6
+    }
+   ],
+   "ambience": "server_room",
+   "sfx": "heartbeat",
+   "sfx_at": 4
+  },
+  "O_RC1": {
+   "lines": [
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 别让他们跑了——快，封路。",
+     "emotion": "neutral",
+     "intensity": 0.2
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 小雨，跟我来，别回头！",
+     "emotion": "fearful",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[frustrated] 林夏，交给我掩护，别做傻事！",
+     "emotion": "angry",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "林小雨",
+     "text": "林小雨：[alarmed] 姐，我不会被丢下，你别走——",
+     "emotion": "fearful",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：[whispers] 顾董今日一命换我妹妹安全，走！",
+     "emotion": "angry",
+     "intensity": 1.0
+    }
+   ],
+   "ambience": "rain_roof",
+   "sfx": "explosion",
+   "sfx_at": 1
+  },
+  "O_RC2": {
+   "lines": [
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 别让他们跑了——节点被占。",
+     "emotion": "neutral",
+     "intensity": 0.2
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 我把星核插进去，让城里看见！",
+     "emotion": "angry",
+     "intensity": 0.95
+    },
+    {
+     "speaker": "顾衡",
+     "text": "顾衡：[laughs] 顾衡：全城？你真天真，林夏。",
+     "emotion": "disgusted",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[frustrated] 屏幕能揭真相，不能救人，注意撤离。",
+     "emotion": "neutral",
+     "intensity": 0.5
+    },
+    {
+     "speaker": "林小雨",
+     "text": "林小雨：[curious] 姐，放大到所有户外屏幕，快！",
+     "emotion": "surprised",
+     "intensity": 0.8
+    }
+   ],
+   "ambience": "city_night",
+   "sfx": "chip_beep",
+   "sfx_at": 2
+  },
+  "O_RC3": {
+   "lines": [
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 别让他们跑了——他来了。",
+     "emotion": "neutral",
+     "intensity": 0.2
+    },
+    {
+     "speaker": "顾衡",
+     "text": "顾衡：[laughs] 顾衡：林夏，你把我当成戏里的反派？",
+     "emotion": "sarcastic",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 顾董，别绕弯，我要的是你亲手解释！",
+     "emotion": "angry",
+     "intensity": 0.95
+    },
+    {
+     "speaker": "顾衡",
+     "text": "顾衡：[warmly] 顾衡：解释？小雨的命，换不回真相——",
+     "emotion": "disgusted",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[frustrated] 顾董，别想用话术拖时间，走人还是留？",
+     "emotion": "angry",
+     "intensity": 0.8
+    }
+   ],
+   "ambience": "boardroom",
+   "sfx": "sniper_bolt",
+   "sfx_at": 4
+  },
+  "T_RC": {
+   "lines": [
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 别让他们跑了——信号变了。",
+     "emotion": "fearful",
+     "intensity": 0.3
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[frustrated] 它在回溯投影，天穹开始改写所有影像！",
+     "emotion": "angry",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 星核的原始流要保住，别让天穹洗掉！",
+     "emotion": "fearful",
+     "intensity": 1.0
+    },
+    {
+     "speaker": "顾衡",
+     "text": "顾衡：[laughs] 顾衡：天穹保护自己，你们只是触发者。",
+     "emotion": "disgusted",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "林小雨",
+     "text": "林小雨：[alarmed] 姐，趁它回溯干预时，我们分头行动！",
+     "emotion": "surprised",
+     "intensity": 0.85
+    }
+   ],
+   "ambience": "server_room",
+   "sfx": "chip_beep",
+   "sfx_at": 2
+  },
+  "O_RA1a": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "[desperately] 渡鸦，你说开始交换，我要你现在口头承诺放人，立刻说清楚。",
+     "emotion": "fearful",
+     "intensity": 0.85
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "[deadpan] 渡鸦：我不说承诺，规矩是沉默和执行。",
+     "emotion": "neutral",
+     "intensity": 0.3
+    },
+    {
+     "speaker": "林夏",
+     "text": "[frustrated] 林夏：顾董不是在这儿吗？顾衡，叫他当着你们的面说一句话。",
+     "emotion": "angry",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "顾衡",
+     "text": "[sarcastic] 顾衡：林夏，顾董？你太会说笑了，叫我说什么？",
+     "emotion": "disgusted",
+     "intensity": 0.5
+    },
+    {
+     "speaker": "陈默",
+     "text": "[sighs] 陈默：林夏，别逼他，先别把芯片扔——先听我一回话。",
+     "emotion": "neutral",
+     "intensity": 0.4
+    }
+   ],
+   "ambience": "rain_roof",
+   "sfx": "sniper_bolt",
+   "sfx_at": 2
+  },
+  "O_RA1b": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "[desperately] 渡鸦，你要交换，那就把我留下，换她安全撤离，我以命赌明天。",
+     "emotion": "fearful",
+     "intensity": 0.95
+    },
+    {
+     "speaker": "陈默",
+     "text": "[alarmed] 陈默：林夏，别自毁，别用你命赌小雨，听我说——",
+     "emotion": "sad",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "[deadpan] 渡鸦：我取命不取承诺，你自愿就带走——",
+     "emotion": "neutral",
+     "intensity": 0.2
+    },
+    {
+     "speaker": "林小雨",
+     "text": "[nervously] 小雨：姐——你别傻，别把我丢下，信我我们能有别的办法！",
+     "emotion": "fearful",
+     "intensity": 0.88
+    },
+    {
+     "speaker": "顾衡",
+     "text": "[warmly] 顾衡：林夏，命是重要，但星核更重要，你要的代价太高了。",
+     "emotion": "disgusted",
+     "intensity": 0.6
+    }
+   ],
+   "ambience": "rain_roof",
+   "sfx": "gunshot",
+   "sfx_at": 4
+  },
+  "O_RA1c": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "[desperately] 渡鸦开始交换，但我先把星核镜像同时上传公开，不交就走。",
+     "emotion": "angry",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "[deadpan] 渡鸦：你以为能躲过天穹监测？你会被切断一切传出。",
+     "emotion": "neutral",
+     "intensity": 0.3
+    },
+    {
+     "speaker": "林夏",
+     "text": "[frustrated] 林夏：顾衡，别装傻，给我三十秒接入许可，不然我按下去——",
+     "emotion": "angry",
+     "intensity": 0.95
+    },
+    {
+     "speaker": "顾衡",
+     "text": "[sarcastic] 顾衡：三十秒？林夏，你要把世界都惹急了，想好后果没？",
+     "emotion": "disgusted",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "陈默",
+     "text": "[sighs] 陈默：林夏，备好证据就动手，我掩护你，时间给你三十秒——快。",
+     "emotion": "neutral",
+     "intensity": 0.7
+    }
+   ],
+   "ambience": "server_room",
+   "sfx": "chip_beep",
+   "sfx_at": 3
+  },
+  "T_RA1": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "[desperately] 渡鸦开始交换，我把雨衣盖在小雨身上，你别看我——按我说的做。",
+     "emotion": "fearful",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "林小雨",
+     "text": "[alarmed] 小雨：姐——你在干嘛？我不是替身，你别耍我！",
+     "emotion": "surprised",
+     "intensity": 0.85
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "[deadpan] 渡鸦：动作慢会死，你们演就演，别出破绽。",
+     "emotion": "neutral",
+     "intensity": 0.2
+    },
+    {
+     "speaker": "陈默",
+     "text": "[sighs] 陈默：林夏，你别冒险，替身一出问题我就开枪——护她出路。",
+     "emotion": "angry",
+     "intensity": 0.75
+    },
+    {
+     "speaker": "顾衡",
+     "text": "[laughs] 顾衡：戏演得好，我会给你们一个结局，或者一个新的开始——你们选。",
+     "emotion": "disgusted",
+     "intensity": 0.6
+    }
+   ],
+   "ambience": "rain_roof",
+   "sfx": "footsteps_run",
+   "sfx_at": 4
+  },
+  "O_RA2a": {
+   "lines": [
+    {
+     "speaker": "陈默",
+     "text": "[sighs] 陈默：林夏，别让小雨被卷进来，快走——我来挡住他们！",
+     "emotion": "determined",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：多余的动作——",
+     "emotion": "neutral",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "陈默",
+     "text": "[exhales] 陈默：别让他开枪，挡住狙击，压住枪管！",
+     "emotion": "angry",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "林夏",
+     "text": "[frustrated] 林夏：小雨，往我后面退，不要回头——",
+     "emotion": "fearful",
+     "intensity": 0.95
+    }
+   ],
+   "ambience": "rain_roof",
+   "sfx": "sniper_bolt",
+   "sfx_at": 2
+  },
+  "O_RA2b": {
+   "lines": [
+    {
+     "speaker": "陈默",
+     "text": "陈默：林夏，别赌这把——别让她们牵着你走，快想办法！",
+     "emotion": "determined",
+     "intensity": 0.85
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：挑衅的代价——",
+     "emotion": "neutral",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "林夏",
+     "text": "[deadpan] 林夏：露出真面目吧，渡鸦，我早料到你会出手。",
+     "emotion": "neutral",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "[whispers] 渡鸦：命令来自顾衡——现在暴露。",
+     "emotion": "surprised",
+     "intensity": 0.5
+    }
+   ],
+   "ambience": "city_night",
+   "sfx": "chip_beep",
+   "sfx_at": 3
+  },
+  "O_RA2c": {
+   "lines": [
+    {
+     "speaker": "陈默",
+     "text": "陈默：林夏，说有援兵就别犹豫，别把小雨往刀口上推！",
+     "emotion": "angry",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：假的信号——你在骗我。",
+     "emotion": "disgusted",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "林夏",
+     "text": "[calmly] 林夏：十秒后援兵到达，等着看你们乱成什么样。",
+     "emotion": "neutral",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "林小雨",
+     "text": "[alarmed] 小雨：姐，你别骗我——我还能靠你吗！？",
+     "emotion": "fearful",
+     "intensity": 0.9
+    }
+   ],
+   "ambience": "rain_street",
+   "sfx": "footsteps_run",
+   "sfx_at": 2
+  },
+  "T_RA2": {
+   "lines": [
+    {
+     "speaker": "陈默",
+     "text": "陈默：林夏，别按那个接口，别把所有人推上断崖——",
+     "emotion": "desperate",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "林夏",
+     "text": "[desperately] 林夏：我按了——我不会让顾衡把小雨带走的。",
+     "emotion": "angry",
+     "intensity": 0.98
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：你以为这样就能赢？现身，顾衡要你的人。",
+     "emotion": "neutral",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "顾衡",
+     "text": "[warmly] 顾衡：林夏，真是可惜，你以为毁灭只是按钮游戏？",
+     "emotion": "calm",
+     "intensity": 0.6
+    }
+   ],
+   "ambience": "server_room",
+   "sfx": "chip_beep",
+   "sfx_at": 1
+  },
+  "O_RA3a": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "林夏：[nervously] 林夏：陈默，你说得对，我要把真核卖给地下。",
+     "emotion": "fearful",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "林小雨",
+     "text": "林小雨：[alarmed] 小雨：姐，我要一起走，不许丢下我——",
+     "emotion": "surprised",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[sighs] 陈默：林夏，地下讲规则，交易要有人挡刀。",
+     "emotion": "sad",
+     "intensity": 0.4
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 林夏：把星核换护送与资源，交割在雨巷，今晚决定。",
+     "emotion": "fearful",
+     "intensity": 0.95
+    }
+   ],
+   "ambience": "rain_street",
+   "sfx": "chip_beep",
+   "sfx_at": 3
+  },
+  "O_RB1a": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "林夏：[nervously] 我按你的话做了，陈默——把手伸来。",
+     "emotion": "fearful",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 放在光里，让我看清。",
+     "emotion": "neutral",
+     "intensity": 0.2
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 看我的腕口，别看别处——",
+     "emotion": "fearful",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] ——光？别耍花样。",
+     "emotion": "angry",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[sighs] 林夏，趁他分心撤——你打算怎么走？",
+     "emotion": "frustrated",
+     "intensity": 0.7
+    }
+   ],
+   "ambience": "rain_roof",
+   "sfx": "chip_beep",
+   "sfx_at": 2
+  },
+  "O_RB1b": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "林夏：[nervously] 我直面来，你想检验就检验，陈默别慌。",
+     "emotion": "neutral",
+     "intensity": 0.4
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 把芯片给我，别动别藏——",
+     "emotion": "neutral",
+     "intensity": 0.3
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 只看这一样，不许摸我的手，顾董你听见了吧？",
+     "emotion": "angry",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 我只看这一样，你别骗我，林夏。",
+     "emotion": "neutral",
+     "intensity": 0.5
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[sighs] 如果有问题，我先开路，别自寻死路，懂吗？",
+     "emotion": "worried",
+     "intensity": 0.6
+    }
+   ],
+   "ambience": "rain_roof",
+   "sfx": "sniper_bolt",
+   "sfx_at": 4
+  },
+  "T_RB1": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 你们要真相？现在给你们——看清楚！",
+     "emotion": "angry",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 他妈的——你竟敢露出真货？",
+     "emotion": "angry",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[sighs] 别开枪——林夏，别逼他动手，快收着！",
+     "emotion": "frustrated",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "顾衡",
+     "text": "顾衡：[warmly] 林夏，真有你的，星核在我手里才有用处——",
+     "emotion": "disgusted",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 选择——开枪，还是留命？",
+     "emotion": "neutral",
+     "intensity": 0.5
+    }
+   ],
+   "ambience": "city_night",
+   "sfx": "gunshot",
+   "sfx_at": 4
+  },
+  "O_RB2a": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "林夏：[nervously] 我按了隐键，陈默，准备——雾幕要来。",
+     "emotion": "fearful",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 你在干什么？视线被切断！",
+     "emotion": "surprised",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[sighs] 现在！冲上去！别给他们喘息，护住小雨！",
+     "emotion": "determined",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "林小雨",
+     "text": "林小雨：[alarmed] 姐！我被吓到，别跑太远——我能帮忙！",
+     "emotion": "surprised",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 迷雾一过，我会锁定你们的——",
+     "emotion": "fearful",
+     "intensity": 0.5
+    }
+   ],
+   "ambience": "alarm",
+   "sfx": "explosion",
+   "sfx_at": 1
+  },
+  "O_RB2b": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "林夏：[nervously] 带走我，放了小雨。",
+     "emotion": "fearful",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 你真敢赌命。",
+     "emotion": "neutral",
+     "intensity": 0.2
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 赌她能活着离开吧。",
+     "emotion": "fearful",
+     "intensity": 0.95
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[sighs] 林夏，别冲动，别把她推入深渊。",
+     "emotion": "sad",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 交出芯片，交出人，选一项——",
+     "emotion": "neutral",
+     "intensity": 0.3
+    }
+   ],
+   "ambience": "rain_roof",
+   "sfx": "heartbeat",
+   "sfx_at": 0
+  },
+  "T_RB2": {
+   "lines": [
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 别演戏，我看清了。",
+     "emotion": "neutral",
+     "intensity": 0.3
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 灯光来了，别多想了。",
+     "emotion": "neutral",
+     "intensity": 0.4
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：[alarmed] 监控……被触发了？",
+     "emotion": "surprised",
+     "intensity": 0.85
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[sighs] 天窗蜂群，林夏，别动，按计划——",
+     "emotion": "fearful",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "林小雨",
+     "text": "林小雨：[alarmed] 姐！我要靠近帮你，别把我丢下！",
+     "emotion": "fearful",
+     "intensity": 0.9
+    }
+   ],
+   "ambience": "alarm",
+   "sfx": "crowd_gasp",
+   "sfx_at": 2
+  },
+  "O_RB3a": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 我把真星核摔上去，顾董你看到了。",
+     "emotion": "angry",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "顾衡",
+     "text": "顾衡：[sarcastic] 林夏？你以为把戏能动摇穹顶？",
+     "emotion": "disgusted",
+     "intensity": 0.5
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 停。检验开始。",
+     "emotion": "neutral",
+     "intensity": 0.4
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[sighs] 天窗会亮，林夏，撑住——你准备好面对后果吗？",
+     "emotion": "fearful",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "顾衡",
+     "text": "顾衡：[calmly][sarcastic] 让这夜安静下来，渡鸦，开镜。",
+     "emotion": "disgusted",
+     "intensity": 0.85
+    }
+   ],
+   "ambience": "city_night",
+   "sfx": "sniper_bolt",
+   "sfx_at": 4
+  },
+  "O_RB3b": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 我把真星核摔上去，顾董你看到了。",
+     "emotion": "angry",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "顾衡",
+     "text": "顾衡：[sarcastic] 林小雨在那儿，林夏，你以为我会手起刀落？",
+     "emotion": "neutral",
+     "intensity": 0.4
+    },
+    {
+     "speaker": "林小雨",
+     "text": "林小雨：[alarmed] 顾董，别把我当筹码！",
+     "emotion": "fearful",
+     "intensity": 0.85
+    },
+    {
+     "speaker": "顾衡",
+     "text": "顾衡：[warmly][sarcastic] 别急，交给法庭审理，时间会替我洗白。",
+     "emotion": "disgusted",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[sighs] 等法庭？还是现在逃？林夏，决定吧——",
+     "emotion": "sad",
+     "intensity": 0.7
+    }
+   ],
+   "ambience": "boardroom",
+   "sfx": "door_slam",
+   "sfx_at": 4
+  },
+  "T_RB3": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 林夏：我准备好了，陈默——天穹在动。",
+     "emotion": "fearful",
+     "intensity": 0.85
+    },
+    {
+     "speaker": "顾衡",
+     "text": "顾衡：[sarcastic] 顾董：很好，天穹会替我收场，别妨碍它。",
+     "emotion": "neutral",
+     "intensity": 0.4
+    },
+    {
+     "speaker": "天穹（广播）",
+     "text": "天穹：城市已进入紧急干预，遵从新规则。",
+     "emotion": "neutral",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[sighs] 陈默：所有路被重排了，林夏，别让小雨受伤！",
+     "emotion": "angry",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 渡鸦：规则改变，猎物仍在。",
+     "emotion": "neutral",
+     "intensity": 0.5
+    }
+   ],
+   "ambience": "city_night",
+   "sfx": "chip_beep",
+   "sfx_at": 1
+  },
+  "O_RC1a": {
+   "lines": [
+    {
+     "speaker": "林小雨",
+     "text": "林小雨：[alarmed] 小雨：姐，顾董的话你当真了就走！",
+     "emotion": "fearful",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：[whispers] 林夏：抱紧星核，别回头，跟我下楼。",
+     "emotion": "fearful",
+     "intensity": 0.95
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[frustrated] 陈默：我来掩护，你们先走，别犹豫！",
+     "emotion": "angry",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "林小雨",
+     "text": "林小雨：[nervously] 小雨：姐，我不让你一个人挡——我也走！",
+     "emotion": "surprised",
+     "intensity": 0.8
+    }
+   ],
+   "ambience": "stairwell",
+   "sfx": "footsteps_run",
+   "sfx_at": 0
+  },
+  "O_RC1b": {
+   "lines": [
+    {
+     "speaker": "林小雨",
+     "text": "林小雨：[alarmed] 小雨：林夏，你真的要留下？别丢下我！",
+     "emotion": "fearful",
+     "intensity": 0.95
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 林夏：快跑，顾董用命要换你安全，我来引开他们！",
+     "emotion": "angry",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[frustrated] 陈默：别做傻事，渡鸦在那边，狙击会收尾你！",
+     "emotion": "angry",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：[whispers] 林夏：我没选择，走——快走！",
+     "emotion": "fearful",
+     "intensity": 0.95
+    }
+   ],
+   "ambience": "rain_roof",
+   "sfx": "sniper_bolt",
+   "sfx_at": 3
+  },
+  "T_RC1": {
+   "lines": [
+    {
+     "speaker": "林小雨",
+     "text": "林小雨：[alarmed] 小雨：那是什么——天台上有影子落下！",
+     "emotion": "surprised",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 渡鸦：目标：林夏，确认捕获优先。",
+     "emotion": "neutral",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[sighs] 陈默：小心，别露头，渡鸦的狙击镜在动！",
+     "emotion": "fearful",
+     "intensity": 0.85
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 林夏：渡鸦……他来干什么，你们先走！",
+     "emotion": "fearful",
+     "intensity": 0.95
+    }
+   ],
+   "ambience": "rain_roof",
+   "sfx": "sniper_bolt",
+   "sfx_at": 2
+  },
+  "O_RC2a": {
+   "lines": [
+    {
+     "speaker": "林小雨",
+     "text": "林小雨：[alarmed] 大家看见了！天穹曝光了！",
+     "emotion": "surprised",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 顾董，看这——这是星核证据。",
+     "emotion": "angry",
+     "intensity": 0.85
+    },
+    {
+     "speaker": "顾衡",
+     "text": "顾衡：[sarcastic] 真好，林夏，你把我送上台了。",
+     "emotion": "disgusted",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[frustrated] 小雨，带人撤，别被舆论裹住别动。",
+     "emotion": "fearful",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 别走散——撤。",
+     "emotion": "neutral",
+     "intensity": 0.4
+    }
+   ],
+   "ambience": "rain_street",
+   "sfx": "crowd_gasp",
+   "sfx_at": 1
+  },
+  "O_RC2b": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 先露这段，别全放光。",
+     "emotion": "neutral",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "顾衡",
+     "text": "顾衡：[warmly] 留手？很好，留手更致命。",
+     "emotion": "disgusted",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[frustrated] 林夏，别被震惊冲昏头，稳住撤点位。",
+     "emotion": "fearful",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "林小雨",
+     "text": "林小雨：[curious] 我能再挂一段，他们会动摇。",
+     "emotion": "surprised",
+     "intensity": 0.5
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 时间不多，动手。",
+     "emotion": "neutral",
+     "intensity": 0.5
+    }
+   ],
+   "ambience": "city_night",
+   "sfx": "chip_beep",
+   "sfx_at": 0
+  },
+  "T_RC2": {
+   "lines": [
+    {
+     "speaker": "林小雨",
+     "text": "林小雨：[nervously] 我开始直播，大家都看着！",
+     "emotion": "surprised",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 小雨，别随意放全盘，留条后路！",
+     "emotion": "fearful",
+     "intensity": 0.85
+    },
+    {
+     "speaker": "顾衡",
+     "text": "顾衡：[laughs] 顾衡：小学生的勇气，可惜不够聪明。",
+     "emotion": "disgusted",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[frustrated] 直播能争取时间，别等警力封网。",
+     "emotion": "angry",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 别靠人心，靠行动。",
+     "emotion": "neutral",
+     "intensity": 0.5
+    }
+   ],
+   "ambience": "rain_street",
+   "sfx": "crowd_gasp",
+   "sfx_at": 1
+  },
+  "O_RC3a": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 陈默说走还是留？我留，顾董，解释！",
+     "emotion": "angry",
+     "intensity": 0.95
+    },
+    {
+     "speaker": "顾衡",
+     "text": "顾衡：[warmly] 顾衡：解释给谁听，林夏？给媒体？给你？",
+     "emotion": "disgusted",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[frustrated] 顾董，别用笑话拖时间，交代实验名单！",
+     "emotion": "angry",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "林小雨",
+     "text": "林小雨：[alarmed] 顾董，我要知道小雨他们在哪！别躲话术！",
+     "emotion": "fearful",
+     "intensity": 0.95
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 说话快点，别耽误最后一发。",
+     "emotion": "neutral",
+     "intensity": 0.6
+    }
+   ],
+   "ambience": "rain_roof",
+   "sfx": "thunder",
+   "sfx_at": 2
+  },
+  "O_RC3b": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "陈默你刚说走？我不能走，[desperately] 星核在我手里。",
+     "emotion": "angry",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "顾衡",
+     "text": "[laughs] 顾衡：林夏，别把自己当英雄，你要的代价很高。",
+     "emotion": "calm",
+     "intensity": 0.3
+    },
+    {
+     "speaker": "林夏",
+     "text": "顾董，别绕圈，停止实验，放人安全离开——",
+     "emotion": "fearful",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "顾衡",
+     "text": "[warmly] 顾衡：放人？我可以给你条件，但你能承受后果吗？",
+     "emotion": "disgusted",
+     "intensity": 0.5
+    }
+   ],
+   "ambience": "city_night",
+   "sfx": "chip_beep",
+   "sfx_at": 1
+  },
+  "T_RC3": {
+   "lines": [
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 红点在楼下，人别动。",
+     "emotion": "neutral",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "顾衡",
+     "text": "[calm] 顾衡：你这是要杀人换筹码？太戏剧化了。",
+     "emotion": "neutral",
+     "intensity": 0.4
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[frustrated] 别开枪，渡鸦，别让无辜的人死！",
+     "emotion": "angry",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "林小雨",
+     "text": "小雨：[alarmed] 姐，下面有人，渡鸦要动手——",
+     "emotion": "fearful",
+     "intensity": 0.95
+    }
+   ],
+   "ambience": "rain_roof",
+   "sfx": "sniper_bolt",
+   "sfx_at": 1
+  },
+  "O_RA1ax": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "[desperately] 可是陈默，你听见了吧？我把芯片给他了，别逼我再做决定。",
+     "emotion": "fearful",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "[deadpan] 渡鸦：芯片收下，交换完成，去吧。",
+     "emotion": "neutral",
+     "intensity": 0.2
+    },
+    {
+     "speaker": "林小雨",
+     "text": "[nervously] 小雨：姐，我收到了匿名位置，正在往撤离点走——",
+     "emotion": "surprised",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "陈默",
+     "text": "[sighs] 陈默：林夏，先别庆祝，天穹还在上面盘旋，别回头。",
+     "emotion": "neutral",
+     "intensity": 0.6
+    }
+   ],
+   "ambience": "rain_roof",
+   "sfx": "footsteps_run",
+   "sfx_at": 2
+  },
+  "O_RA1ay": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "[desperately] 陈默你别——那是小雨的定位信号我能感觉到，别让她暴露！",
+     "emotion": "fearful",
+     "intensity": 1.0
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "[deadpan] 渡鸦：承诺已下，规则执行，定位同步中。",
+     "emotion": "neutral",
+     "intensity": 0.3
+    },
+    {
+     "speaker": "林小雨",
+     "text": "[alarmed] 小雨：姐！我的手机——怎么会发出信号？有人来了！",
+     "emotion": "fearful",
+     "intensity": 0.95
+    },
+    {
+     "speaker": "陈默",
+     "text": "[desperately] 陈默：别慌，我冲上去拦他们，林夏你趁机——",
+     "emotion": "angry",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "[deadpan] 渡鸦：任务结束，带走怀疑者。",
+     "emotion": "neutral",
+     "intensity": 0.4
+    }
+   ],
+   "ambience": "rain_roof",
+   "sfx": "chip_beep",
+   "sfx_at": 2
+  },
+  "T_RA1a": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "[frustrated] 不——拿回！我不相信你们的承诺！",
+     "emotion": "angry",
+     "intensity": 0.95
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "[deadpan] 渡鸦：迟了。",
+     "emotion": "neutral",
+     "intensity": 0.2
+    },
+    {
+     "speaker": "林夏",
+     "text": "[alarmed] 林夏：啊！芯片掉下去了——",
+     "emotion": "fearful",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "陈默",
+     "text": "[sighs] 陈默：站住，别动，别让他们把人抬走！",
+     "emotion": "angry",
+     "intensity": 0.85
+    }
+   ],
+   "ambience": "rain_roof",
+   "sfx": "sniper_bolt",
+   "sfx_at": 2
+  },
+  "O_RA1bx": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "[desperately] 我留下，换她安全撤离，拿去星核，带她走——",
+     "emotion": "sad",
+     "intensity": 1.0
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "[deadpan] 渡鸦：你自愿就带走，留她孤注一掷。",
+     "emotion": "neutral",
+     "intensity": 0.3
+    },
+    {
+     "speaker": "林小雨",
+     "text": "[nervously] 小雨：姐！你别傻，我可以跑，我们还有时间——",
+     "emotion": "fearful",
+     "intensity": 0.95
+    },
+    {
+     "speaker": "顾衡",
+     "text": "[warmly] 顾衡：林夏，代价你已经付了，别回头——世界要运转。",
+     "emotion": "disgusted",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "陈默",
+     "text": "[sighs] 陈默：走，快走，别多看她一眼，别给敌人把柄。",
+     "emotion": "sad",
+     "intensity": 0.8
+    }
+   ],
+   "ambience": "rain_roof",
+   "sfx": "footsteps_run",
+   "sfx_at": 3
+  },
+  "O_RA1by": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "[desperately] 林夏：顾衡，你别笑了，我今天要上传星核——",
+     "emotion": "angry",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "陈默",
+     "text": "[sighs] 陈默：放开她！别动！",
+     "emotion": "angry",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "[deadpan] 渡鸦：多余的热情。",
+     "emotion": "neutral",
+     "intensity": 0.2
+    },
+    {
+     "speaker": "林小雨",
+     "text": "[nervously] 小雨：有人拉我走——林夏快跑！",
+     "emotion": "fearful",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "林夏",
+     "text": "[frustrated] 林夏：星核碎了，证据可能永远没了。",
+     "emotion": "sad",
+     "intensity": 0.95
+    }
+   ],
+   "ambience": "rain_roof",
+   "sfx": "gunshot",
+   "sfx_at": 2
+  },
+  "T_RA1c": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "[desperately] 林夏：收回镜像，先保全小雨的行踪。",
+     "emotion": "fearful",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "陈默",
+     "text": "[sighs] 陈默：你这是选了更长的路，林夏，后果你承得起吗？",
+     "emotion": "neutral",
+     "intensity": 0.5
+    },
+    {
+     "speaker": "林夏",
+     "text": "[frustrated] 林夏：别跟我说后果，陈默，护她比真相重要。",
+     "emotion": "angry",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "顾衡",
+     "text": "[sarcastic] 顾衡：林夏，撤回？很好，你把筹码交回来了。",
+     "emotion": "disgusted",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "林小雨",
+     "text": "[alarmed] 林小雨：姐……你真的要放弃公开吗——等我回来！",
+     "emotion": "fearful",
+     "intensity": 0.9
+    }
+   ],
+   "ambience": "rain_roof",
+   "sfx": "chip_beep",
+   "sfx_at": 1
+  },
+  "O_RA2ax": {
+   "lines": [
+    {
+     "speaker": "陈默",
+     "text": "[exhales] 陈默：快走，林夏，我拖住他们，你带着星核下楼！",
+     "emotion": "neutral",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "林夏",
+     "text": "[frustrated] 林夏：陈默，别英雄，我不能丢了芯片——我跟你一起！",
+     "emotion": "angry",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "[deadpan] 渡鸦：——",
+     "emotion": "neutral",
+     "intensity": 0.2
+    },
+    {
+     "speaker": "陈默",
+     "text": "[sighs] 陈默：现在！给我机会，我夺回星核，跟我跑！",
+     "emotion": "surprised",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "林夏",
+     "text": "[desperately] 林夏：拿好，陈默，别回头，等地下媒体接应！",
+     "emotion": "fearful",
+     "intensity": 0.9
+    }
+   ],
+   "ambience": "stairwell",
+   "sfx": "sniper_bolt",
+   "sfx_at": 2
+  },
+  "O_RA2ay": {
+   "lines": [
+    {
+     "speaker": "陈默",
+     "text": "[sighs] 陈默：林夏，别让小雨被卷进来，快带着她离开——",
+     "emotion": "sad",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "[deadpan] 渡鸦：把芯片交出来，董事长要看样本。",
+     "emotion": "neutral",
+     "intensity": 0.5
+    },
+    {
+     "speaker": "林夏",
+     "text": "[frustrated] 林夏：你们不会得逞的，我会追回星核——",
+     "emotion": "angry",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "[deadpan] 渡鸦：光言语救不了人——",
+     "emotion": "neutral",
+     "intensity": 0.3
+    },
+    {
+     "speaker": "林小雨",
+     "text": "[alarmed] 林小雨：姐！我……我被定位了，救命——！",
+     "emotion": "fearful",
+     "intensity": 1.0
+    }
+   ],
+   "ambience": "rain_street",
+   "sfx": "gunshot",
+   "sfx_at": 2
+  },
+  "T_RA2a": {
+   "lines": [
+    {
+     "speaker": "陈默",
+     "text": "[sighs] 陈默：走，别回头，天快亮了，带着芯片消失。",
+     "emotion": "neutral",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "林夏",
+     "text": "[desperately] 林夏：有她安全就够了，陈默，我们把希望留着。",
+     "emotion": "fearful",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "陈默",
+     "text": "[calmly] 陈默：把星核交给地下记者，真相会像光一样扩散。",
+     "emotion": "happy",
+     "intensity": 0.5
+    },
+    {
+     "speaker": "林小雨",
+     "text": "[nervously] 林小雨：姐，我在安全屋等你们，别出事——我信你们！",
+     "emotion": "happy",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "林夏",
+     "text": "[whispers] 林夏：等黎明来临，我们再举灯——别让我再失去她。",
+     "emotion": "fearful",
+     "intensity": 1.0
+    }
+   ],
+   "ambience": "dawn_wind",
+   "sfx": "footsteps_run",
+   "sfx_at": 0
+  },
+  "O_RA2bx": {
+   "lines": [
+    {
+     "speaker": "陈默",
+     "text": "[sighs] 陈默：顾衡？你刚说，渡鸦，说清楚——顾衡亲自下令？",
+     "emotion": "angry",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "[deadpan] 渡鸦：顾衡——命令从不亲自下，签字在他的影子里。",
+     "emotion": "neutral",
+     "intensity": 0.2
+    },
+    {
+     "speaker": "林夏",
+     "text": "[frustrated] 林夏：名字！是谁在穹顶实验室里签字，谁主管“天穹”人体试验？说出名字，或者我们一寸一寸剥你口里的真相——",
+     "emotion": "angry",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "[whispers] 渡鸦：顾衡背后还有一个委员会，叫“白晝”，星核只是他们的冰山一角——你们不够资格翻它——",
+     "emotion": "fearful",
+     "intensity": 0.5
+    },
+    {
+     "speaker": "陈默",
+     "text": "[desperately] 陈默：小雨现在能撤离吗？林夏，你把小雨带走，我来问话，别让她再卷进来——",
+     "emotion": "sad",
+     "intensity": 0.8
+    }
+   ],
+   "ambience": "interior_hum",
+   "sfx": "heartbeat",
+   "sfx_at": 0
+  },
+  "O_RA2cy": {
+   "lines": [
+    {
+     "speaker": "林小雨",
+     "text": "[alarmed] 小雨：姐，你别骗我——我还能靠你吗！？",
+     "emotion": "fearful",
+     "intensity": 0.85
+    },
+    {
+     "speaker": "林夏",
+     "text": "[sighs] 林夏：小雨，别喊——我没骗你，别动，跟着我指令走。",
+     "emotion": "neutral",
+     "intensity": 0.4
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：信号被回放，位置真实。",
+     "emotion": "neutral",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "陈默",
+     "text": "[frustrated] 陈默：林夏，你马上拆散撤——我去掩护你们右侧！",
+     "emotion": "angry",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "顾衡",
+     "text": "[calmly] 顾衡：顾董告诉你们，直升机已经在路上，别做无谓挣扎。",
+     "emotion": "disgusted",
+     "intensity": 0.6
+    }
+   ],
+   "ambience": "rain_roof",
+   "sfx": "sniper_bolt",
+   "sfx_at": 2
+  },
+  "T_RA2c": {
+   "lines": [
+    {
+     "speaker": "陈默",
+     "text": "陈默：林夏，说有援兵就别犹豫，别把小雨往刀口上推！",
+     "emotion": "angry",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "林夏",
+     "text": "[deadpan] 林夏：我知道，可是现在封锁比想象快，天穹把假信号推翻了。",
+     "emotion": "sad",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：直升机到位，光锥封锁，撤离点被切断。",
+     "emotion": "neutral",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "林小雨",
+     "text": "[alarmed] 小雨：姐！我被门控锁住了，出不去——",
+     "emotion": "fearful",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "林夏",
+     "text": "[desperately] 林夏：小雨，别放弃——我听到你对讲里的呼号，别停，冲我左边逃！",
+     "emotion": "angry",
+     "intensity": 0.95
+    }
+   ],
+   "ambience": "alarm",
+   "sfx": "helicopter_bass",
+   "sfx_at": 2
+  },
+  "O_RA3ax": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "[nervously] 林夏：陈默，你说得对，我要把真核卖给地下。",
+     "emotion": "neutral",
+     "intensity": 0.5
+    },
+    {
+     "speaker": "陈默",
+     "text": "[sighs] 陈默：林夏，地下讲规则，交易要有人挡刀，别把小雨拖下水。",
+     "emotion": "sad",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "林小雨",
+     "text": "[alarmed] 小雨：姐，我要一起走，不许丢下我——",
+     "emotion": "fearful",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "林夏",
+     "text": "[calmly] 林夏：小雨，你远走，别回头，活着回来就够了，我会找到你的。",
+     "emotion": "sad",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "林小雨",
+     "text": "[crying] 小雨：答应我，姐，我会消失一段时间，别找我麻烦——",
+     "emotion": "sad",
+     "intensity": 0.85
+    }
+   ],
+   "ambience": "dawn_wind",
+   "sfx": "door_slam",
+   "sfx_at": 4
+  },
+  "O_RA3ay": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "[nervously] 林夏：陈默，你说得对，我要把真核卖给地下。",
+     "emotion": "neutral",
+     "intensity": 0.5
+    },
+    {
+     "speaker": "顾衡",
+     "text": "[warmly] 顾衡：这买家很靠谱——都是我们的人，放心交出芯片吧。",
+     "emotion": "disgusted",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "林夏",
+     "text": "[frustrated] 林夏：你们别想得逞，星核还在我手上！不许伤我妹妹！",
+     "emotion": "angry",
+     "intensity": 0.95
+    },
+    {
+     "speaker": "顾衡",
+     "text": "[sarcastic] 顾衡：交出芯片，你妹妹就安全，拖延只会更痛苦。",
+     "emotion": "disgusted",
+     "intensity": 0.85
+    },
+    {
+     "speaker": "陈默",
+     "text": "[desperately] 陈默：林夏，别做傻事——他们早有埋伏，别冲！",
+     "emotion": "fearful",
+     "intensity": 0.9
+    }
+   ],
+   "ambience": "stairwell",
+   "sfx": "footsteps_run",
+   "sfx_at": 4
+  },
+  "T_RA3a": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "[desperately] 林夏：今晚交割？不，星核我销毁了。",
+     "emotion": "determined",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "林小雨",
+     "text": "[alarmed] 小雨：姐，你说什么，不能烧掉证据！",
+     "emotion": "fearful",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "陈默",
+     "text": "[sighs] 陈默：林夏，别冲动，卖给地下还能换命——",
+     "emotion": "neutral",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "林夏",
+     "text": "[crying] 林夏：不，他们都能利用它，我绝不让人把小雨当筹码。",
+     "emotion": "sad",
+     "intensity": 1.0
+    }
+   ],
+   "ambience": "rain_roof",
+   "sfx": "chip_beep",
+   "sfx_at": 2
+  },
+  "O_RA3bx": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "[calmly] 林夏：我把真件交给顾衡，换你们的承诺和免死牌。",
+     "emotion": "neutral",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "顾衡",
+     "text": "[warmly] 顾衡：林夏，你终于明白交易的意义了，坐吧。",
+     "emotion": "calm",
+     "intensity": 0.5
+    },
+    {
+     "speaker": "陈默",
+     "text": "[frustrated] 陈默：别被他甜言蜜语骗了，顾董，别忘今晚的录像——",
+     "emotion": "angry",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "顾衡",
+     "text": "[sarcastic] 顾衡：放心，给你们一张免死牌，代价稍后详谈。",
+     "emotion": "neutral",
+     "intensity": 0.7
+    }
+   ],
+   "ambience": "boardroom",
+   "sfx": "door_slam",
+   "sfx_at": 3
+  },
+  "O_RA3by": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "[nervously] 林夏：我把星核交上，你收编我也行，但小雨要安全。",
+     "emotion": "fearful",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "顾衡",
+     "text": "[warmly] 顾衡：很好，林夏，欢迎加入穹顶，从今以后你有归属。",
+     "emotion": "neutral",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "陈默",
+     "text": "[sighs] 陈默：你不能成为他们的帮凶，林夏，你听我说——",
+     "emotion": "sad",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "顾衡",
+     "text": "[deadpan] 顾衡：封存星核，林夏，签字之后一切照顾到位。",
+     "emotion": "neutral",
+     "intensity": 0.7
+    }
+   ],
+   "ambience": "interior_hum",
+   "sfx": "elevator_ding",
+   "sfx_at": 3
+  },
+  "T_RA3b": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "[whispers] 林夏：我答应顾董，表面收编，电梯里再谈破局。",
+     "emotion": "calm",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "陈默",
+     "text": "[pauses] 陈默：暗里再卖一个给地下，换我们翻盘的子弹和时间。",
+     "emotion": "determined",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "林小雨",
+     "text": "[alarmed] 小雨：姐，你们别玩太大，顾衡可不是好惹的——",
+     "emotion": "fearful",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "林夏",
+     "text": "[desperately] 林夏：小雨别说话，听我，答应过你的安全，我不会让步。",
+     "emotion": "angry",
+     "intensity": 1.0
+    }
+   ],
+   "ambience": "stairwell",
+   "sfx": "footsteps_run",
+   "sfx_at": 0
+  },
+  "O_RA3cx": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "[sighs] 我说过，等到最合适的时机，陈默你别急。",
+     "emotion": "neutral",
+     "intensity": 0.3
+    },
+    {
+     "speaker": "陈默",
+     "text": "[deadpan] 林夏，我知道你的底线，别把小雨扯进来更多危险。",
+     "emotion": "angry",
+     "intensity": 0.5
+    },
+    {
+     "speaker": "林小雨",
+     "text": "[nervously] 姐，你放心，星核在我手里我会守着的——不会让顾董拿到。",
+     "emotion": "fearful",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "林夏",
+     "text": "[whispers] 我们长期潜伏，以时间换证据价值，别声张，别动摇。",
+     "emotion": "determined",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "陈默",
+     "text": "[sighs] 好，林夏，我陪你潜伏，但别忘了我们还有条回路——下一步怎么走？",
+     "emotion": "neutral",
+     "intensity": 0.4
+    }
+   ],
+   "ambience": "stairwell",
+   "sfx": "heartbeat",
+   "sfx_at": 2
+  },
+  "O_RA3cy": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "[sighs] 我说等到最合适的时机，可是他们发现了藏匿点。",
+     "emotion": "fearful",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "[deadpan] ——没有藏匿可言。",
+     "emotion": "neutral",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "林小雨",
+     "text": "[alarmed] 姐，无人机来了——星核被炸碎了！",
+     "emotion": "fearful",
+     "intensity": 1.0
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "[deadpan] 你妹妹已被定位，顾衡想看你亲手认输。",
+     "emotion": "neutral",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "林夏",
+     "text": "[desperately] 我每走一步都可能死，但我不会让顾衡得逞——该怎么救她？",
+     "emotion": "angry",
+     "intensity": 0.95
+    }
+   ],
+   "ambience": "rain_street",
+   "sfx": "explosion",
+   "sfx_at": 2
+  },
+  "O_RB1ax": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "[nervously] 陈默，你说的路我走了，帽子在，快伸手来接我。",
+     "emotion": "nervous",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "[deadpan] 放在光里，让我看清——",
+     "emotion": "neutral",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "林夏",
+     "text": "[desperately] 看我的腕口，别看别处，陈默掩护，我要趁雾撤退！",
+     "emotion": "fearful",
+     "intensity": 0.95
+    },
+    {
+     "speaker": "陈默",
+     "text": "[sighs] 快走，巷子里有雾，我挡着，林小雨你守位置，别出声。",
+     "emotion": "neutral",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "林夏",
+     "text": "[whispers] 我们悄然消散在雾里，星核在假底仓，先别庆祝，下一步埋伏等待——",
+     "emotion": "determined",
+     "intensity": 0.8
+    }
+   ],
+   "ambience": "rain_street",
+   "sfx": "footsteps_run",
+   "sfx_at": 1
+  },
+  "O_RB1ay": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 陈默——别等我，快伸手来！",
+     "emotion": "fearful",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：[dramatically] （翻腕）夺——枪！",
+     "emotion": "angry",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] ——不可能。",
+     "emotion": "surprised",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[sighs] 林夏，小心——我来掩护！",
+     "emotion": "sad",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 你挡不住——",
+     "emotion": "neutral",
+     "intensity": 0.5
+    }
+   ],
+   "ambience": "rain_roof",
+   "sfx": "sniper_bolt",
+   "sfx_at": 1
+  },
+  "T_RB1a": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "林夏：[nervously] 我放下了，够了，别再牺牲！",
+     "emotion": "sad",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 你要走就走——",
+     "emotion": "neutral",
+     "intensity": 0.4
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[frustrated] 上车！快，林夏，别回头！",
+     "emotion": "angry",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "林小雨",
+     "text": "林小雨：[alarmed] 姐——我跟你一起走！",
+     "emotion": "fearful",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 留一半给穹顶——",
+     "emotion": "neutral",
+     "intensity": 0.3
+    }
+   ],
+   "ambience": "rain_street",
+   "sfx": "footsteps_run",
+   "sfx_at": 2
+  },
+  "O_RB1bx": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 你想检验就检验，陈默别慌。",
+     "emotion": "angry",
+     "intensity": 0.85
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 把芯片给我，别动别藏——",
+     "emotion": "neutral",
+     "intensity": 0.5
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：[dramatically] 星核不是空壳，放光看！",
+     "emotion": "surprised",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "顾衡",
+     "text": "顾衡：[sarcastic] 哈——以为用光就能掩盖？顾董在窗里看清了。",
+     "emotion": "disgusted",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "林小雨",
+     "text": "林小雨：[alarmed] 真相出来了！天穹做过人体实验！",
+     "emotion": "fearful",
+     "intensity": 0.95
+    }
+   ],
+   "ambience": "city_night",
+   "sfx": "chip_beep",
+   "sfx_at": 2
+  },
+  "O_RB1by": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "林夏：[nervously] 我直面来，你想检验就检验，陈默别慌。",
+     "emotion": "neutral",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 发现异常——给我那段日志。",
+     "emotion": "neutral",
+     "intensity": 0.5
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：[whispers] 我交一段，换她们安全离开。",
+     "emotion": "sad",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "林小雨",
+     "text": "林小雨：[desperately] 姐——别把全部交出去！",
+     "emotion": "fearful",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 协议已成立，动则杀无赦。",
+     "emotion": "disgusted",
+     "intensity": 0.6
+    }
+   ],
+   "ambience": "stairwell",
+   "sfx": "door_slam",
+   "sfx_at": 4
+  },
+  "T_RB1b": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "林夏：[whispers] 带她走，求你了。",
+     "emotion": "desperate",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 你删了关键段？",
+     "emotion": "neutral",
+     "intensity": 0.5
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：[sighs] 我删了，换她的自由。",
+     "emotion": "sad",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "顾衡",
+     "text": "顾衡：[sarcastic] 林夏，顾董也能体谅牺牲吧？",
+     "emotion": "disgusted",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[sighs] 把小雨带走，我掩护你们撤。",
+     "emotion": "neutral",
+     "intensity": 0.6
+    }
+   ],
+   "ambience": "rain_roof",
+   "sfx": "chip_beep",
+   "sfx_at": 2
+  },
+  "O_RB2ax": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "林夏：[nervously] 我按了隐键，陈默，准备——雾幕要来。",
+     "emotion": "fearful",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 你在干什么？视线被切断！",
+     "emotion": "neutral",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[sighs] 现在！冲上去！护住小雨！",
+     "emotion": "angry",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "林小雨",
+     "text": "林小雨：[alarmed] 姐！我把星核藏进相机包！",
+     "emotion": "surprised",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 小雨走！别回头，我跟你们汇合！",
+     "emotion": "fearful",
+     "intensity": 0.9
+    }
+   ],
+   "ambience": "rain_street",
+   "sfx": "footsteps_run",
+   "sfx_at": 2
+  },
+  "O_RB2ay": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "林夏：[nervously] 我按了隐键，陈默，准备——雾幕要来。",
+     "emotion": "fearful",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 你在干什么？视线被切断！",
+     "emotion": "neutral",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[sighs] 现在！冲上去！别给他们喘息！",
+     "emotion": "angry",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：[frustrated] 挡住他，我去拿枪！别让渡鸦抬枪！",
+     "emotion": "angry",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 愚蠢的人类——",
+     "emotion": "disgusted",
+     "intensity": 0.7
+    }
+   ],
+   "ambience": "stairwell",
+   "sfx": "sniper_bolt",
+   "sfx_at": 4
+  },
+  "T_RB2a": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "林夏：[nervously] 我按了隐键，陈默，准备——雾幕要来。",
+     "emotion": "fearful",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 你在干什么？视线被切断！",
+     "emotion": "neutral",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：[alarmed] 不——那里有监护楼，我触发了陷阱！",
+     "emotion": "fearful",
+     "intensity": 0.95
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[sighs] 收声！我们得快撤，别让灯光落下！",
+     "emotion": "angry",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "林小雨",
+     "text": "林小雨：[desperately] 姐，你别后悔了！我们先救人再说！",
+     "emotion": "surprised",
+     "intensity": 0.9
+    }
+   ],
+   "ambience": "city_night",
+   "sfx": "alarm",
+   "sfx_at": 2
+  },
+  "O_RB2bx": {
+   "lines": [
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 我按协议，留一段内部通话作担保。",
+     "emotion": "neutral",
+     "intensity": 0.3
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 那条通话，立刻给我端出来，换小雨。",
+     "emotion": "angry",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 放人——你拿走证据，就算我履行。",
+     "emotion": "neutral",
+     "intensity": 0.4
+    },
+    {
+     "speaker": "林小雨",
+     "text": "林小雨：[alarmed] 姐——别傻了，快抱我，我们走！",
+     "emotion": "fearful",
+     "intensity": 0.9
+    }
+   ],
+   "ambience": "rain_roof",
+   "sfx": "chip_beep",
+   "sfx_at": 2
+  },
+  "O_RB2by": {
+   "lines": [
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 立即释放，小雨，别挣扎。",
+     "emotion": "neutral",
+     "intensity": 0.3
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：[nervously] 你就这么放她？你别走——",
+     "emotion": "fearful",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "林小雨",
+     "text": "林小雨：[desperately] 姐！我在这，别丢下我，快走！",
+     "emotion": "fearful",
+     "intensity": 0.95
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 我去了，别回头看。",
+     "emotion": "neutral",
+     "intensity": 0.2
+    }
+   ],
+   "ambience": "rain_street",
+   "sfx": "footsteps_run",
+   "sfx_at": 3
+  },
+  "T_RB2b": {
+   "lines": [
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 放人那刻，你就中了磁扣。",
+     "emotion": "neutral",
+     "intensity": 0.4
+    },
+    {
+     "speaker": "林小雨",
+     "text": "林小雨：[alarmed] 姐！不要——别靠近她，快快救她！",
+     "emotion": "fearful",
+     "intensity": 1
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 小雨——躲开，别让我牵连你！",
+     "emotion": "angry",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 你们都是样本，车来了，别戏弄我。",
+     "emotion": "neutral",
+     "intensity": 0.5
+    }
+   ],
+   "ambience": "stairwell",
+   "sfx": "door_slam",
+   "sfx_at": 3
+  },
+  "O_RB3ax": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 我挡着，快带小雨下去！",
+     "emotion": "angry",
+     "intensity": 0.95
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[sighs] 林夏，别逞强，别做傻事——",
+     "emotion": "sad",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 开镜——",
+     "emotion": "neutral",
+     "intensity": 0.4
+    },
+    {
+     "speaker": "林小雨",
+     "text": "林小雨：[crying] 姐！别死！我不要没有你！",
+     "emotion": "fearful",
+     "intensity": 1
+    }
+   ],
+   "ambience": "dawn_wind",
+   "sfx": "sniper_bolt",
+   "sfx_at": 3
+  },
+  "O_RB3ay": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 顾董，你以为一个命令就能把我和小雨都收回去？",
+     "emotion": "angry",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 开镜——",
+     "emotion": "neutral",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[alarmed] 林夏，别冲——后退！",
+     "emotion": "fearful",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：[frustrated] 我不能等，陈默，别挡我——小雨不能成为筹码！",
+     "emotion": "angry",
+     "intensity": 1.0
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 那就陪我下去吧。",
+     "emotion": "neutral",
+     "intensity": 0.7
+    }
+   ],
+   "ambience": "rain_roof",
+   "sfx": "sniper_bolt",
+   "sfx_at": 2
+  },
+  "T_RB3b": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "[desperately] 我不能等法庭，陈默——有人把星核的去向卖了！",
+     "emotion": "angry",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "陈默",
+     "text": "[sighs] 记者？是谁出卖的，林夏，告诉我名字。",
+     "emotion": "neutral",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "林夏",
+     "text": "[frustrated] 不是名字，是交易，星核被回收了一部分，剩下的我带走。",
+     "emotion": "fearful",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "顾衡",
+     "text": "[warmly][sarcastic] 呵，记者们最易被利益驯服，林夏，别太天真。",
+     "emotion": "disgusted",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "林小雨",
+     "text": "[alarmed] 姐，那我们怎么办？星核残缺，真相会被拼凑错！",
+     "emotion": "fearful",
+     "intensity": 0.9
+    }
+   ],
+   "ambience": "rain_street",
+   "sfx": "chip_beep",
+   "sfx_at": 1
+  },
+  "O_RC1ax": {
+   "lines": [
+    {
+     "speaker": "林小雨",
+     "text": "[alarmed] 姐，我也走！别把我丢下！",
+     "emotion": "fearful",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "林夏",
+     "text": "[whispers] 小雨，别哭，抱紧星核，我们上阁楼躲着。",
+     "emotion": "sad",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "陈默",
+     "text": "[frustrated] 我去看看门口，别出声，有动静立刻撤离。",
+     "emotion": "neutral",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "林夏",
+     "text": "[desperately] 顾董把真相拆成碎片了，但小雨不能受伤，明白吗？",
+     "emotion": "angry",
+     "intensity": 0.95
+    }
+   ],
+   "ambience": "interior_hum",
+   "sfx": "door_slam",
+   "sfx_at": 3
+  },
+  "O_RC1ay": {
+   "lines": [
+    {
+     "speaker": "林小雨",
+     "text": "[alarmed] 姐，我们现在要找谁帮忙？",
+     "emotion": "fearful",
+     "intensity": 0.85
+    },
+    {
+     "speaker": "林夏",
+     "text": "[nervously] 我去找旧日联系人，借人脉和庇护，代价我来担着。",
+     "emotion": "neutral",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "陈默",
+     "text": "[sighs] 记住规矩，谁也不能拿小雨做筹码，哪怕要卖血也不行。",
+     "emotion": "sad",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "林夏",
+     "text": "[desperately] 我欠你们人情，但小雨不是账单，这就是底线。",
+     "emotion": "angry",
+     "intensity": 0.95
+    }
+   ],
+   "ambience": "city_night",
+   "sfx": "none",
+   "sfx_at": 0
+  },
+  "T_RC1a": {
+   "lines": [
+    {
+     "speaker": "林小雨",
+     "text": "[alarmed] 姐，天台上又有人开枪！有人在喊你名字！",
+     "emotion": "fearful",
+     "intensity": 0.95
+    },
+    {
+     "speaker": "林夏",
+     "text": "[whispers] 我回去取回另一半星核，不能让顾董拼凑出证据——",
+     "emotion": "determined",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "陈默",
+     "text": "[sighs] 别回头，林夏，那里可能是陷阱，别把小雨再拖进来！",
+     "emotion": "sad",
+     "intensity": 0.85
+    },
+    {
+     "speaker": "林夏",
+     "text": "[desperately] 我知道风险，但我是她姐姐，我回去面对，等我回来！",
+     "emotion": "angry",
+     "intensity": 1.0
+    }
+   ],
+   "ambience": "alarm",
+   "sfx": "sniper_bolt",
+   "sfx_at": 0
+  },
+  "O_RC1bx": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 我没选择，走——我去拖他们！",
+     "emotion": "fearful",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "林小雨",
+     "text": "林小雨：[alarmed] 姐——不！你别冲动，别去！",
+     "emotion": "fearful",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[frustrated] 林夏，别傻，看清楚，是渡鸦在狙。",
+     "emotion": "angry",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 目标锁定。",
+     "emotion": "neutral",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：[whispers] 我赌枪法，赌运气，走——别回头！",
+     "emotion": "determined",
+     "intensity": 0.95
+    }
+   ],
+   "ambience": "rain_roof",
+   "sfx": "sniper_bolt",
+   "sfx_at": 4
+  },
+  "O_RC1by": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 我没选择，走——我留下做诱饵！",
+     "emotion": "determined",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "林小雨",
+     "text": "林小雨：[alarmed] 姐，你在耍什么花招？快说！",
+     "emotion": "surprised",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[frustrated] 林夏，你的虚假轨迹，我看懂了。",
+     "emotion": "neutral",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 走位有趣。",
+     "emotion": "neutral",
+     "intensity": 0.5
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：[whispers] 引他进陷阱，别慌，拿着星核撤——",
+     "emotion": "calm",
+     "intensity": 0.7
+    }
+   ],
+   "ambience": "stairwell",
+   "sfx": "footsteps_run",
+   "sfx_at": 3
+  },
+  "T_RC1b": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 我没选择，走——我撤回圈套，带头护你们走！",
+     "emotion": "sacrificial",
+     "intensity": 1.0
+    },
+    {
+     "speaker": "林小雨",
+     "text": "林小雨：[alarmed] 姐——你别！不要把我丢下！",
+     "emotion": "fearful",
+     "intensity": 1.0
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[frustrated] 林夏，站住，我来堵枪口，你别走进死胡同！",
+     "emotion": "angry",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：[whispers] 你们先走，我守住转角，别回头——",
+     "emotion": "sad",
+     "intensity": 0.95
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 收工。",
+     "emotion": "neutral",
+     "intensity": 0.8
+    }
+   ],
+   "ambience": "rain_street",
+   "sfx": "sniper_bolt",
+   "sfx_at": 4
+  },
+  "O_RC2ax": {
+   "lines": [
+    {
+     "speaker": "林小雨",
+     "text": "林小雨：[alarmed] 大家看见了！天穹曝光在街上！",
+     "emotion": "surprised",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 星核在我这，带着证据走，别被包围！",
+     "emotion": "determined",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "顾衡",
+     "text": "顾衡：[sarcastic] 林夏，你真能把我推上台，精彩极了。",
+     "emotion": "disgusted",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[frustrated] 小雨，跟我走，别被舆论和人群裹住！",
+     "emotion": "angry",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：[whispers] 我带着星核消失，这只是开始，别停——",
+     "emotion": "neutral",
+     "intensity": 0.8
+    }
+   ],
+   "ambience": "city_night",
+   "sfx": "crowd_gasp",
+   "sfx_at": 2
+  },
+  "O_RC2ay": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 撤？我不撤，我留守天台，用我当那道光。",
+     "emotion": "determined",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[sighs] 林夏，你真要留下来挨捕？我救过你一次还不够吗？",
+     "emotion": "sad",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "林小雨",
+     "text": "林小雨：[alarmed] 姐！你别——我不允许你做傻事！",
+     "emotion": "fearful",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 留就留——别让感情毁了目的。",
+     "emotion": "neutral",
+     "intensity": 0.3
+    },
+    {
+     "speaker": "顾衡",
+     "text": "顾衡：[sarcastic] 林夏，你做戏的样子真好看，继续演，我会让全城看见——",
+     "emotion": "angry",
+     "intensity": 0.8
+    }
+   ],
+   "ambience": "rain_roof",
+   "sfx": "sniper_bolt",
+   "sfx_at": 0
+  },
+  "T_RC2a": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 影像被篡改了，关键片段不见了，我不能带着不全的真相走。",
+     "emotion": "angry",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[frustrated] 影像被删？林夏，你要回去拿备份？这太危险了。",
+     "emotion": "fearful",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "林小雨",
+     "text": "林小雨：[curious] 姐，星核备份在哪？我可以帮你回去取！",
+     "emotion": "surprised",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 回去要静，别引爆更多视线。",
+     "emotion": "neutral",
+     "intensity": 0.2
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 好，我回去取，不能让他们删掉证据——等我回来。",
+     "emotion": "determined",
+     "intensity": 0.95
+    }
+   ],
+   "ambience": "stairwell",
+   "sfx": "chip_beep",
+   "sfx_at": 2
+  },
+  "O_RC2bx": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 我决定把所有资料都放出，星核的每一条罪证都曝光。",
+     "emotion": "angry",
+     "intensity": 0.95
+    },
+    {
+     "speaker": "顾衡",
+     "text": "顾衡：[warmly] 林夏，你真以为曝光能结束？我会让真相变成灰烬。",
+     "emotion": "disgusted",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[frustrated] 别被他言语牵着走，林夏，稳住，别让小雨陷进来。",
+     "emotion": "sad",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "林小雨",
+     "text": "林小雨：[curious] 我能挂更多！让他们动摇，顾董的脸会变颜色！",
+     "emotion": "happy",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 开始播出——现在。",
+     "emotion": "neutral",
+     "intensity": 0.4
+    }
+   ],
+   "ambience": "city_night",
+   "sfx": "crowd_gasp",
+   "sfx_at": 4
+  },
+  "O_RC2by": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 我保留关键备份，用它换回小雨的安全和撤离通道。",
+     "emotion": "determined",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[sighs] 把备份留着换人，这是策略，不是背叛，林夏，听我说。",
+     "emotion": "sad",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "林小雨",
+     "text": "林小雨：[alarmed] 不可！姐你不能拿我的命当筹码，我不答应！",
+     "emotion": "fearful",
+     "intensity": 0.95
+    },
+    {
+     "speaker": "顾衡",
+     "text": "顾衡：[sarcastic] 筹码？很好，把交换条件说清，林夏，你以为我会手软？",
+     "emotion": "angry",
+     "intensity": 0.85
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 我不会赌小雨的命，但我会用证据换她走——先走他们，后续再揭露。",
+     "emotion": "determined",
+     "intensity": 0.95
+    }
+   ],
+   "ambience": "rain_street",
+   "sfx": "footsteps_run",
+   "sfx_at": 4
+  },
+  "T_RC2b": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 备用上传被天穹切断了！",
+     "emotion": "fearful",
+     "intensity": 0.95
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 防火墙深得不像人——",
+     "emotion": "neutral",
+     "intensity": 0.3
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[sighs] 林夏，冷静，别把小雨拖下水。",
+     "emotion": "sad",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "林小雨",
+     "text": "林小雨：[alarmed] 姐！你别犯傻，还有别的路线！",
+     "emotion": "fearful",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：[frustrated] 我知道，可是天穹已经开始回溯连接……",
+     "emotion": "angry",
+     "intensity": 0.85
+    }
+   ],
+   "ambience": "rain_roof",
+   "sfx": "chip_beep",
+   "sfx_at": 1
+  },
+  "O_RC3ax": {
+   "lines": [
+    {
+     "speaker": "顾衡",
+     "text": "顾衡：[warmly] 我们内部调整，换掉几个人，能接受吗？",
+     "emotion": "neutral",
+     "intensity": 0.4
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 顾董，人换皮不算交代，别把人命当筹码。",
+     "emotion": "angry",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[frustrated] 顾董，名单和下落，现在就交代，别绕弯。",
+     "emotion": "angry",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "顾衡",
+     "text": "顾衡：[smiles][warmly] 我保证软着陆，法律会慢慢处理的。",
+     "emotion": "neutral",
+     "intensity": 0.5
+    },
+    {
+     "speaker": "林小雨",
+     "text": "林小雨：[alarmed] 姐，我们不能只听承诺，秘密还在运作！",
+     "emotion": "fearful",
+     "intensity": 0.85
+    }
+   ],
+   "ambience": "boardroom",
+   "sfx": "crowd_gasp",
+   "sfx_at": 4
+  },
+  "O_RC3ay": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 我现在把证据投上天穹，全网可见！",
+     "emotion": "determined",
+     "intensity": 0.95
+    },
+    {
+     "speaker": "顾衡",
+     "text": "顾衡：[sarcastic] 你以为这样就能毁了我？观众会相信什么？",
+     "emotion": "neutral",
+     "intensity": 0.5
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[sighs] 林夏，别犹豫，真相一旦爆开就没回头。",
+     "emotion": "sad",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "林小雨",
+     "text": "林小雨：[alarmed] 放！放上去！顾董，你该为他们负责！",
+     "emotion": "angry",
+     "intensity": 0.95
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 投影起，屏幕会说话。",
+     "emotion": "neutral",
+     "intensity": 0.2
+    }
+   ],
+   "ambience": "rain_street",
+   "sfx": "sniper_bolt",
+   "sfx_at": 4
+  },
+  "T_RC3a": {
+   "lines": [
+    {
+     "speaker": "顾衡",
+     "text": "顾衡：[warmly] 好，那就按你们说的，我妥协，放人质归还。",
+     "emotion": "neutral",
+     "intensity": 0.5
+    },
+    {
+     "speaker": "林夏",
+     "text": "林夏：[desperately] 顾董，你别当我傻，任何背叛我就——",
+     "emotion": "angry",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "渡鸦：[deadpan] 注意四周，别被笑容骗了。",
+     "emotion": "neutral",
+     "intensity": 0.3
+    },
+    {
+     "speaker": "陈默",
+     "text": "陈默：[frustrated] 林夏，准备应变，顾董动手可能就在下一秒！",
+     "emotion": "fearful",
+     "intensity": 0.85
+    },
+    {
+     "speaker": "顾衡",
+     "text": "顾衡：[warmly][smiles] 我只是求一个和平的交换，你们也该让城市安定。",
+     "emotion": "neutral",
+     "intensity": 0.6
+    }
+   ],
+   "ambience": "boardroom",
+   "sfx": "footsteps_run",
+   "sfx_at": 3
+  },
+  "O_RC3bx": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "顾董，你先答应一句话，放了小雨——",
+     "emotion": "desperate",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "顾衡",
+     "text": "[warmly] 顾衡：林夏，我答应暂时停止项目，放人回家，代价是星核。",
+     "emotion": "neutral",
+     "intensity": 0.5
+    },
+    {
+     "speaker": "林小雨",
+     "text": "[exhales] 小雨：姐，真的放我们走？我就要哭了——",
+     "emotion": "happy",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "林夏",
+     "text": "[desperately] 林夏：先走，别庆祝，交出星核，我换她自由——",
+     "emotion": "fearful",
+     "intensity": 0.95
+    },
+    {
+     "speaker": "陈默",
+     "text": "[sighs] 陈默：林夏，小雨先上车，我守着你交接，别有闪失。",
+     "emotion": "neutral",
+     "intensity": 0.6
+    }
+   ],
+   "ambience": "rain_roof",
+   "sfx": "chip_beep",
+   "sfx_at": 3
+  },
+  "O_RC3by": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "顾董，你口头说放人就行，星核在我这——",
+     "emotion": "desperate",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "顾衡",
+     "text": "[laughs] 顾衡：林夏，好。把芯片交过来，人就能走。",
+     "emotion": "neutral",
+     "intensity": 0.5
+    },
+    {
+     "speaker": "林夏",
+     "text": "[pauses] 林夏：这是给你的——（递出假芯片）",
+     "emotion": "surprised",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "陈默",
+     "text": "[alarmed] 陈默：现在！全部上，别给他们反应时间！",
+     "emotion": "angry",
+     "intensity": 0.95
+    },
+    {
+     "speaker": "林小雨",
+     "text": "[desperately] 小雨：姐，冲啊，我们要把真相带回去！",
+     "emotion": "happy",
+     "intensity": 0.85
+    }
+   ],
+   "ambience": "rain_roof",
+   "sfx": "footsteps_run",
+   "sfx_at": 3
+  },
+  "T_RC3b": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "顾董，你说的条件是——放她们先走，星核交给你——",
+     "emotion": "desperate",
+     "intensity": 0.95
+    },
+    {
+     "speaker": "顾衡",
+     "text": "[warmly] 顾衡：交过来，我答应。把芯片给我，退后——",
+     "emotion": "neutral",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "陈默",
+     "text": "[alarmed] 陈默：谁动了芯片？说话，亮出身份！",
+     "emotion": "angry",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "林夏",
+     "text": "[frustrated] 林夏：芯片被夺，交换失败——大家退！",
+     "emotion": "fearful",
+     "intensity": 0.95
+    }
+   ],
+   "ambience": "rain_roof",
+   "sfx": "sniper_bolt",
+   "sfx_at": 3
+  },
+  "O_RA3b": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "[nervously] 陈默你别急，林夏决定把真芯片亲交顾董——",
+     "emotion": "fearful",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "顾衡",
+     "text": "[sarcastic] 哦？林夏，你真敢把心交给顾董，聪明还是可悲？",
+     "emotion": "disgusted",
+     "intensity": 0.5
+    },
+    {
+     "speaker": "陈默",
+     "text": "[sighs] 别被他吃掉，林夏，我三年前你救了我，现在轮到我护你和小雨——",
+     "emotion": "angry",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "林夏",
+     "text": "[desperately] 我不是傻，交易是赌，但我要换回妹妹安全，顾董，你要的是真芯片，还是条人命？",
+     "emotion": "fearful",
+     "intensity": 0.9
+    }
+   ],
+   "ambience": "rain_roof",
+   "sfx": "chip_beep",
+   "sfx_at": 2
+  },
+  "T_RA1b": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "[desperately] 顾衡，你别笑了，别再说教了。",
+     "emotion": "angry",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "[deadpan] 渡鸦：你收回了筹码，就没资格求饶。",
+     "emotion": "neutral",
+     "intensity": 0.3
+    },
+    {
+     "speaker": "林小雨",
+     "text": "[nervously] 小雨：姐，你别做傻事，别——",
+     "emotion": "fearful",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "陈默",
+     "text": "[sighs] 陈默：林夏，听我——别把你们都葬在这儿！",
+     "emotion": "sad",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "林夏",
+     "text": "[desperately] 林夏：我不会把小雨当筹码，你们想要就争取明天去拿！",
+     "emotion": "angry",
+     "intensity": 1.0
+    }
+   ],
+   "ambience": "rain_roof",
+   "sfx": "sniper_bolt",
+   "sfx_at": 1
+  },
+  "O_RA1cx": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "[desperately] 我已经镜像，星核在传，顾衡你别耍花招。",
+     "emotion": "determined",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "顾衡",
+     "text": "[sarcastic] 顾衡：镜像？我早有备份，你以为能改命运？",
+     "emotion": "disgusted",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "陈默",
+     "text": "[sighs] 陈默：继续传，林夏，我压着他们，别停！",
+     "emotion": "neutral",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "林小雨",
+     "text": "[excited] 小雨：我看到蓝光，数据在城市里跑开了，姐成功了！",
+     "emotion": "happy",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "[deadpan] 渡鸦：好，留下你们的影子，黎明会见分晓。",
+     "emotion": "neutral",
+     "intensity": 0.4
+    }
+   ],
+   "ambience": "dawn_wind",
+   "sfx": "chip_beep",
+   "sfx_at": 2
+  },
+  "O_RA1cy": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "[desperately] 我按了，但信号被压了，传输被切——",
+     "emotion": "fearful",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "[deadpan] 渡鸦：天穹会吞噬你所有声音，别浪漫——",
+     "emotion": "neutral",
+     "intensity": 0.3
+    },
+    {
+     "speaker": "顾衡",
+     "text": "[warmly] 顾衡：真相被分割，市场会慢慢消化，别天真，林夏。",
+     "emotion": "disgusted",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "陈默",
+     "text": "[sighs] 陈默：信息被吞了，我们还活着就还要打，这只是开始。",
+     "emotion": "sad",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "林小雨",
+     "text": "[desperately] 小雨：那就把碎片留给地下，姐，我们拼着也要让人看见！",
+     "emotion": "angry",
+     "intensity": 0.8
+    }
+   ],
+   "ambience": "server_room",
+   "sfx": "alarm",
+   "sfx_at": 1
+  },
+  "O_RA2by": {
+   "lines": [
+    {
+     "speaker": "陈默",
+     "text": "[sighs] 放走渡鸦你们疯了，林夏，别让我再劝你！",
+     "emotion": "sad",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "林夏",
+     "text": "[deadpan] 我知道，陈默，我们要他去引出顾衡的手下。",
+     "emotion": "neutral",
+     "intensity": 0.5
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "[whispers] 渡鸦：我会回报，血会引路——",
+     "emotion": "fearful",
+     "intensity": 0.4
+    },
+    {
+     "speaker": "林小雨",
+     "text": "[nervously] 小雨：姐，你别赌太大，别把自己当诱饵——",
+     "emotion": "fearful",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "林夏",
+     "text": "[desperately] 林夏：放走你是诱饵，用你去换更大的猎物，顾衡，我会见你的本体。",
+     "emotion": "angry",
+     "intensity": 1.0
+    }
+   ],
+   "ambience": "city_night",
+   "sfx": "footsteps_run",
+   "sfx_at": 4
+  },
+  "T_RA2b": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "[deadpan] 命令来自顾衡？好，让他见识代价——",
+     "emotion": "angry",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "陈默",
+     "text": "[sighs] 林夏，别赌这把，街道已经着火了——太多人受伤！",
+     "emotion": "fearful",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "[whispers] 放走一只，换群鸟。",
+     "emotion": "neutral",
+     "intensity": 0.3
+    },
+    {
+     "speaker": "顾衡",
+     "text": "[calmly][sarcastic] 很好，林夏，你把棋子交上来，城市的火焰就是最好的掩护，记住这一课——",
+     "emotion": "disgusted",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "林小雨",
+     "text": "[alarmed] 姐！街上有人被困了，你不能就这样放手——我们要救他们！",
+     "emotion": "angry",
+     "intensity": 0.95
+    }
+   ],
+   "ambience": "rain_street",
+   "sfx": "explosion",
+   "sfx_at": 2
+  },
+  "O_RB3bx": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "[desperately] 陈默，我把真星核交给地下记者，交给法庭审理。",
+     "emotion": "determined",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "陈默",
+     "text": "[sighs] 林夏，你真的信任法律？顾董会动员一切阻挠。",
+     "emotion": "fearful",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "顾衡",
+     "text": "[warmly][sarcastic] 林夏，你把证据送上台，我就看法官怎么说——",
+     "emotion": "neutral",
+     "intensity": 0.4
+    },
+    {
+     "speaker": "林小雨",
+     "text": "[alarmed] 姐，我怕你被拖进庭里被掩埋，别让我看你受委屈！",
+     "emotion": "fearful",
+     "intensity": 0.9
+    }
+   ],
+   "ambience": "boardroom",
+   "sfx": "chip_beep",
+   "sfx_at": 2
+  },
+  "O_RB3by": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "[desperately] 陈默，我不能等，他们会把小雨当筹码，我要走。",
+     "emotion": "angry",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "陈默",
+     "text": "[sighs] 林夏，快备份星核碎片，别让任何人拦住你们。",
+     "emotion": "determined",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "林小雨",
+     "text": "[nervously] 姐，我跟你走，学会藏证，我不会再当人质！",
+     "emotion": "angry",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "[deadpan] 走，别留痕迹。",
+     "emotion": "neutral",
+     "intensity": 0.5
+    }
+   ],
+   "ambience": "rain_street",
+   "sfx": "footsteps_run",
+   "sfx_at": 3
+  },
+  "O_RA3c": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "[nervously] 陈默，你别——我先把真核藏好再走。",
+     "emotion": "fearful",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "陈默",
+     "text": "[sighs] 林夏，别赌时间，雨会把线索抹干净也会带来敌人。",
+     "emotion": "sad",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "林小雨",
+     "text": "[desperately] 姐，我守得住，星核交给我我马上就藏好——",
+     "emotion": "angry",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "顾衡",
+     "text": "[sarcastic] 林夏，藏匿？穹顶的眼睛无处不在，你以为可以玩躲猫猫？",
+     "emotion": "disgusted",
+     "intensity": 0.5
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "[deadpan] 交代地点，五分钟内，别耽误。",
+     "emotion": "neutral",
+     "intensity": 0.3
+    }
+   ],
+   "ambience": "rain_roof",
+   "sfx": "chip_beep",
+   "sfx_at": 2
+  },
+  "O_RA2cx": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "[calmly] 小雨，你听着，别再回头——我知道你怕，但现在跟我走，马上走。",
+     "emotion": "fearful",
+     "intensity": 0.85
+    },
+    {
+     "speaker": "林小雨",
+     "text": "[alarmed] 姐——我不是孩子，我要把星核带走，不能就这么放弃！",
+     "emotion": "angry",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "陈默",
+     "text": "[sighs] 林夏，快走，你要是再耽搁，渡鸦就会回来动真格的——别赌了。",
+     "emotion": "neutral",
+     "intensity": 0.6
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "[deadpan] 停下，别试图躲藏——我在这里等着你们挣扎。",
+     "emotion": "neutral",
+     "intensity": 0.4
+    },
+    {
+     "speaker": "林夏",
+     "text": "[desperately] 小雨，星核可以失去，活着才能继续——跟我走，别让姐姐再赔上你！",
+     "emotion": "sad",
+     "intensity": 0.95
+    }
+   ],
+   "ambience": "stairwell",
+   "sfx": "footsteps_run",
+   "sfx_at": 0
+  },
+  "T_RA3c": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "[nervously] 陈默，我已经把匿名信传给记者了，地址就在信里，你们会有人去接应小雨。",
+     "emotion": "anxious",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "陈默",
+     "text": "[sighs] 林夏，你真把信发了？这是一招赌命的棋，雨夜会把一切暴露出来——",
+     "emotion": "sad",
+     "intensity": 0.7
+    },
+    {
+     "speaker": "林小雨",
+     "text": "[desperately] 姐，你疯了吗？把藏身处交给记者就是把我交给穹顶！",
+     "emotion": "fearful",
+     "intensity": 0.95
+    },
+    {
+     "speaker": "顾衡",
+     "text": "[sarcastic] 林夏，真聪明，把猎物放到明处，我就不必费力追踪——穹顶会给你保护，也会给我答案。",
+     "emotion": "disgusted",
+     "intensity": 0.5
+    },
+    {
+     "speaker": "林夏",
+     "text": "[whispers] 我赌一次，你要是敢动小雨，我就把完整星核公之于众，听清楚，别逼我——",
+     "emotion": "angry",
+     "intensity": 0.9
+    }
+   ],
+   "ambience": "interior_hum",
+   "sfx": "chip_beep",
+   "sfx_at": 1
+  },
+  "T_RB3a": {
+   "lines": [
+    {
+     "speaker": "林夏",
+     "text": "[desperately] 顾董，你要的证据摆上来了——别让我再说一遍，天穹看着呢。",
+     "emotion": "angry",
+     "intensity": 0.85
+    },
+    {
+     "speaker": "顾衡",
+     "text": "[calmly][sarcastic] 林夏，你以为今晚开枪就能解决问题？不，今晚我们换个玩法。",
+     "emotion": "neutral",
+     "intensity": 0.5
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "[deadpan] 开镜，目标确认——",
+     "emotion": "neutral",
+     "intensity": 0.3
+    },
+    {
+     "speaker": "（environmental）",
+     "text": "[dramatically] ——",
+     "emotion": "surprised",
+     "intensity": 0.0
+    },
+    {
+     "speaker": "顾衡",
+     "text": "[warmly] 停。别开枪，留着她；带回去，实验室里有更好的答案，游戏还没结束。",
+     "emotion": "disgusted",
+     "intensity": 0.95
+    }
+   ],
+   "ambience": "rain_roof",
+   "sfx": "sniper_bolt",
+   "sfx_at": 3
+  },
+  "T_RA3": {
+   "lines": [
+    {
+     "speaker": "陈默",
+     "text": "[sighs] 林夏，别赌了，撤——",
+     "emotion": "fearful",
+     "intensity": 0.8
+    },
+    {
+     "speaker": "林夏",
+     "text": "[nervously] 我把星核一分为二，顾衡那半你们拿去换小雨，别逼我——",
+     "emotion": "angry",
+     "intensity": 0.9
+    },
+    {
+     "speaker": "顾衡",
+     "text": "[warmly] 很好，林夏，半件就够威慑我了，交出来吧，[pauses]",
+     "emotion": "neutral",
+     "intensity": 0.4
+    },
+    {
+     "speaker": "渡鸦",
+     "text": "[deadpan] 拿来——",
+     "emotion": "neutral",
+     "intensity": 0.2
+    },
+    {
+     "speaker": "林小雨",
+     "text": "[alarmed] 姐，你把另一半放哪了？我在下面等你别——",
+     "emotion": "fearful",
+     "intensity": 0.9
+    }
+   ],
+   "ambience": "rain_roof",
+   "sfx": "chip_beep",
+   "sfx_at": 2
+  }
+ },
+ "cues": {
+  "N_R": [
+   {
+    "speaker": "林夏",
+    "text": "[desperately] 林夏：交易怎么做？正面、偷换，还是引爆——你们决定？",
+    "emotion": "fearful",
+    "intensity": 0.9
+   }
+  ],
+  "N_RA": [
+   {
+    "speaker": "林夏",
+    "text": "[frustrated] 林夏：我把星核摆上去，你们要么给人，要么拿走——现在选吧。",
+    "emotion": "angry",
+    "intensity": 0.8
+   }
+  ],
+  "N_RA1": [
+   {
+    "speaker": "陈默",
+    "text": "[sighs] 陈默：要保证小雨安全吗？要口头承诺、用你换，还是把芯片公开？",
+    "emotion": "neutral",
+    "intensity": 0.6
+   }
+  ],
+  "N_RA1a": [
+   {
+    "speaker": "林夏",
+    "text": "[desperately] 林夏：你说了就算数吗？我听渡鸦一句话就放人？",
+    "emotion": "fearful",
+    "intensity": 0.95
+   }
+  ],
+  "N_RA1b": [
+   {
+    "speaker": "陈默",
+    "text": "[alarmed] 陈默：渡鸦会接受牺牲吗？要不我先打破协议——你要我出手吗？",
+    "emotion": "fearful",
+    "intensity": 0.85
+   }
+  ],
+  "N_RA1c": [
+   {
+    "speaker": "林夏",
+    "text": "[desperately] 林夏：我能把证据公开吗？镜像成功，还是被天穹立刻截断？",
+    "emotion": "fearful",
+    "intensity": 1.0
+   }
+  ],
+  "N_RA2": [
+   {
+    "speaker": "陈默",
+    "text": "[sighs]陈默：拒绝后，对方会先动手吗？",
+    "emotion": "fearful",
+    "intensity": 0.85
+   },
+   {
+    "speaker": "陈默",
+    "text": "陈默：我们是立刻突袭？还是诱敌入局，还是假装撤退？",
+    "emotion": "neutral",
+    "intensity": 0.6
+   }
+  ],
+  "N_RA2a": [
+   {
+    "speaker": "林夏",
+    "text": "[frustrated]林夏：战斗里，星核能保住吗？",
+    "emotion": "fearful",
+    "intensity": 0.9
+   }
+  ],
+  "N_RA2b": [
+   {
+    "speaker": "陈默",
+    "text": "陈默：诱捕成功，渡鸦该活捉还是放他当饵？",
+    "emotion": "neutral",
+    "intensity": 0.7
+   }
+  ],
+  "N_RA2c": [
+   {
+    "speaker": "林夏",
+    "text": "[calmly]林夏：假象能吓退渡鸦，还是立刻被识破？",
+    "emotion": "surprised",
+    "intensity": 0.65
+   }
+  ],
+  "N_RA3": [
+   {
+    "speaker": "林夏",
+    "text": "[nervously]林夏：真芯片该卖、交给顾董，还是先藏起来？",
+    "emotion": "anxious",
+    "intensity": 0.9
+   }
+  ],
+  "N_RA3a": [
+   {
+    "speaker": "陈默",
+    "text": "陈默：这笔交易真安全？会顺利脱身，还是被埋伏？",
+    "emotion": "distrustful",
+    "intensity": 0.8
+   }
+  ],
+  "N_RA3b": [
+   {
+    "speaker": "顾衡",
+    "text": "顾衡：[sarcastic] 顾衡：暂时同盟，还是被收编？",
+    "emotion": "neutral",
+    "intensity": 0.4
+   }
+  ],
+  "N_RA3c": [
+   {
+    "speaker": "林夏",
+    "text": "林夏：[desperately] 林夏：藏匿长期潜伏，还是立刻取回？",
+    "emotion": "fearful",
+    "intensity": 0.9
+   }
+  ],
+  "N_RB": [
+   {
+    "speaker": "陈默",
+    "text": "陈默：[sighs] 陈默：你换芯片了，假交付、示弱，还是当众揭露？",
+    "emotion": "neutral",
+    "intensity": 0.6
+   }
+  ],
+  "N_RB1": [
+   {
+    "speaker": "林夏",
+    "text": "林夏：[nervously] 林夏：晃动手腕引开视线，还是正面接受检验？",
+    "emotion": "fearful",
+    "intensity": 0.9
+   }
+  ],
+  "N_RB1a": [
+   {
+    "speaker": "陈默",
+    "text": "陈默：[alarmed] 陈默：趁机悄然撤退，还是反手夺枪搏一搏？",
+    "emotion": "fearful",
+    "intensity": 0.8
+   }
+  ],
+  "N_RB1b": [
+   {
+    "speaker": "林夏",
+    "text": "林夏：[frustrated] 林夏：当场撕破伪装，还是默契退让换生路？",
+    "emotion": "angry",
+    "intensity": 0.8
+   }
+  ],
+  "N_RB2": [
+   {
+    "speaker": "林夏",
+    "text": "林夏：[desperately] 我走声光引爆，还是当诱饵换小雨？",
+    "emotion": "desperate",
+    "intensity": 0.9
+   }
+  ],
+  "N_RB2a": [
+   {
+    "speaker": "陈默",
+    "text": "陈默：[sighs] 是先把星核藏好，还是先抢狙击枪？",
+    "emotion": "neutral",
+    "intensity": 0.6
+   }
+  ],
+  "N_RB2b": [
+   {
+    "speaker": "林夏",
+    "text": "林夏：[desperately] 你用证据证明诚意，还是马上放她走？",
+    "emotion": "desperate",
+    "intensity": 0.85
+   }
+  ],
+  "N_RB3": [
+   {
+    "speaker": "顾衡",
+    "text": "顾衡：[sarcastic] 我是派渡鸦收场，还是装作无事发生？",
+    "emotion": "neutral",
+    "intensity": 0.5
+   }
+  ],
+  "N_RB3a": [
+   {
+    "speaker": "林夏",
+    "text": "林夏：[desperately] 我以身挡枪，还是上去掰断瞄准？",
+    "emotion": "desperate",
+    "intensity": 0.95
+   }
+  ],
+  "N_RB3b": [
+   {
+    "speaker": "陈默",
+    "text": "陈默：[sighs] 等法律审理，还是现在带碎片走人？",
+    "emotion": "neutral",
+    "intensity": 0.6
+   }
+  ],
+  "N_RC": [
+   {
+    "speaker": "林夏",
+    "text": "[desperately] 林夏：引爆声已经起，顾董还在笑——我们现在做什么？",
+    "emotion": "fearful",
+    "intensity": 0.9
+   }
+  ],
+  "N_RC1": [
+   {
+    "speaker": "林夏",
+    "text": "[whispers] 林夏：小雨要活着离开，还是让我去引开追兵？你们选哪个？",
+    "emotion": "sad",
+    "intensity": 0.85
+   }
+  ],
+  "N_RC1a": [
+   {
+    "speaker": "陈默",
+    "text": "[sighs] 陈默：躲起来等机会，还是去找旧人帮忙反扑？你要赌哪条路？",
+    "emotion": "neutral",
+    "intensity": 0.6
+   }
+  ],
+  "N_RC1b": [
+   {
+    "speaker": "林夏",
+    "text": "[desperately] 林夏：我去单独突围，用我换你们走，还是设圈套把他们骗过来？",
+    "emotion": "fearful",
+    "intensity": 0.95
+   }
+  ],
+  "N_RC2": [
+   {
+    "speaker": "林夏",
+    "text": "[alarmed] 林夏：把星核放大播出，还是只播核心画面留后手？决定现在！",
+    "emotion": "surprised",
+    "intensity": 0.9
+   }
+  ],
+  "N_RC2a": [
+   {
+    "speaker": "林小雨",
+    "text": "[nervously] 林小雨：姐，我们带着星核走，还是守在天台把自己变成标记？你选！",
+    "emotion": "fearful",
+    "intensity": 0.9
+   }
+  ],
+  "N_RC2b": [
+   {
+    "speaker": "林夏",
+    "text": "[desperately] 现在就把星核全放出来？还是留一手换命？",
+    "emotion": "fearful",
+    "intensity": 0.9
+   }
+  ],
+  "N_RC3": [
+   {
+    "speaker": "陈默",
+    "text": "[sighs] 直接逼问顾董，还是用星核要条件？你选哪条路？",
+    "emotion": "neutral",
+    "intensity": 0.6
+   }
+  ],
+  "N_RC3a": [
+   {
+    "speaker": "顾衡",
+    "text": "[warmly] 赦免换退出，还是当众揭穿我？你要的到底是命还是尊严？",
+    "emotion": "neutral",
+    "intensity": 0.5
+   }
+  ],
+  "N_RC3b": [
+   {
+    "speaker": "林小雨",
+    "text": "[alarmed] 接受顾董条件，还是设圈套骗他上钩？姐，你决定！",
+    "emotion": "angry",
+    "intensity": 0.8
+   }
+  ]
+ }
+}

@@ -149,3 +149,26 @@
 .cap[data-sp="林夏"]{border-color:rgba(96,165,250,.35)}
 .cap[data-sp="陈默"]{border-color:rgba(245,196,81,.35)}
 .cap[data-sp="林小雨"]{border-color:rgba(251,191,36,.45)}
+/* ── V3 对白舞台：角色立绘 + 说话人高亮 ── */
+.cast-stage{display:flex;justify-content:space-between;align-items:flex-end;padding:0 10px;margin-bottom:-4px;pointer-events:none}
+.cast-stage .cs-l,.cast-stage .cs-r{display:flex;gap:6px}
+.cast-stage .cs-r{flex-direction:row-reverse}
+.cst{position:relative;width:54px;text-align:center;transition:transform .35s cubic-bezier(.2,1.4,.4,1),filter .35s,opacity .35s;filter:grayscale(.75) brightness(.55);opacity:.75;transform:scale(.88)}
+.cst img{width:54px;height:54px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.18);box-shadow:0 4px 14px rgba(0,0,0,.6);background:#111}
+.cst b{display:block;font-size:10px;font-weight:600;margin-top:2px;color:#cfd5ec;text-shadow:0 1px 4px #000}
+.cst.on{filter:none;opacity:1;transform:scale(1.12) translateY(-4px)}
+.cst.on img{border-color:var(--c);box-shadow:0 0 0 3px color-mix(in srgb,var(--c) 35%,transparent),0 0 22px var(--c)}
+.cst.on b{color:var(--c)}
+.cap.v3{border-left:3px solid var(--c);transition:none;animation:capIn .22s ease}
+.cap.v3.r{border-left:1px solid rgba(255,255,255,.08);border-right:3px solid var(--c);border-radius:16px 4px 16px 16px}
+.cap.v3.r .sp{flex-direction:row-reverse}
+.cap.v3.r .tx{text-align:right}
+.cap.v3 .sp .nm{color:var(--c);font-weight:800;font-size:12.5px;letter-spacing:1px}
+.cap.v3 .sp .wave{color:var(--c);opacity:.25}
+.cap.v3.talk .sp .wave{opacity:1}
+.cap.v3 .emo{font-style:normal;font-size:10px;padding:0 6px;border-radius:6px;background:rgba(255,255,255,.08);color:#cdd3ea}
+.cap.v3 .emo.ph{background:rgba(96,165,250,.15);color:#9cc5ff}
+.cue-host{margin:0 10px 6px;transition:opacity .8s}
+.cue-host .cap{margin:0;min-height:0;padding:9px 12px}
+.cue-host .cap .tx{font-size:14.5px}
+.cue-host.fade{opacity:.55}

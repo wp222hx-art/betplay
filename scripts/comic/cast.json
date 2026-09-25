@@ -1,0 +1,8 @@
+{
+  "_doc": "角色声线品牌表。engine=elevenlabs：voice=预置音色名；如果填了 custom_voice_id（由 clone_cast.py 用真人样本克隆得到），就优先使用。fx=该角色固定的后期声音处理链（ffmpeg -af）",
+  "林夏": {"voice": "Arabella", "custom_voice_id": null, "stability": 0.42, "style_base": 0.35, "fx": "highpass=f=90,acompressor=threshold=-20dB:ratio=3:attack=5:release=80,equalizer=f=3200:t=q:w=1.2:g=2", "color": "#60a5fa", "img": "linxia", "side": "L", "brand": "克制的冷感御姐，气声重，一提到妹妹就会破防"},
+  "陈默": {"voice": "Reginald", "custom_voice_id": null, "stability": 0.45, "style_base": 0.3, "fx": "highpass=f=70,acompressor=threshold=-20dB:ratio=3:attack=5:release=90,equalizer=f=180:t=q:w=1:g=2", "color": "#f5c451", "img": "chenmo", "side": "R", "brand": "沙哑、疲惫的前刑警，低沉的胸腔共鸣"},
+  "渡鸦": {"voice": "Austin", "custom_voice_id": null, "stability": 0.55, "style_base": 0.25, "fx": "asetrate=44100*0.94,aresample=44100,atempo=1.0638,highpass=f=110,lowpass=f=6000,equalizer=f=1400:t=q:w=2:g=3,aecho=0.8:0.5:22:0.22,acompressor=threshold=-22dB:ratio=4", "color": "#ff5d73", "img": "raven", "side": "R", "brand": "面具里传出的低沉耳语，自带金属的闷响和压迫感"},
+  "林小雨": {"voice": "Hope", "custom_voice_id": null, "stability": 0.38, "style_base": 0.4, "fx": "highpass=f=120,acompressor=threshold=-18dB:ratio=2.5,equalizer=f=4000:t=q:w=1.5:g=2", "phone_fx": "highpass=f=350,lowpass=f=3400,acrusher=bits=12:mix=0.15,volume=1.4", "color": "#fbbf24", "img": "xiaoyu", "side": "L", "brand": "清亮、急切的少女声，常通过耳机或电话传来"},
+  "顾衡": {"voice": "Bradford", "custom_voice_id": null, "stability": 0.55, "style_base": 0.3, "fx": "highpass=f=60,equalizer=f=150:t=q:w=1:g=2.5,aecho=0.8:0.6:45|70:0.18|0.10,acompressor=threshold=-20dB:ratio=2.5", "color": "#e5e7eb", "img": "guheng", "side": "R", "brand": "慢条斯理的浑厚男中音，笑里藏刀，带着会议厅的回响"}
+}
