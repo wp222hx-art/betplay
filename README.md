@@ -7,7 +7,17 @@
 - **示范剧**：《天台》：3 场景 × 3 个 Cash 节点 × 9 个结局簇 × 27+ 变体，另有 3 个结局（内容由 LLM 生成）
 - **架构文档**：`docs/ARCHITECTURE.md`
 
-## 🆕 对弈式漫剧《穹顶之下》（/comic）
+## 🎬 对弈式影剧《穹顶之下 · 影剧版》（/film）
+- **音画一体**：9 段 Seedance 2.0 视频（每段 10–12 秒，多镜头），普通话对白、口型、音效和配乐都在同一次生成里出来，不再是"静帧 + 后配 TTS"
+- **结构**：序章，然后 3 个抉择点，最后 5 种结局：以身换命、黎明同盟、全城曝光、坠落、天穹之主（隐藏结局，只有悔棋"新变数"能到达）
+- **镜头连续**：每段子片段都用父片段的最后一帧作为开场构图，再加角色设定图，锁定人物一致性
+- **字幕**：Whisper 逐字转写原声，再和剧本台词对齐，得到时间轴字幕；说话人的头像同步高亮
+- **机制**：和漫剧共用同一套对弈引擎（`src/comic/factory.ts` 里的 `createEngine(DATA)`），包括承诺-揭示、种子扰动、二选一和新变数两种悔棋、复式记账、验证
+- **生产脚本**：`scripts/film/story.py`（分镜脚本）→ `produce_film.py`（按层生成，子片段接父片段的末帧）→ `build_film.py`（压制、转写、对齐，生成 `src/film/data.json`）
+- **成本**：mini 档每段 12 秒约 1,000 积分，9 段合计约 9,000 积分
+- **千问配音（备选）**：`scripts/comic/produce_voice_qwen.py`，用 Qwen3-TTS-Instruct-Flash 逐句写自然语言表演指令；需要在 `.dev.vars` 里配置 `DASHSCOPE_API_KEY`
+
+## 对弈式漫剧《穹顶之下》（/comic）
 - **规模**：34 个抉择点（4 幕：1→3→9→21），75 条常规分支，34 条悔棋隐藏分支，63 个结局（其中 21 个是隐藏结局）
 - **媒体**：112 幅 GPT Image 2 分镜（以角色设定图做参考，锁定人物一致性），全部提前生成
 - **V3 一气呵成的剧**（当前版本）：
@@ -26,6 +36,7 @@
 ## 入口
 | 页面 | 路径 |
 |---|---|
+| 对弈式影剧（Seedance 音画一体） | `/film` |
 | 对弈式漫剧 | `/comic` |
 | 玩家端 Cash Stage | `/` |
 | 运营后台 Forge Console | `/console`（`#monitor #branches #script #derive #regulate #clips #pool #video #economy #rounds #tasks #qa`） |
