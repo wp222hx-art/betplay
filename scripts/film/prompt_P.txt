@@ -1,0 +1,10 @@
+Reference: @Image1 is the character sheet, use appearance only. Define the woman with a sharp black bob, long black trench coat and glowing blue wrist port in @Image1 as LinXia. Define the hooded assassin with black feather cloak, white beak mask and single red eye in @Image1 as Raven. @Image2 is the environment and color reference only (rainy neon rooftop), never its own shot.
+Style: high-end Chinese anime feature film, cinematic cel-shaded 2D with volumetric rain, teal and magenta neon rim light, CineStill 800T look, vertical framing.
+Dialogue language: Mandarin Chinese (Putonghua).
+Shot 1: crane down through heavy rain onto a skyscraper rooftop at night, neon city far below. <heavy rain, distant thunder> (low tense synth drone)
+Shot 2: medium close-up, LinXia raises a small glowing blue chip between two fingers, rain dripping from her hair, jaw tight.
+Shot 3: low-angle on Raven standing at the rooftop edge, long rifle raised, red eye glowing. Raven says in Mandarin Chinese, low and cold: {星核，交出来。}
+Shot 4: close-up LinXia, eyes narrowed, says in Mandarin Chinese, calm but her voice trembles: {先放了我妹妹。}
+Shot 5: extreme close-up of Raven's red eye lens, says in Mandarin Chinese: {你没有资格谈条件。} <sniper rifle bolt click>
+Shot 6: slow push-in on LinXia's face in the rain, she exhales slowly, fingers tighten around the chip, held.
+Face stable and undeformed, consistent costume and hairstyle, no morphing, no subtitles, no logo, no watermark.

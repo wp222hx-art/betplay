@@ -9,8 +9,9 @@ import { modelHealth, predictiveQueue, rankVideoModels, submitVideo, buildVideoP
 import { branches, overview, scriptTree } from './agents/console'
 import { applyClipPlan, approveExtension, clipPairs, derive, generatePoems, ingestSignals, regulate } from './agents/deriver'
 import type { Bindings } from './gateway/llm'
-import { playerPage, consolePage, agentsPage, comicPage } from './pages/shell'
+import { playerPage, consolePage, agentsPage, comicPage, filmPage } from './pages/shell'
 import * as Comic from './comic/engine'
+import * as Film from './film/engine'
 
 const app = new Hono<{ Bindings: Bindings }>()
 app.use('/api/*', cors())
@@ -37,6 +38,7 @@ app.get('/play/:series', (c) => c.html(playerPage()))
 app.get('/console', (c) => c.html(consolePage()))
 app.get('/agents', (c) => c.html(agentsPage()))
 app.get('/comic', (c) => c.html(comicPage()))
+app.get('/film', (c) => c.html(filmPage()))
 
 // ─────────────── Agent-1 · 蓝图 ───────────────
 app.get('/api/blueprint', (c) => c.json({ ...BLUEPRINT, agents: AGENTS }))
@@ -188,6 +190,17 @@ app.post('/api/comic/config', async (c) => {
 })
 app.post('/api/comic/simulate', async (c) => { const b = await body(c); return c.json(await Comic.simulateTree(c.env, b.n || 2000)) })
 app.get('/api/comic/stats', async (c) => c.json(await Comic.comicStats(c.env)))
+
+// ─────────────── 影剧 Film 模式（Seedance 2.0 音画一体，5 结局）：与漫剧共用对弈引擎 ───────────────
+app.get('/api/film/meta', async (c) => { const id = uidOf(c); return c.json({ series: Film.COMIC.series, nodes: Film.COMIC.nodes.length, total_endings: Film.totalEndings(), my_endings: id ? await Film.myEndings(c.env, id) : [], config: await Film.getConfig(c.env) }) })
+app.get('/api/film/tree', (c) => c.json(Film.COMIC))
+app.post('/api/film/start', async (c) => { const b = await body(c); return c.json(await Film.startRun(c.env, uidOf(c, b), b.nick)) })
+app.post('/api/film/rounds/:id/bet', async (c) => { const b = await body(c); return c.json(await Film.bet(c.env, { roundId: c.req.param('id'), userId: uidOf(c, b), optionId: b.option_id, amount: b.amount })) })
+app.post('/api/film/rounds/:id/settle', async (c) => { const b = await body(c); return c.json(await Film.settle(c.env, { roundId: c.req.param('id'), userId: uidOf(c, b) })) })
+app.post('/api/film/rounds/:id/rewind', async (c) => { const b = await body(c); return c.json(await Film.rewind(c.env, { roundId: c.req.param('id'), userId: uidOf(c, b), mode: b.mode })) })
+app.post('/api/film/rounds/:id/next', async (c) => { const b = await body(c); return c.json(await Film.advance(c.env, { roundId: c.req.param('id'), userId: uidOf(c, b) })) })
+app.get('/api/film/rounds/:id/verify', async (c) => c.json(await Film.verify(c.env, c.req.param('id'))))
+app.post('/api/film/simulate', async (c) => { const b = await body(c); return c.json(await Film.simulateTree(c.env, b.n || 2000)) })
 
 app.get('/api/health', (c) => c.json({ ok: true, llm: !!c.env.OPENAI_API_KEY, video_provider: !!c.env.FAL_KEY, time: Date.now() }))
 

@@ -14,6 +14,7 @@ const nav = (active: string) => `
 <nav id="top-nav" class="top-nav">
   <a href="/" class="brand"><i class="fas fa-chess-knight"></i> DreamForge<span>· Cash 剧场</span></a>
   <div class="nav-links">
+    <a href="/film" class="${active === 'film' ? 'on' : ''}"><i class="fas fa-film"></i><b>影剧</b></a>
     <a href="/comic" class="${active === 'comic' ? 'on' : ''}"><i class="fas fa-book-open"></i><b>漫剧</b></a>
     <a href="/" class="${active === 'play' ? 'on' : ''}"><i class="fas fa-play"></i><b>剧场</b></a>
     <a href="/console" class="${active === 'console' ? 'on' : ''}"><i class="fas fa-gauge-high"></i><b>后台</b></a>
@@ -67,4 +68,19 @@ ${nav('comic')}
 </main>
 <div id="modal-root"></div>
 <script src="/static/comic.js"></script>
+</body></html>`
+
+export const filmPage = () => `${head('穹顶之下 · 影剧版 | DreamForge', '<link href="/static/comic.css" rel="stylesheet"><link href="/static/film.css" rel="stylesheet">')}
+<body class="comic-body film-body">
+${nav('film')}
+<main id="comic-wrap">
+  <section id="comic-stage" class="comic-stage film-stage">
+    <video id="film-v" class="film-v" playsinline preload="auto"></video>
+    <video id="film-v2" class="film-v" playsinline preload="auto"></video>
+    <div id="comic-layer" class="comic-layer"></div>
+  </section>
+  <aside id="comic-side" class="comic-side"></aside>
+</main>
+<div id="modal-root"></div>
+<script>window.DF_MODE="film"</script><script src="/static/comic.js"></script>
 </body></html>`

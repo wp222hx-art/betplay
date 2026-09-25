@@ -1,0 +1,32 @@
+{
+ "F_P": {
+  "raw": "/tmp/film/P_test.mp4",
+  "last_frame": "https://www.genspark.ai/api/files/s/ab7muYH1"
+ },
+ "F_A": {
+  "raw": "/tmp/film/F_A.mp4",
+  "last_frame": "https://www.genspark.ai/api/files/s/xjTKNVIv"
+ },
+ "F_B": {
+  "raw": "/tmp/film/F_B.mp4",
+  "last_frame": "https://www.genspark.ai/api/files/s/4PY2czGv"
+ },
+ "F_T": {
+  "raw": "/tmp/film/F_T.mp4"
+ },
+ "E1": {
+  "raw": "/home/user/webapp/scripts/film/raw/E1.mp4"
+ },
+ "E2": {
+  "raw": "/home/user/webapp/scripts/film/raw/E2.mp4"
+ },
+ "E3": {
+  "raw": "/home/user/webapp/scripts/film/raw/E3.mp4"
+ },
+ "E4": {
+  "raw": "/home/user/webapp/scripts/film/raw/E4.mp4"
+ },
+ "E5": {
+  "raw": "/home/user/webapp/scripts/film/raw/E5.mp4"
+ }
+}

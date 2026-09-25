@@ -2,7 +2,7 @@
 (() => {
   const $ = (s, r = document) => r.querySelector(s)
   const L = $('#comic-layer'), side = $('#comic-side'), modal = $('#modal-root')
-  const PA = $('#panel-a'), PB = $('#panel-b')
+  const PA = $('#panel-a') || document.createElement('div'), PB = $('#panel-b') || document.createElement('div')
   const uid = localStorage.df_uid || (localStorage.df_uid = 'u_' + Math.random().toString(36).slice(2, 10))
   const nick = localStorage.df_nick || (localStorage.df_nick = '玩家' + uid.slice(-4).toUpperCase())
   const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
@@ -12,6 +12,7 @@
     const j = await r.json(); if (!r.ok) throw new Error(j.message || j.error); return j
   }
   const toast = (m) => { const d = document.createElement('div'); d.className = 'tst'; d.textContent = m; document.body.appendChild(d); setTimeout(() => d.remove(), 2600) }
+  const FILM = window.DF_MODE === 'film', API = FILM ? '/api/film' : '/api/comic'
   const S = { meta: null, tree: null, run: null, round: null, balance: 0, sel: null, stake: 50, placed: false, path: [], log: [], voice: localStorage.df_voice !== '0', bgm: localStorage.df_bgm !== '0', auto: localStorage.df_auto !== '0', offset: 0, visited: new Set() }
 
   // ─── 音频 ───
@@ -49,6 +50,7 @@
     const duck = (d) => { if (!on) return; ambBus.gain.cancelScheduledValues(ctx.currentTime); ambBus.gain.linearRampToValueAtTime(d ? 0.22 : 0.55, ctx.currentTime + (d ? 0.15 : 0.9)) }
     // 20s 素材 → 两路错位交叉淡化循环，听不出接缝
     const ambience = async (name) => {
+      if (FILM) return
       if (!on || !name || cur?.name === name) return
       const buf = await load(name); if (!buf) return
       const old = cur
@@ -78,6 +80,7 @@
   const preload = (src) => { if (!src || cache.has(src)) return; const i = new Image(); i.src = src; cache.set(src, i) }
   const preA = (src) => { if (src && !cache.has(src)) { const a = new Audio(); a.preload = 'auto'; a.src = src; cache.set(src, a) } }
   function showPanel(src, fx = '', video = null) {
+    if (FILM) { if (src && !vfront?.currentSrc) { vfront.poster = src; vfront.classList.add('show') } return }
     const back = front === PA ? PB : PA
     back.className = 'panel'
     back.innerHTML = ''
@@ -169,8 +172,43 @@
   }
   const setBal = (v) => { S.balance = v; const e = $('#bal'); if (e) e.textContent = v; renderSide() }
 
+  // ─── 影剧：Seedance 音画一体片段（原生普通话对白 + 口型 + 音效 + 配乐），双缓冲视频无缝切换，播完定格在末帧 ───
+  const VA = $('#film-v'), VB = $('#film-v2'); let vfront = VA
+  const vpre = new Map()
+  const preV = (src) => { if (!src || vpre.has(src)) return; const l = document.createElement('link'); l.rel = 'preload'; l.as = 'video'; l.href = src; document.head.appendChild(l); vpre.set(src, l) }
+  function playFilm(seg) {
+    return new Promise((res) => {
+      const back = vfront === VA ? VB : VA
+      back.src = seg.video_url || seg.video; back.poster = seg.image_url || seg.image || ''
+      back.muted = !S.voice; back.volume = 1; back.currentTime = 0
+      const lines = seg.lines || []
+      let cur = -1, done = false, spans = null
+      const host = $('#cap-host')
+      const finish = () => { if (done) return; done = true; back.onended = null; res() }
+      back.onended = finish
+      if (host) host.onclick = () => { const nx = lines[cur + 1]; if (nx) back.currentTime = Math.max(0, nx.start - 0.1); else { back.currentTime = Math.max(0, (back.duration || 1) - 0.3) } }
+      back.play().then(() => { back.classList.add('show'); vfront.classList.remove('show'); const old = vfront; setTimeout(() => { if (!old.classList.contains('show')) old.pause() }, 700); vfront = back })
+        .catch(() => { back.muted = true; back.play().then(() => { back.classList.add('show'); vfront.classList.remove('show'); vfront = back }).catch(finish) })
+      const tick = () => {
+        if (done) return
+        const t = back.currentTime
+        let k = -1; for (let i = 0; i < lines.length; i++) if (t >= lines[i].start - 0.08 && t <= lines[i].end + 0.6) k = i
+        if (k !== cur) { cur = k; if (k >= 0) spans = showCue(lines[k], host); else if (host) { host.innerHTML = ''; spans = null; document.querySelectorAll('#cast-stage .cst').forEach((e) => e.classList.remove('on')) } }
+        if (spans && k >= 0) { const l = lines[k], f = Math.min(1, (t - l.start) / Math.max(0.4, (l.end - l.start) * 0.9)); const n = Math.ceil(f * spans.length); spans.forEach((s, i) => i < n && s.classList.add('v')); host?.querySelector('.cap')?.classList.toggle('talk', t < l.end) }
+        if (back.duration && t >= back.duration - 0.05) return finish()
+        requestAnimationFrame(tick)
+      }
+      requestAnimationFrame(tick)
+    })
+  }
+
   // ─── 播放一个分镜段落：一条连续对白轨，字幕/立绘/音效都挂在同一时间轴上 ───
   async function playSegment(seg, opts = {}) {
+    if (FILM) {
+      frame(`${opts.header || ''}<div class="spacer"></div>${seg.title ? `<div class="seg-title film-t">${esc(seg.title)}</div>` : ''}${stageHtml(seg.lines)}`)
+      await playFilm(seg)
+      return
+    }
     showPanel(seg.image_url || seg.image, opts.fx, seg.video_url || seg.video)
     const lines = seg.lines || []
     frame(`${opts.header || ''}<div class="spacer"></div>${seg.title ? `<div class="seg-title">${esc(seg.title)}</div>` : ''}${stageHtml(lines)}`)
@@ -193,9 +231,9 @@
     const regular = S.tree.nodes.reduce((a, n) => a + n.options.filter((o) => !o.twist).length, 0)
     const twist = S.tree.nodes.reduce((a, n) => a + n.options.filter((o) => o.twist).length, 0)
     frame(`<div class="spacer"></div><div class="cover">
-      <div class="sub" style="letter-spacing:4px;color:var(--gold)">对弈式漫剧 · GPT Image 2 分镜 · 全程配音</div>
+      <div class="sub" style="letter-spacing:4px;color:var(--gold)">${FILM ? '对弈式影剧 · Seedance 2.0 电影级音画一体 · 原声对白' : '对弈式漫剧 · GPT Image 2 分镜 · 全程配音'}</div>
       <h1>${esc(m.series.title)}</h1>
-      <div class="lg">一夜之间，新港的命运系于一枚“星核”。每个抉择都在你下注之前锁定——你押的是人心。悔棋？可以。但故事会<b style="color:#d9c6ff">变成二选一</b>，或<b style="color:#d9c6ff">多出一个你没见过的选项</b>。</div>
+      <div class="lg">${FILM ? '9 段电影级片段，3 次抉择，<b style="color:var(--gold)">5 种结局</b>。' : ''}一夜之间，新港的命运系于一枚“星核”。每个抉择都在你下注之前锁定——你押的是人心。悔棋？可以。但故事会<b style="color:#d9c6ff">变成二选一</b>，或<b style="color:#d9c6ff">多出一个你没见过的选项</b>。</div>
       <div class="stats3"><div><b>${m.nodes}</b><span>抉择点</span></div><div><b>${regular}</b><span>常规分支</span></div><div><b>${twist}</b><span>悔棋隐藏支</span></div><div><b>${m.my_endings.length}/${m.total_endings}</b><span>我的结局</span></div></div>
       <button class="start2" id="st"><i class="fas fa-book-open"></i> 开始这一夜</button>
       <div class="toggle"><label><input type="checkbox" id="tv" ${S.voice ? 'checked' : ''}> 配音</label><label><input type="checkbox" id="ta" ${S.auto ? 'checked' : ''}> 自动翻页</label><label><input type="checkbox" id="tb" ${S.bgm ? 'checked' : ''}> 环境音效</label></div></div>`)
@@ -208,10 +246,10 @@
   async function start() {
     SFX.sel(); Amb.start()
     try {
-      const r = await api('/api/comic/start', { body: { nick } })
+      const r = await api(API + '/start', { body: { nick } })
       S.run = r.run_id; S.balance = r.balance; S.round = null
       // 预载序章 + 第一抉择全部分镜
-      r.prologue.forEach((p) => { preload(p.image_url); preA(p.track); (p.lines || []).forEach((l) => preA(l.audio)) }); preA(r.round.cue?.track)
+      r.prologue.forEach((p) => { if (FILM) preV(p.video_url); preload(p.image_url); preA(p.track); (p.lines || []).forEach((l) => preA(l.audio)) }); preA(r.round.cue?.track)
       r.round.preload.forEach((p) => { preload(p.image); preA(p.audio) })
       renderSide()
       for (const [i, p] of r.prologue.entries()) await playSegment(p, { header: `<div class="c-chapter">序章 · ${i + 1}/${r.prologue.length}</div>` })
@@ -223,9 +261,10 @@
   function decision(rd, changed) {
     S.round = rd; S.sel = null; S.placed = false; S.offset = rd.server_time - Date.now()
     S.visited.add(rd.node_id)
+    if (FILM) rd.preload.forEach((p) => preV(p.video))
     rd.preload.forEach((p) => { preload(p.image); preA(p.audio); if (p.ambience) Amb.load(p.ambience); if (p.sfx) Amb.load(p.sfx); if (p.video && !cache.has(p.video)) { const l = document.createElement('link'); l.rel = 'preload'; l.as = 'video'; l.href = p.video; document.head.appendChild(l); cache.set(p.video, l) } })
     if (S.stake < rd.min_bet) S.stake = rd.min_bet
-    SFX.heart(); panelFx('desat'); Amb.setTension(1)
+    SFX.heart(); panelFx('desat'); Amb.setTension(1); if (FILM) vfront.classList.add('dim')
     const modeTxt = { normal: '', binary: '<span style="color:#ff9aa8">⚔ 二选一变局</span>', plus: '<span style="color:#c4a8ff">✦ 新变数出现</span>', binary_plus: '<span style="color:#c4a8ff">⚔✦ 二选一 + 新变数</span>' }[rd.mode]
     const maxS = Math.max(rd.min_bet, Math.min(S.balance, 1000))
     frame(`<div class="c-chapter">第 ${rd.depth} 幕 · 抉择${rd.rewind_no ? ` · 悔棋 ${rd.rewind_no}` : ''}</div><div class="spacer"></div>
@@ -264,7 +303,7 @@
     $('#go').onclick = async () => {
       if (S.placed) return reveal()
       const b = $('#go'); b.disabled = true; b.textContent = '提交中…'
-      try { const r = await api(`/api/comic/rounds/${rd.round_id}/bet`, { body: { option_id: S.sel, amount: S.stake } }); S.placed = true; setBal(r.balance); SFX.lock() } catch (e) { toast(e.message) }
+      try { const r = await api(`${API}/rounds/${rd.round_id}/bet`, { body: { option_id: S.sel, amount: S.stake } }); S.placed = true; setBal(r.balance); SFX.lock() } catch (e) { toast(e.message) }
       refresh()
     }
     refresh()
@@ -287,9 +326,9 @@
   async function reveal() {
     if (busy) return; busy = true
     try {
-      stopVoice(); SFX.lock(); Amb.sfx('lock'); Amb.setTension(0); setTimeout(() => Amb.sfx('reveal', 0.8), 450)
+      stopVoice(); if (FILM) vfront.classList.remove('dim'); SFX.lock(); Amb.sfx('lock'); Amb.setTension(0); setTimeout(() => Amb.sfx('reveal', 0.8), 450)
       L.insertAdjacentHTML('beforeend', '<div class="flash"></div><div class="stamp">LOCKED</div>')
-      const st = await api(`/api/comic/rounds/${S.round.round_id}/settle`, { body: {} })
+      const st = await api(`${API}/rounds/${S.round.round_id}/settle`, { body: {} })
       const seg = await decrypt(S.round.encrypted[st.reveal.slot], st.reveal.key)
       await sleep(500)
       const hdr = `<div class="c-chapter">第 ${S.round.depth} 幕 · 揭晓</div><div class="spacer" style="flex:.4"></div><div class="reveal-t"><div class="k">${seg.twist ? '✦ 隐藏分支' : '命运落定'}</div><div class="t ${seg.twist ? 'tw' : ''}">${esc(seg.label)}</div></div>`
@@ -327,7 +366,7 @@
     L.insertAdjacentHTML('beforeend', '<div class="rewind-fx"></div><div class="rewind-clock"><i class="fas fa-clock-rotate-left"></i></div>')
     panelFx('desat')
     try {
-      const [nr] = await Promise.all([api(`/api/comic/rounds/${rid}/rewind`, { body: { mode } }), sleep(1600)])
+      const [nr] = await Promise.all([api(`${API}/rounds/${rid}/rewind`, { body: { mode } }), sleep(1600)])
       S.log[0] && (S.log[0].rewound = true)
       setBal(nr.balance)
       decision(nr, nr.changed)
@@ -336,7 +375,7 @@
 
   async function next(rid) {
     try {
-      const r = await api(`/api/comic/rounds/${rid}/next`, { body: {} })
+      const r = await api(`${API}/rounds/${rid}/next`, { body: {} })
       S.path = r.path
       if (r.ended) return ending(r)
       r.round.preload.forEach((p) => { preload(p.image); preA(p.audio) }); preA(r.round.cue?.track)
@@ -360,7 +399,7 @@
   }
 
   async function verify(rid) {
-    const v = await api(`/api/comic/rounds/${rid}/verify`)
+    const v = await api(`${API}/rounds/${rid}/verify`)
     openModal(`<h2><i class="fas fa-shield-halved" style="color:var(--gold)"></i> 这一幕的公平验证</h2>
       <div class="step"><div class="n">1</div><div><b>下注前锁定</b><code>commit = ${v.commit}</code></div></div>
       <div class="step"><div class="n">2</div><div><b>公开种子 + 机制扰动 ±${Math.round(v.jitter * 100)}%（${v.mode}）</b><code>seed = ${v.seed}</code>
@@ -381,7 +420,7 @@
       if (!onPath && d > 0) return ''
       return `<div class="nd ${cur === id ? 'cur' : ''}">${esc(n.question)}${n.options.filter((o) => !o.twist || walked.has(o.id) || (cur === id && S.round?.options.some((x) => x.id === o.id))).map((o) => `<div class="ol ${walked.has(o.id) ? 'hit' : ''} ${o.twist ? 'tw' : ''}">${walked.has(o.id) ? '●' : '○'} ${esc(o.label)}${o.twist ? ' ✦' : ''}${o.next && walked.has(o.id) ? nodeHtml(o.next, d + 1) : ''}</div>`).join('')}</div>`
     }
-    const ends = S.tree.nodes.flatMap((n) => n.options.filter((o) => !o.next).map((o) => ({ id: o.id, twist: o.twist, title: o.ending_title || o.label })))
+    const ends = [...new Map(S.tree.nodes.flatMap((n) => n.options.filter((o) => !o.next).map((o) => [o.id, { id: o.id, twist: o.twist && !S.tree.nodes.some((m) => m.options.some((x) => x.id === o.id && !x.twist)), title: o.ending_title || o.label }]))).values()]
     const got = new Set(S.meta.my_endings)
     side.innerHTML = `
       <div class="sc"><h3><i class="fas fa-wallet"></i> Chips <b style="color:var(--gold);margin-left:auto;font-size:18px">${S.balance}</b></h3>
@@ -394,7 +433,7 @@
     $('#fc').onclick = async (e) => { e.preventDefault(); try { const u = await api('/api/me/faucet', { body: {} }); setBal(u.chips); toast('+500 Chips') } catch (er) { toast(er.message) } }
   }
 
-  Promise.all([api('/api/comic/meta'), api('/api/comic/tree'), api('/api/me?nick=' + encodeURIComponent(nick))]).then(([m, t, me]) => {
+  Promise.all([api(API + '/meta'), api(API + '/tree'), api('/api/me?nick=' + encodeURIComponent(nick))]).then(([m, t, me]) => {
     S.meta = m; S.tree = t; S.balance = me.chips; renderSide(); cover()
   }).catch((e) => (L.innerHTML = `<div style="margin:auto" class="sub">加载失败：${esc(e.message)}</div>`))
 })()
