@@ -7,3 +7,4 @@ dist/
 .pm2/
 *.tar.gz
 scripts/film/raw/
+scripts/love/raw/

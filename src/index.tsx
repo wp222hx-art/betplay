@@ -9,9 +9,10 @@ import { modelHealth, predictiveQueue, rankVideoModels, submitVideo, buildVideoP
 import { branches, overview, scriptTree } from './agents/console'
 import { applyClipPlan, approveExtension, clipPairs, derive, generatePoems, ingestSignals, regulate } from './agents/deriver'
 import type { Bindings } from './gateway/llm'
-import { playerPage, consolePage, agentsPage, comicPage, filmPage, voicePage } from './pages/shell'
+import { playerPage, consolePage, agentsPage, comicPage, filmPage, voicePage, lovePage } from './pages/shell'
 import * as Comic from './comic/engine'
 import * as Film from './film/engine'
+import * as Love from './love/engine'
 import * as Voice from './voice/studio'
 
 const app = new Hono<{ Bindings: Bindings }>()
@@ -40,6 +41,7 @@ app.get('/console', (c) => c.html(consolePage()))
 app.get('/agents', (c) => c.html(agentsPage()))
 app.get('/comic', (c) => c.html(comicPage()))
 app.get('/film', (c) => c.html(filmPage()))
+app.get('/love', (c) => c.html(lovePage()))
 app.get('/voice', (c) => c.html(voicePage()))
 
 // ─────────────── Agent-1 · 蓝图 ───────────────
@@ -203,6 +205,17 @@ app.post('/api/film/rounds/:id/rewind', async (c) => { const b = await body(c); 
 app.post('/api/film/rounds/:id/next', async (c) => { const b = await body(c); return c.json(await Film.advance(c.env, { roundId: c.req.param('id'), userId: uidOf(c, b) })) })
 app.get('/api/film/rounds/:id/verify', async (c) => c.json(await Film.verify(c.env, c.req.param('id'))))
 app.post('/api/film/simulate', async (c) => { const b = await body(c); return c.json(await Film.simulateTree(c.env, b.n || 2000)) })
+
+// ─────────────── 恋爱剧《心动回廊》（Seedance 2.0 音画一体，21 结局）：与漫剧共用对弈引擎 ───────────────
+app.get('/api/love/meta', async (c) => { const id = uidOf(c); return c.json({ series: Love.COMIC.series, nodes: Love.COMIC.nodes.length, total_endings: Love.totalEndings(), my_endings: id ? await Love.myEndings(c.env, id) : [], config: await Love.getConfig(c.env) }) })
+app.get('/api/love/tree', (c) => c.json(Love.COMIC))
+app.post('/api/love/start', async (c) => { const b = await body(c); return c.json(await Love.startRun(c.env, uidOf(c, b), b.nick)) })
+app.post('/api/love/rounds/:id/bet', async (c) => { const b = await body(c); return c.json(await Love.bet(c.env, { roundId: c.req.param('id'), userId: uidOf(c, b), optionId: b.option_id, amount: b.amount })) })
+app.post('/api/love/rounds/:id/settle', async (c) => { const b = await body(c); return c.json(await Love.settle(c.env, { roundId: c.req.param('id'), userId: uidOf(c, b) })) })
+app.post('/api/love/rounds/:id/rewind', async (c) => { const b = await body(c); return c.json(await Love.rewind(c.env, { roundId: c.req.param('id'), userId: uidOf(c, b), mode: b.mode })) })
+app.post('/api/love/rounds/:id/next', async (c) => { const b = await body(c); return c.json(await Love.advance(c.env, { roundId: c.req.param('id'), userId: uidOf(c, b) })) })
+app.get('/api/love/rounds/:id/verify', async (c) => c.json(await Love.verify(c.env, c.req.param('id'))))
+app.post('/api/love/simulate', async (c) => { const b = await body(c); return c.json(await Love.simulateTree(c.env, b.n || 2000)) })
 
 // ─────────────── 角色声线工作室（千问 Qwen3-TTS）───────────────
 const castDefaults = () => Comic.COMIC.cast || {}

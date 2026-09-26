@@ -14,6 +14,7 @@ const nav = (active: string) => `
 <nav id="top-nav" class="top-nav">
   <a href="/" class="brand"><i class="fas fa-chess-knight"></i> DreamForge<span>· Cash 剧场</span></a>
   <div class="nav-links">
+    <a href="/love" class="${active === 'love' ? 'on' : ''}"><i class="fas fa-heart"></i><b>恋爱</b></a>
     <a href="/film" class="${active === 'film' ? 'on' : ''}"><i class="fas fa-film"></i><b>影剧</b></a>
     <a href="/comic" class="${active === 'comic' ? 'on' : ''}"><i class="fas fa-book-open"></i><b>漫剧</b></a>
     <a href="/" class="${active === 'play' ? 'on' : ''}"><i class="fas fa-play"></i><b>剧场</b></a>
@@ -97,4 +98,20 @@ ${nav('voice')}
 </main>
 <div id="toast" class="toast"></div>
 <script src="/static/voice.js"></script>
+</body></html>`
+
+export const lovePage = () => `${head('心动回廊 ～传说之樱下的约定～ | DreamForge', '<link href="/static/comic.css" rel="stylesheet"><link href="/static/film.css" rel="stylesheet"><link href="/static/love.css" rel="stylesheet">')}
+<body class="comic-body film-body love-body">
+${nav('love')}
+<main id="comic-wrap">
+  <section id="comic-stage" class="comic-stage film-stage">
+    <video id="film-v" class="film-v" playsinline preload="auto"></video>
+    <video id="film-v2" class="film-v" playsinline preload="auto"></video>
+    <div id="petals" class="petals"></div>
+    <div id="comic-layer" class="comic-layer"></div>
+  </section>
+  <aside id="comic-side" class="comic-side"></aside>
+</main>
+<div id="modal-root"></div>
+<script>window.DF_MODE="film";window.DF_API="/api/love";window.DF_THEME="love"</script><script src="/static/comic.js"></script>
 </body></html>`

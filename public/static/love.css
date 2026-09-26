@@ -1,0 +1,36 @@
+/* 《心动回廊》恋爱剧主题：樱粉 + 暮光金，飘落的樱花，结局图鉴卡片 */
+.love-body{--gold:#ff9ec7;--love:#ff9ec7;background:radial-gradient(1200px 600px at 20% -10%,#3a1630 0,transparent 60%),radial-gradient(900px 500px at 110% 10%,#1d1a44 0,transparent 55%),#0c0a14}
+.love-body .top-nav .nav-links a.on{background:linear-gradient(135deg,#ffb3d4,#ff7eb3);color:#3a0a22}
+.love-body .comic-stage{box-shadow:0 30px 80px rgba(0,0,0,.6),0 0 0 1px #4a2440,0 0 60px rgba(255,126,179,.15)}
+.love-body .comic-layer{background:linear-gradient(180deg,rgba(30,6,24,.45) 0,transparent 14%,transparent 60%,rgba(30,6,24,.82) 100%)}
+.love-body .cover h1{background:linear-gradient(135deg,#fff,#ffc2dc 50%,#ff8ab8);-webkit-background-clip:text;color:transparent;font-size:30px;line-height:1.25}
+.love-body .start2{background:linear-gradient(135deg,#ffc2dc,#ff7eb3)!important;color:#3a0a22!important;box-shadow:0 8px 30px rgba(255,126,179,.45)}
+.love-body .q-card{border-color:rgba(255,158,199,.45);background:rgba(28,10,26,.9)}
+.love-body .opt2.sel{border-color:#ff9ec7;box-shadow:0 0 18px rgba(255,126,179,.35);background:#2a1424}
+.love-body .opt2 .pbar{background:linear-gradient(90deg,#ffc2dc,#ff7eb3)}
+.love-body .opt2 .od{color:#ff9ec7}
+.love-body .go{background:linear-gradient(135deg,#ffc2dc,#ff7eb3);color:#3a0a22}
+.love-body .stake2 button.on{background:#ff9ec7;border-color:#ff9ec7;color:#3a0a22}
+.love-body .reveal-t .k{color:#ffc2dc}
+.love-body .stamp{border-color:#ff9ec7;color:#ff9ec7}
+.love-body .ending2 .t{background:linear-gradient(135deg,#fff,#ffc2dc,#ff7eb3);-webkit-background-clip:text;color:transparent}
+.heroines{display:flex;justify-content:center;gap:8px;margin:10px 0 4px}
+.heroines .hr{text-align:center;width:54px}
+.heroines .hr img{width:50px;height:50px;border-radius:50%;object-fit:cover;border:2px solid var(--c);box-shadow:0 0 16px color-mix(in srgb,var(--c) 55%,transparent);animation:bob 3s ease-in-out infinite}
+.heroines .hr:nth-child(2) img{animation-delay:.3s}.heroines .hr:nth-child(3) img{animation-delay:.6s}.heroines .hr:nth-child(4) img{animation-delay:.9s}.heroines .hr:nth-child(5) img{animation-delay:1.2s}
+.heroines .hr b{display:block;font-size:11px;color:var(--c);margin-top:3px}
+@keyframes bob{50%{transform:translateY(-4px)}}
+/* 飘落的樱花 */
+.petals{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:2}
+.petals i{position:absolute;top:-20px;width:10px;height:8px;background:radial-gradient(circle at 30% 30%,#ffe4ef,#ffb3d0 60%,#ff8fbd);border-radius:80% 0 80% 0;opacity:.85;animation:fall linear infinite}
+@keyframes fall{0%{transform:translate(0,0) rotate(0)}100%{transform:translate(var(--dx),110vh) rotate(720deg)}}
+/* 恋爱版结局图鉴 */
+.eg2{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.eg2 .ec{position:relative;aspect-ratio:3/4;border-radius:10px;overflow:hidden;background:#1a1426;border:1px solid #2e2440;display:flex;align-items:center;justify-content:center;transition:.2s}
+.eg2 .ec span{font-size:18px;color:#5b4a70}
+.eg2 .ec.tw{border-color:#8a5cff;background:linear-gradient(160deg,#241a40,#1a1426)}.eg2 .ec.tw span{color:#c4a8ff}
+.eg2 .ec img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.eg2 .ec b{position:absolute;left:0;right:0;bottom:0;font-size:9.5px;line-height:1.25;padding:10px 3px 3px;text-align:center;color:#b9a8cc;background:linear-gradient(transparent,rgba(0,0,0,.85));font-weight:600}
+.eg2 .ec.got{border-color:var(--c);box-shadow:0 0 12px color-mix(in srgb,var(--c) 40%,transparent)}
+.eg2 .ec.got b{color:#fff}
+.eg2 .ec:hover{transform:translateY(-2px)}

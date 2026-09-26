@@ -12,7 +12,7 @@
     const j = await r.json(); if (!r.ok) throw new Error(j.message || j.error); return j
   }
   const toast = (m) => { const d = document.createElement('div'); d.className = 'tst'; d.textContent = m; document.body.appendChild(d); setTimeout(() => d.remove(), 2600) }
-  const FILM = window.DF_MODE === 'film', API = FILM ? '/api/film' : '/api/comic'
+  const FILM = window.DF_MODE === 'film', API = window.DF_API || (FILM ? '/api/film' : '/api/comic'), LOVE = window.DF_THEME === 'love'
   const S = { meta: null, tree: null, run: null, round: null, balance: 0, sel: null, stake: 50, placed: false, path: [], log: [], voice: localStorage.df_voice !== '0', bgm: localStorage.df_bgm !== '0', auto: localStorage.df_auto !== '0', offset: 0, visited: new Set() }
 
   // ─── 音频 ───
@@ -231,11 +231,12 @@
     const regular = S.tree.nodes.reduce((a, n) => a + n.options.filter((o) => !o.twist).length, 0)
     const twist = S.tree.nodes.reduce((a, n) => a + n.options.filter((o) => o.twist).length, 0)
     frame(`<div class="spacer"></div><div class="cover">
-      <div class="sub" style="letter-spacing:4px;color:var(--gold)">${FILM ? '对弈式影剧 · Seedance 2.0 电影级音画一体 · 原声对白' : '对弈式漫剧 · GPT Image 2 分镜 · 全程配音'}</div>
+      <div class="sub" style="letter-spacing:4px;color:var(--gold)">${LOVE ? '恋爱博弈剧 · 电影级动画 · 原声对白' : FILM ? '对弈式影剧 · Seedance 2.0 电影级音画一体 · 原声对白' : '对弈式漫剧 · GPT Image 2 分镜 · 全程配音'}</div>
       <h1>${esc(m.series.title)}</h1>
-      <div class="lg">${FILM ? '9 段电影级片段，3 次抉择，<b style="color:var(--gold)">5 种结局</b>。' : ''}一夜之间，新港的命运系于一枚“星核”。每个抉择都在你下注之前锁定——你押的是人心。悔棋？可以。但故事会<b style="color:#d9c6ff">变成二选一</b>，或<b style="color:#d9c6ff">多出一个你没见过的选项</b>。</div>
-      <div class="stats3"><div><b>${m.nodes}</b><span>抉择点</span></div><div><b>${regular}</b><span>常规分支</span></div><div><b>${twist}</b><span>悔棋隐藏支</span></div><div><b>${m.my_endings.length}/${m.total_endings}</b><span>我的结局</span></div></div>
-      <button class="start2" id="st"><i class="fas fa-book-open"></i> 开始这一夜</button>
+      <div class="lg">${LOVE ? `后山那棵千年樱花树有个传说：<b style="color:#ffc2dc">毕业那天在树下告白的人，会永远幸福。</b><br>三年高中，五位少女，每一次心动都在你押注前锁定——你押的是她的心。悔棋？可以。但命运会<b style="color:#d9c6ff">变成二选一</b>，或让<b style="color:#d9c6ff">一个本不该出现的她</b>走进你的故事。` : `${FILM ? '9 段电影级片段，3 次抉择，<b style="color:var(--gold)">5 种结局</b>。' : ''}一夜之间，新港的命运系于一枚“星核”。每个抉择都在你下注之前锁定——你押的是人心。悔棋？可以。但故事会<b style="color:#d9c6ff">变成二选一</b>，或<b style="color:#d9c6ff">多出一个你没见过的选项</b>。`}</div>
+      ${LOVE ? `<div class="heroines">${Object.entries(S.tree.cast || {}).filter(([k]) => k !== '悠真').map(([k, v]) => `<div class="hr" style="--c:${v.color}" title="${esc(v.brand)}"><img src="${v.img}"><b>${esc(k)}</b></div>`).join('')}</div>` : ''}
+      <div class="stats3"><div><b>${m.nodes}</b><span>抉择点</span></div><div><b>${regular}</b><span>${LOVE ? '心动分支' : '常规分支'}</span></div><div><b>${twist}</b><span>${LOVE ? '隐藏邂逅' : '悔棋隐藏支'}</span></div><div><b>${m.my_endings.length}/${m.total_endings}</b><span>我的结局</span></div></div>
+      <button class="start2" id="st"><i class="fas ${LOVE ? 'fa-heart' : 'fa-book-open'}"></i> ${LOVE ? '推开校门' : '开始这一夜'}</button>
       <div class="toggle"><label><input type="checkbox" id="tv" ${S.voice ? 'checked' : ''}> 配音</label><label><input type="checkbox" id="ta" ${S.auto ? 'checked' : ''}> 自动翻页</label><label><input type="checkbox" id="tb" ${S.bgm ? 'checked' : ''}> 环境音效</label></div></div>`)
     $('#tv').onchange = (e) => { S.voice = e.target.checked; localStorage.df_voice = S.voice ? '1' : '0' }
     $('#ta').onchange = (e) => { S.auto = e.target.checked; localStorage.df_auto = S.auto ? '1' : '0' }
@@ -331,7 +332,7 @@
       const st = await api(`${API}/rounds/${S.round.round_id}/settle`, { body: {} })
       const seg = await decrypt(S.round.encrypted[st.reveal.slot], st.reveal.key)
       await sleep(500)
-      const hdr = `<div class="c-chapter">第 ${S.round.depth} 幕 · 揭晓</div><div class="spacer" style="flex:.4"></div><div class="reveal-t"><div class="k">${seg.twist ? '✦ 隐藏分支' : '命运落定'}</div><div class="t ${seg.twist ? 'tw' : ''}">${esc(seg.label)}</div></div>`
+      const hdr = `<div class="c-chapter">第 ${S.round.depth} 幕 · 揭晓</div><div class="spacer" style="flex:.4"></div><div class="reveal-t"><div class="k">${seg.twist ? (LOVE ? '✦ 意外的邂逅' : '✦ 隐藏分支') : (LOVE ? '心动时刻' : '命运落定')}</div><div class="t ${seg.twist ? 'tw' : ''}">${esc(seg.label)}</div></div>`
       await playSegment(seg, { header: hdr, fx: /枪|爆|violence|战/.test(seg.title + seg.mood) ? 'shake' : '' })
       S.log.unshift({ label: seg.label, bet: st.bet, twist: seg.twist })
       settled(st, seg)
@@ -350,7 +351,7 @@
         <div class="sub" style="text-align:center;font-size:12px">${b ? `押「${esc(S.round.options.find((o) => o.id === b.option_id)?.label)}」×${b.odds}` : '本幕未下注'}</div>
         ${modes.length ? `<div class="sub" style="margin-top:8px;font-size:11px;text-align:center"><i class="fas fa-clock-rotate-left" style="color:#c4a8ff"></i> 悔棋（税 ${st.rewind.fee}，剩 ${st.rewind.max - st.rewind.used} 次）——回到这一刻，但局面会改变：</div>
           <div class="rw-pick">${modes.map((m) => `<button class="pb violet" data-rw="${m.mode}"><b>${m.mode === 'binary' ? '⚔ ' : '✦ '}${m.label}</b><small>${esc(m.desc)}</small></button>`).join('')}</div>` : ''}
-        <div class="btns"><button class="pb" id="vf"><i class="fas fa-shield-halved"></i> 验证</button><button class="pb gold" id="nx">${seg.next ? '翻到下一幕' : '走向结局'} <i class="fas fa-forward"></i></button></div>
+        <div class="btns"><button class="pb" id="vf"><i class="fas fa-shield-halved"></i> 验证</button><button class="pb gold" id="nx">${seg.next ? (LOVE ? '时光流转' : '翻到下一幕') : (LOVE ? '毕业那天' : '走向结局')} <i class="fas fa-forward"></i></button></div>
       </div>`)
     L.querySelectorAll('[data-rw]').forEach((x) => (x.onclick = () => { clearInterval(at); doRewind(st.round_id, x.dataset.rw) }))
     // 一气呵成：6 秒后自动进入下一幕（悔棋 / 验证会打断倒计时）
@@ -388,13 +389,13 @@
     SFX.win()
     S.meta.my_endings = [...new Set([...S.meta.my_endings, r.ending.id])]
     frame(`<div class="spacer"></div><div class="ending2">
-      <div class="sub" style="letter-spacing:6px;color:${r.ending.twist ? '#c4a8ff' : 'var(--gold)'}">${r.ending.twist ? '隐 藏 结 局' : '结 局'}</div>
+      <div class="sub" style="letter-spacing:6px;color:${r.ending.twist ? '#c4a8ff' : 'var(--gold)'}">${LOVE ? (r.ending.twist ? '隐 藏 恋 情' : 'E N D I N G') : (r.ending.twist ? '隐 藏 结 局' : '结 局')}</div>
       <div class="t ${r.ending.twist ? 'tw' : ''}">${esc(r.ending.title)}</div>
       <div class="route">${r.path.map((p) => `<span class="${p.twist ? 'tw' : ''}">${esc(p.label)}</span>`).join('')}</div>
-      <div class="sub">本夜盈亏 <b style="color:${r.pnl >= 0 ? 'var(--gold)' : '#ff9aa8'}">${r.pnl >= 0 ? '+' : ''}${r.pnl}</b> · 悔棋 ${r.rewinds} 次 · 已收集结局 ${S.meta.my_endings.length}/${r.total_endings}</div>
-      <div class="btns" style="margin-top:12px"><button class="pb" id="sh"><i class="fas fa-share-nodes"></i> 战报</button><button class="pb gold" id="ag"><i class="fas fa-rotate"></i> 再走一夜</button></div></div>`)
+      <div class="sub">${LOVE ? '心动收支' : '本夜盈亏'} <b style="color:${r.pnl >= 0 ? 'var(--gold)' : '#ff9aa8'}">${r.pnl >= 0 ? '+' : ''}${r.pnl}</b> · 悔棋 ${r.rewinds} 次 · 已收集结局 ${S.meta.my_endings.length}/${r.total_endings}</div>
+      <div class="btns" style="margin-top:12px"><button class="pb" id="sh"><i class="fas fa-share-nodes"></i> 战报</button><button class="pb gold" id="ag"><i class="fas fa-rotate"></i> ${LOVE ? '重新入学' : '再走一夜'}</button></div></div>`)
     $('#ag').onclick = cover
-    $('#sh').onclick = () => { const t = `我在《穹顶之下》走到了「${r.ending.title}」：${r.path.map((p) => p.label).join('→')}，你能走出不同的结局吗？`; navigator.clipboard?.writeText(t + ' ' + location.href); toast('战报文案已复制') }
+    $('#sh').onclick = () => { const t = `我在《${S.meta.series.title}》走到了「${r.ending.title}」：${r.path.map((p) => p.label).join('→')}，你能走出不同的结局吗？`; navigator.clipboard?.writeText(t + ' ' + location.href); toast('战报文案已复制') }
     renderSide()
   }
 
@@ -409,6 +410,9 @@
   }
   function openModal(h) { modal.innerHTML = `<div class="modal-bg"><div class="modal">${h}</div></div>`; modal.onclick = (e) => { if (e.target.classList.contains('modal-bg') || e.target.closest('[data-close]')) modal.innerHTML = '' } }
 
+  // 恋爱版：结局归属哪位女主（按路线前缀）
+  const HERO = { S: '诗音', H: '阳菜', R: '凛', I: '莓', Y: '雪' }
+  const heroOf = (id) => { const k = (id.match(/^[ER]_([SHRIY])/) || [])[1]; return k ? (S.tree.cast || {})[HERO[k]] : null }
   // ─── 侧栏：剧情树 + 结局图鉴 ───
   function renderSide() {
     if (!S.tree) return
@@ -423,16 +427,18 @@
     const ends = [...new Map(S.tree.nodes.flatMap((n) => n.options.filter((o) => !o.next).map((o) => [o.id, { id: o.id, twist: o.twist && !S.tree.nodes.some((m) => m.options.some((x) => x.id === o.id && !x.twist)), title: o.ending_title || o.label }]))).values()]
     const got = new Set(S.meta.my_endings)
     side.innerHTML = `
-      <div class="sc"><h3><i class="fas fa-wallet"></i> Chips <b style="color:var(--gold);margin-left:auto;font-size:18px">${S.balance}</b></h3>
+      <div class="sc"><h3><i class="fas ${LOVE ? 'fa-heart' : 'fa-wallet'}"></i> ${LOVE ? '心动值' : 'Chips'} <b style="color:var(--gold);margin-left:auto;font-size:18px">${S.balance}</b></h3>
         <div class="sub" style="font-size:11px">${esc(nick)} · 娱乐币，不可提现 · <a href="#" id="fc" style="color:var(--gold)">领免费币</a></div></div>
       <div class="sc"><h3><i class="fas fa-diagram-project"></i> 我的剧情树 <span class="sub" style="margin-left:auto;font-size:11px">${S.tree.nodes.length} 个抉择点</span></h3><div class="tree">${nodeHtml(S.tree.nodes[0].id)}</div></div>
       <div class="sc"><h3><i class="fas fa-book"></i> 结局图鉴 <span class="sub" style="margin-left:auto">${ends.filter((e) => got.has(e.id)).length}/${ends.length}</span></h3>
-        <div class="eg">${ends.map((e) => `<i class="${e.twist ? 'tw' : ''} ${got.has(e.id) ? 'got' : ''}" title="${got.has(e.id) ? esc(e.title) : e.twist ? '隐藏结局（悔棋解锁）' : '未解锁'}"></i>`).join('')}</div>
+        ${LOVE ? `<div class="eg2">${ends.map((e) => { const sg = S.tree.segments[e.id] || {}; const who = heroOf(e.id); return `<div class="ec ${got.has(e.id) ? 'got' : ''} ${e.twist ? 'tw' : ''}" style="--c:${who?.color || '#f472b6'}" title="${got.has(e.id) ? esc(e.title) : e.twist ? '隐藏结局（悔棋“新变数”解锁）' : '未解锁'}">${got.has(e.id) && sg.last_url ? `<img src="${sg.last_url}">` : `<span>${e.twist ? '✦' : '?'}</span>`}<b>${got.has(e.id) ? esc(e.title) : '？？？'}</b></div>` }).join('')}</div>` : `<div class="eg">${ends.map((e) => `<i class="${e.twist ? 'tw' : ''} ${got.has(e.id) ? 'got' : ''}" title="${got.has(e.id) ? esc(e.title) : e.twist ? '隐藏结局（悔棋解锁）' : '未解锁'}"></i>`).join('')}</div>`}
         <div class="sub" style="font-size:10.5px;margin-top:6px">紫框 = 只有悔棋“新变数”才能到达的隐藏结局</div></div>
-      <div class="sc"><h3><i class="fas fa-scroll"></i> 本夜对局</h3><div class="logx">${S.log.map((l) => `<div><span style="${l.twist ? 'color:#c4a8ff' : ''}">${l.rewound ? '<s>' : ''}${esc(l.label)}${l.rewound ? '</s> ⟲' : ''}</span><span style="color:${l.bet ? (l.bet.won ? 'var(--gold)' : '#8f98bb') : '#555'}">${l.bet ? (l.bet.won ? '+' + l.bet.payout : '−' + l.bet.amount) : '观战'}</span></div>`).join('') || '<div class="sub">尚未开始</div>'}</div></div>`
+      <div class="sc"><h3><i class="fas fa-scroll"></i> ${LOVE ? '心动日记' : '本夜对局'}</h3><div class="logx">${S.log.map((l) => `<div><span style="${l.twist ? 'color:#c4a8ff' : ''}">${l.rewound ? '<s>' : ''}${esc(l.label)}${l.rewound ? '</s> ⟲' : ''}</span><span style="color:${l.bet ? (l.bet.won ? 'var(--gold)' : '#8f98bb') : '#555'}">${l.bet ? (l.bet.won ? '+' + l.bet.payout : '−' + l.bet.amount) : '观战'}</span></div>`).join('') || '<div class="sub">尚未开始</div>'}</div></div>`
     $('#fc').onclick = async (e) => { e.preventDefault(); try { const u = await api('/api/me/faucet', { body: {} }); setBal(u.chips); toast('+500 Chips') } catch (er) { toast(er.message) } }
   }
 
+  // 恋爱主题：舞台上持续飘落的樱花
+  if (LOVE && $('#petals')) { const P = $('#petals'); for (let i = 0; i < 18; i++) { const e = document.createElement('i'); e.style.left = Math.random() * 100 + '%'; e.style.setProperty('--dx', (Math.random() * 120 - 40) + 'px'); e.style.animationDuration = 7 + Math.random() * 8 + 's'; e.style.animationDelay = -Math.random() * 12 + 's'; e.style.transform = `scale(${0.6 + Math.random() * 0.8})`; P.appendChild(e) } }
   Promise.all([api(API + '/meta'), api(API + '/tree'), api('/api/me?nick=' + encodeURIComponent(nick))]).then(([m, t, me]) => {
     S.meta = m; S.tree = t; S.balance = me.chips; renderSide(); cover()
   }).catch((e) => (L.innerHTML = `<div style="margin:auto" class="sub">加载失败：${esc(e.message)}</div>`))

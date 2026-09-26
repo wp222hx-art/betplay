@@ -100,3 +100,11 @@ python3 tests/ui_play.py      # 浏览器全流程
 Hono + Cloudflare Pages/Workers + D1 · Tailwind CDN · Chart.js · Web Crypto · Canvas 2D · WebAudio · OpenAI 兼容网关（gpt-5 系列）
 
 **状态**：沙盒运行中，尚未部署到生产环境。最后更新：2026-09-25
+
+## 💗 心动回廊 ～传说之樱下的约定～（/love）
+心跳回忆式校园恋爱博弈剧。Seedance 2.0 音画一体动画，普通话原声对白，逐字对齐字幕。
+- **结构**：序章「入学式·樱花雨」→ N1 命运的红线（诗音/阳菜/凛/莓 + 悔棋隐藏「樱花树下的她·雪」）→ 5 条路线 → 毕业日抉择 → **21 个结局**（每线 1 个隐藏结局，雪线含真结局「心动回廊」）
+- **片段**：27 条（12s 路线 + 10s 结局），`public/static/love/`
+- **API**：`/api/love/meta|tree|start|rounds/:id/bet|settle|rewind|next|verify|simulate`
+- **管线**：`scripts/love/story.py`（剧本/提示词）→ `produce.py`（并行生成）→ `build.py`（压制+转写+字幕+头像+data.json）
+- **测试**：`python3 tests/ui_love.py`
