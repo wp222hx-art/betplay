@@ -7,6 +7,18 @@
 - **示范剧**：《天台》：3 场景 × 3 个 Cash 节点 × 9 个结局簇 × 27+ 变体，另有 3 个结局（内容由 LLM 生成）
 - **架构文档**：`docs/ARCHITECTURE.md`
 
+## 🎙 角色声线工作室（/voice）
+- **角色卡**：每个角色可以配置千问音色（23 个系统音色，外加自己设计的专属音色）、人设和表演基调、后期处理预设（温暖、硬汉胸腔、面具金属低语、会议厅回响、清亮少女、电话音）、主题色和试听台词
+- **即时试听**：按当前草稿直接合成，可以另外指定这一句的情绪（哽咽、压着怒火、耳语、叹气……），并显示实际发给模型的表演指令；也能回放剧中这个角色的原句，标注是千问版还是 ElevenLabs 版
+- **声音设计**：写一段文字描述，生成一个全新的专属音色（千问 qwen-voice-design，每个 0.2 元，新账号前 10 次免费），试听满意后一键设为该角色的音色；设计出的音色都记录在「专属音色库」
+- **配音进度**：显示对白段落和抉择口播分别有多少条是千问、多少条是 ElevenLabs
+- **服务状态**：分别检测千问指令版和基础版是否可用；账户欠费时给出充值链接
+  - 指令版不可用时，试听和批量配音都会自动退回基础版 qwen3-tts-flash：音色不变，但这一句没有表演指令
+- **配置存储**：D1 的 `voice_cast` 表存覆盖值，默认值来自 `scripts/comic/cast.json`；`voice_custom` 表存专属音色
+- **批量配音**：`produce_voice_v3.py` 启动时会读取 `/api/voice/cast`，所以工作室里保存的配置直接生效；人设或音色一改，相关台词会自动重新配
+- **API**：`/api/voice/meta|status|cast|cast/:name(POST/DELETE)|audition|design|custom`
+- **安全**：DashScope Key 只放在服务端（`.dev.vars` 或 `wrangler secret put DASHSCOPE_API_KEY`），前端拿不到
+
 ## 🎬 对弈式影剧《穹顶之下 · 影剧版》（/film）
 - **音画一体**：9 段 Seedance 2.0 视频（每段 10–12 秒，多镜头），普通话对白、口型、音效和配乐都在同一次生成里出来，不再是"静帧 + 后配 TTS"
 - **结构**：序章，然后 3 个抉择点，最后 5 种结局：以身换命、黎明同盟、全城曝光、坠落、天穹之主（隐藏结局，只有悔棋"新变数"能到达）
@@ -42,6 +54,7 @@
 |---|---|
 | 对弈式影剧（Seedance 音画一体） | `/film` |
 | 对弈式漫剧 | `/comic` |
+| 角色声线工作室 | `/voice` |
 | 玩家端 Cash Stage | `/` |
 | 运营后台 Forge Console | `/console`（`#monitor #branches #script #derive #regulate #clips #pool #video #economy #rounds #tasks #qa`） |
 | 7-Agent 指挥中心 | `/agents` |

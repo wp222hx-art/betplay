@@ -9,9 +9,10 @@ import { modelHealth, predictiveQueue, rankVideoModels, submitVideo, buildVideoP
 import { branches, overview, scriptTree } from './agents/console'
 import { applyClipPlan, approveExtension, clipPairs, derive, generatePoems, ingestSignals, regulate } from './agents/deriver'
 import type { Bindings } from './gateway/llm'
-import { playerPage, consolePage, agentsPage, comicPage, filmPage } from './pages/shell'
+import { playerPage, consolePage, agentsPage, comicPage, filmPage, voicePage } from './pages/shell'
 import * as Comic from './comic/engine'
 import * as Film from './film/engine'
+import * as Voice from './voice/studio'
 
 const app = new Hono<{ Bindings: Bindings }>()
 app.use('/api/*', cors())
@@ -39,6 +40,7 @@ app.get('/console', (c) => c.html(consolePage()))
 app.get('/agents', (c) => c.html(agentsPage()))
 app.get('/comic', (c) => c.html(comicPage()))
 app.get('/film', (c) => c.html(filmPage()))
+app.get('/voice', (c) => c.html(voicePage()))
 
 // ─────────────── Agent-1 · 蓝图 ───────────────
 app.get('/api/blueprint', (c) => c.json({ ...BLUEPRINT, agents: AGENTS }))
@@ -201,6 +203,29 @@ app.post('/api/film/rounds/:id/rewind', async (c) => { const b = await body(c); 
 app.post('/api/film/rounds/:id/next', async (c) => { const b = await body(c); return c.json(await Film.advance(c.env, { roundId: c.req.param('id'), userId: uidOf(c, b) })) })
 app.get('/api/film/rounds/:id/verify', async (c) => c.json(await Film.verify(c.env, c.req.param('id'))))
 app.post('/api/film/simulate', async (c) => { const b = await body(c); return c.json(await Film.simulateTree(c.env, b.n || 2000)) })
+
+// ─────────────── 角色声线工作室（千问 Qwen3-TTS）───────────────
+const castDefaults = () => Comic.COMIC.cast || {}
+const voiceErr = (c: any, e: any) => c.json({ error: e.code || 'VOICE_ERROR', message: e.message }, e.code === 'Arrearage' ? 402 : 400)
+app.get('/api/voice/meta', async (c) => {
+  // 配音进度：每段对白现在用的是哪套引擎（v4 = 千问，v3 = ElevenLabs）
+  const segs = Object.entries<any>(Comic.COMIC.segments)
+  const eng = (t: string) => (t || '').includes('/v4/') ? 'qwen' : (t || '').includes('/v3/') ? 'elevenlabs' : 'none'
+  const byEngine: Record<string, number> = {}; segs.forEach(([, v]) => { const k = eng(v.track); byEngine[k] = (byEngine[k] || 0) + 1 })
+  const cueEng: Record<string, number> = {}; Comic.COMIC.nodes.forEach((n: any) => { const k = eng(n.cue?.track); cueEng[k] = (cueEng[k] || 0) + 1 })
+  const lines: Record<string, any[]> = {}
+  segs.forEach(([sid, v]) => (v.lines || []).forEach((l: any) => { (lines[l.speaker] ||= []).length < 6 && lines[l.speaker].push({ sid, text: l.text, emotion: l.emotion, track: v.track, start: l.start, end: l.end, engine: eng(v.track) }) }))
+  const counts: Record<string, number> = {}; segs.forEach(([, v]) => (v.lines || []).forEach((l: any) => (counts[l.speaker] = (counts[l.speaker] || 0) + 1)))
+  return c.json({ voices: Voice.QWEN_VOICES, fx: Voice.FX_PRESETS, progress: { segments: byEngine, cues: cueEng, total_segments: segs.length, total_cues: Comic.COMIC.nodes.length }, samples: lines, line_counts: counts })
+})
+app.get('/api/voice/status', async (c) => c.json(await Voice.status(c.env as any)))
+app.get('/api/voice/cast', async (c) => c.json(await Voice.getCast(c.env as any, castDefaults())))
+app.post('/api/voice/cast/:name', async (c) => { try { return c.json(await Voice.saveCast(c.env as any, c.req.param('name'), await body(c), castDefaults())) } catch (e) { return voiceErr(c, e) } })
+app.delete('/api/voice/cast/:name', async (c) => { await Voice.resetCast(c.env as any, c.req.param('name')); return c.json({ ok: true }) })
+app.post('/api/voice/audition', async (c) => { try { return c.json(await Voice.audition(c.env as any, await body(c))) } catch (e) { return voiceErr(c, e) } })
+app.post('/api/voice/design', async (c) => { try { return c.json(await Voice.designVoice(c.env as any, await body(c))) } catch (e) { return voiceErr(c, e) } })
+app.get('/api/voice/custom', async (c) => c.json(await Voice.listCustom(c.env as any)))
+app.delete('/api/voice/custom/:id', async (c) => { await Voice.deleteCustom(c.env as any, c.req.param('id')); return c.json({ ok: true }) })
 
 app.get('/api/health', (c) => c.json({ ok: true, llm: !!c.env.OPENAI_API_KEY, video_provider: !!c.env.FAL_KEY, time: Date.now() }))
 

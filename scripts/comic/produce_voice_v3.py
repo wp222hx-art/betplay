@@ -9,6 +9,23 @@ VD = 'v4' if ENGINE == 'qwen' else 'v3'
 LINE = os.path.join(ROOT, f'public/static/comic/{VD}/line'); TRK = os.path.join(ROOT, f'public/static/comic/{VD}/track')
 os.makedirs(LINE, exist_ok=True); os.makedirs(TRK, exist_ok=True)
 CAST = {k: v for k, v in json.load(open(os.path.join(D, 'cast.json'))).items() if not k.startswith('_')}
+# 声线工作室（/voice）里保存的配置优先：从本地服务拉取（D1 覆盖值），拉不到就用 cast.json
+FX_PRESETS = {}
+try:
+    import urllib.request as _u
+    _api = os.environ.get('VOICE_API', 'http://localhost:3000')
+    _live = json.load(_u.urlopen(_api + '/api/voice/cast', timeout=8))
+    FX_PRESETS = {k: v['af'] for k, v in json.load(_u.urlopen(_api + '/api/voice/meta', timeout=8))['fx'].items()}
+    _custom = {v['voice_id']: v['target_model'] for v in json.load(_u.urlopen(_api + '/api/voice/custom', timeout=8))}
+    for k, v in _live.items():
+        if k not in CAST: continue
+        for f in ('qwen_voice', 'qwen_persona'):
+            if v.get(f): CAST[k][f] = v[f]
+        if v.get('fx_preset') in FX_PRESETS: CAST[k]['qwen_fx'] = FX_PRESETS[v['fx_preset']]
+        CAST[k]['qwen_custom_model'] = _custom.get(CAST[k]['qwen_voice'])
+    print('cast from /voice studio:', {k: (v['qwen_voice'], v.get('qwen_custom_model')) for k, v in CAST.items()}, flush=True)
+except Exception as _e:
+    print('voice studio not reachable, using cast.json', _e, flush=True)
 dlg = json.load(open(os.path.join(D, 'dialogue_v3.json')))
 OK_TAGS = {'sighs', 'exhales', 'whispers', 'laughs', 'crying', 'nervously', 'desperately', 'alarmed', 'sarcastic', 'deadpan', 'frustrated', 'pauses', 'gulps', 'curious', 'dramatically', 'warmly', 'sympathetic', 'reassuring', 'questioning', 'mischievously', 'excited'}
 MAP = {'breathing': 'exhales', 'whisper': 'whispers', 'sigh': 'sighs', 'pause': 'pauses', 'cries': 'crying', 'laugh': 'laughs', 'coldly': 'deadpan', 'angrily': 'frustrated', 'panicked': 'alarmed'}
@@ -40,7 +57,13 @@ def qwen_tts(sp, text, emotion, intensity, key, phone=False):
     c = CAST[sp]; tags = [TAG_ZH[t] for t in re.findall(r'\[(\w+)\]', text) if t in TAG_ZH]
     lvl = '情绪很强烈' if float(intensity or .5) > .75 else ('情绪克制' if float(intensity or .5) < .35 else '')
     ins = f"{c['qwen_persona']}这一句：{EMO_ZH.get(emotion, '克制')}{'，' + lvl if lvl else ''}{'，' + '，'.join(tags) if tags else ''}{'，是在电话或耳机里说的' if phone else ''}。像影视剧里的真人演员在对戏，自然口语化，有呼吸感，不要播音腔，不要拖长字音。"
-    body = {'model': 'qwen3-tts-instruct-flash', 'input': {'text': re.sub(r'\[[^\]]+\]\s*', '', text).strip(), 'voice': c['qwen_voice'], 'language_type': 'Chinese', 'instructions': ins, 'optimize_instructions': True}}
+    clean = re.sub(r'\[[^\]]+\]\s*', '', text).strip()
+    if c.get('qwen_custom_model'):  # 专属设计音色：用对应的 VD 模型（音色本身已承载人设）
+        body = {'model': c['qwen_custom_model'], 'input': {'text': clean, 'voice': c['qwen_voice']}}
+    elif os.environ.get('QWEN_BASE_ONLY') == '1':
+        body = {'model': 'qwen3-tts-flash', 'input': {'text': clean, 'voice': c['qwen_voice'], 'language_type': 'Chinese'}}
+    else:
+        body = {'model': 'qwen3-tts-instruct-flash', 'input': {'text': clean, 'voice': c['qwen_voice'], 'language_type': 'Chinese', 'instructions': ins, 'optimize_instructions': True}}
     for a in range(12):
         try:
             req = urllib.request.Request('https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation', data=json.dumps(body).encode(), headers={'Authorization': 'Bearer ' + qk, 'Content-Type': 'application/json'})
@@ -49,7 +72,13 @@ def qwen_tts(sp, text, emotion, intensity, key, phone=False):
         except urllib.error.HTTPError as e:
             m = e.read().decode()[:200]
             if 'Throttling' in m or e.code >= 500: time.sleep(2 + a * 2); continue
-            print('QWEN ERR', sp, m, flush=True); return None
+            if 'Arrearage' in m and body['model'] == 'qwen3-tts-instruct-flash' and os.environ.get('QWEN_FALLBACK', '1') == '1':
+                # 指令版额度用完：退回基础版（同一音色，没有表演指令），标记后续都走基础版
+                body = {'model': 'qwen3-tts-flash', 'input': {'text': body['input']['text'], 'voice': body['input']['voice'], 'language_type': 'Chinese'}}
+                os.environ['QWEN_BASE_ONLY'] = '1'; continue
+            print('QWEN ERR', sp, m, flush=True)
+            if 'Arrearage' in m: raise SystemExit('阿里云百炼余额不足，已停止；充值后重跑即可断点续跑')
+            return None
         except Exception as e: time.sleep(3)
     return None
 

@@ -17,6 +17,7 @@ const nav = (active: string) => `
     <a href="/film" class="${active === 'film' ? 'on' : ''}"><i class="fas fa-film"></i><b>影剧</b></a>
     <a href="/comic" class="${active === 'comic' ? 'on' : ''}"><i class="fas fa-book-open"></i><b>漫剧</b></a>
     <a href="/" class="${active === 'play' ? 'on' : ''}"><i class="fas fa-play"></i><b>剧场</b></a>
+    <a href="/voice" class="${active === 'voice' ? 'on' : ''}"><i class="fas fa-microphone-lines"></i><b>声线</b></a>
     <a href="/console" class="${active === 'console' ? 'on' : ''}"><i class="fas fa-gauge-high"></i><b>后台</b></a>
     <a href="/agents" class="${active === 'agents' ? 'on' : ''}"><i class="fas fa-robot"></i><b>7-Agent</b></a>
   </div>
@@ -83,4 +84,17 @@ ${nav('film')}
 </main>
 <div id="modal-root"></div>
 <script>window.DF_MODE="film"</script><script src="/static/comic.js"></script>
+</body></html>`
+
+export const voicePage = () => `${head('角色声线工作室 · DreamForge', '<link href="/static/voice.css" rel="stylesheet">')}
+<body class="voice-body">
+${nav('voice')}
+<main id="voice-main" class="voice-main">
+  <header class="vh"><div><h1><i class="fas fa-microphone-lines"></i> 角色声线工作室</h1><p>为每个角色选音色、写人设和表演指令、设计专属声音；保存后批量配音就会使用这里的配置</p></div><div id="voice-status" class="vstat">检查千问服务…</div></header>
+  <section id="voice-progress" class="vprog"></section>
+  <section id="cast-grid" class="cast-grid"></section>
+  <section id="custom-voices" class="vcard"></section>
+</main>
+<div id="toast" class="toast"></div>
+<script src="/static/voice.js"></script>
 </body></html>`

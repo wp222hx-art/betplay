@@ -13,14 +13,17 @@ _q = os.path.join(D, 'voice_qwen.json')
 if os.environ.get('VOICE', 'qwen') == 'qwen' and os.path.exists(_q):
     import re as _re
     vq = json.load(open(_q)); d3_ = json.load(open(os.path.join(D, 'dialogue_v3.json')))
-    _n = lambda ls: sum(1 for l in ls if _re.sub(r'\[[^\]]+\]\s*', '', l['text']).strip('…—.。 '))
+    # 与 produce_voice_v3.clean 一致：去掉表演标签和“林夏：”前缀后，只剩标点（如“——”沉默）的句子不配音
+    _clean = lambda t: _re.sub(r'(林夏|陈默|渡鸦|林小雨|小雨|顾衡)[：:]\s*', '', _re.sub(r'\[[^\]]+\]\s*', '', t))
+    _n = lambda ls: sum(1 for l in ls if _clean(l['text']).strip('…—.。 '))
     # 只采用整段完整的千问配音（避免同一场戏混用两种引擎）
     vq['segments'] = {k: v for k, v in vq.get('segments', {}).items() if len(v['cues']) == _n(d3_['segments'][k]['lines'])}
     vq['cues'] = {k: v for k, v in vq.get('cues', {}).items() if len(v['cues']) == _n(d3_['cues'][k])}
     v3 = {'segments': {**v3['segments'], **vq['segments']}, 'cues': {**v3['cues'], **vq['cues']}}
     print('qwen voice', len(vq.get('segments', {})), 'segs', len(vq.get('cues', {})), 'cues')
 d3 = json.load(open(os.path.join(D, 'dialogue_v3.json'))) if os.path.exists(os.path.join(D, 'dialogue_v3.json')) else {'segments': {}}
-CAST = {k: {'color': v['color'], 'img': f"/static/comic/cast/{v['img']}.webp", 'side': v['side'], 'brand': v['brand'], 'voice': v.get('custom_voice_id') or v['voice']} for k, v in json.load(open(os.path.join(D, 'cast.json'))).items() if not k.startswith('_')}
+CAST = {k: {'color': v['color'], 'img': f"/static/comic/cast/{v['img']}.webp", 'side': v['side'], 'brand': v['brand'], 'voice': v.get('custom_voice_id') or v['voice'],
+             'qwen_voice': v.get('qwen_voice'), 'qwen_persona': v.get('qwen_persona'), 'fx_preset': v.get('fx_preset'), 'sample_line': v.get('sample_line'), 'qwen_custom_model': v.get('qwen_custom_model')} for k, v in json.load(open(os.path.join(D, 'cast.json'))).items() if not k.startswith('_')}
 c['cast'] = CAST
 for n in c['nodes']:
     q = v3['cues'].get(n['id'])

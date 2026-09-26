@@ -11,7 +11,9 @@
   "side": "L",
   "brand": "克制的冷感御姐，气声重，一提到妹妹就会破防",
   "qwen_voice": "Serena",
-  "qwen_persona": "28岁女性，冷静克制的数据掮客，气声偏重，句尾压低；一提到妹妹，声音就发紧、微颤。"
+  "qwen_persona": "28岁女性，冷静克制的数据掮客，气声偏重，句尾压低；一提到妹妹，声音就发紧、微颤。",
+  "fx_preset": "warm",
+  "sample_line": "你以为……我还有得选吗？他们手里，是我妹妹。"
  },
  "陈默": {
   "voice": "Reginald",
@@ -24,7 +26,9 @@
   "side": "R",
   "brand": "沙哑、疲惫的前刑警，低沉的胸腔共鸣",
   "qwen_voice": "Arthur",
-  "qwen_persona": "35岁男性前刑警，声音沙哑低沉、带着疲惫，胸腔共鸣厚，情绪压在喉咙里，像电影里的硬汉。正常对话语速，干脆利落。"
+  "qwen_persona": "35岁男性前刑警，声音沙哑低沉、带着疲惫，胸腔共鸣厚，情绪压在喉咙里，像电影里的硬汉。正常对话语速，干脆利落。",
+  "fx_preset": "chest",
+  "sample_line": "林夏，别做傻事。三年前你救过我，今天……换我来。"
  },
  "渡鸦": {
   "voice": "Austin",
@@ -38,7 +42,9 @@
   "brand": "面具里传出的低沉耳语，自带金属的闷响和压迫感",
   "qwen_voice": "Kai",
   "qwen_persona": "戴面具的冷酷杀手，低沉、平直、毫无起伏，冷冰冰地命令，字字清晰，压迫感极强。正常语速，简短干脆。",
-  "qwen_fx": "asetrate=24000*0.95,aresample=24000,atempo=1.0526,highpass=f=100,lowpass=f=6500,equalizer=f=1400:t=q:w=2:g=2,aecho=0.8:0.5:22:0.18,acompressor=threshold=-22dB:ratio=4"
+  "qwen_fx": "asetrate=24000*0.95,aresample=24000,atempo=1.0526,highpass=f=100,lowpass=f=6500,equalizer=f=1400:t=q:w=2:g=2,aecho=0.8:0.5:22:0.18,acompressor=threshold=-22dB:ratio=4",
+  "fx_preset": "mask",
+  "sample_line": "交出星核。我只说一次——你妹妹，还在我的瞄准镜里。"
  },
  "林小雨": {
   "voice": "Hope",
@@ -52,7 +58,9 @@
   "side": "L",
   "brand": "清亮、急切的少女声，常通过耳机或电话传来",
   "qwen_voice": "Vivian",
-  "qwen_persona": "20岁女大学生，清亮、急切，语速快，带喘息，情绪外放，叫林夏“姐”。"
+  "qwen_persona": "20岁女大学生，清亮、急切，语速快，带喘息，情绪外放，叫林夏“姐”。",
+  "fx_preset": "bright",
+  "sample_line": "姐！我全拍到了！他们做的人体实验——全城都会看到！"
  },
  "顾衡": {
   "voice": "Bradford",
@@ -66,6 +74,8 @@
   "brand": "慢条斯理的浑厚男中音，笑里藏刀，带着会议厅的回响",
   "qwen_voice": "Moon",
   "qwen_persona": "55岁财团董事长，老练、低沉浑厚的男中音，嗓音带着岁月的沙粒感，从容不迫、胜券在握，带着居高临下的微笑，笑里藏刀，尾音略带轻蔑。正常对话语速。",
-  "qwen_fx": "asetrate=24000*0.86,aresample=24000,atempo=1.163,highpass=f=60,equalizer=f=150:t=q:w=1:g=2.5,aecho=0.8:0.6:45|70:0.18|0.10,acompressor=threshold=-20dB:ratio=2.5"
+  "qwen_fx": "asetrate=24000*0.86,aresample=24000,atempo=1.163,highpass=f=60,equalizer=f=150:t=q:w=1:g=2.5,aecho=0.8:0.6:45|70:0.18|0.10,acompressor=threshold=-20dB:ratio=2.5",
+  "fx_preset": "hall",
+  "sample_line": "林小姐，你比渡鸦……更适合这个位置。考虑一下？"
  }
 }
