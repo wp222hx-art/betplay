@@ -4,7 +4,9 @@
 import json, os, re, subprocess, sys, concurrent.futures as cf, hashlib
 D = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.abspath(os.path.join(D, '../..'))
 RAW = '/tmp/v3raw'; os.makedirs(RAW, exist_ok=True)
-LINE = os.path.join(ROOT, 'public/static/comic/v3/line'); TRK = os.path.join(ROOT, 'public/static/comic/v3/track')
+ENGINE = os.environ.get('VOICE_ENGINE', 'qwen')  # qwen（千问 Qwen3-TTS-Instruct，默认）/ el（ElevenLabs v4）
+VD = 'v4' if ENGINE == 'qwen' else 'v3'
+LINE = os.path.join(ROOT, f'public/static/comic/{VD}/line'); TRK = os.path.join(ROOT, f'public/static/comic/{VD}/track')
 os.makedirs(LINE, exist_ok=True); os.makedirs(TRK, exist_ok=True)
 CAST = {k: v for k, v in json.load(open(os.path.join(D, 'cast.json'))).items() if not k.startswith('_')}
 dlg = json.load(open(os.path.join(D, 'dialogue_v3.json')))
@@ -27,6 +29,30 @@ def ffdur(p):
     try: return float(r.stdout.strip())
     except: return 0.0
 
+sys.path.insert(0, D)
+EMO_ZH = {'sad': '哽咽、声音发颤', 'angry': '压着怒火、咬字加重', 'fearful': '紧张急促、呼吸不稳', 'surprised': '震惊、倒吸一口气', 'happy': '带着笑意', 'disgusted': '冷蔑不屑', 'neutral': '克制'}
+TAG_ZH = {'sighs': '先轻叹一口气', 'exhales': '先长出一口气', 'whispers': '压低声音耳语', 'laughs': '带一声冷笑', 'crying': '带哭腔', 'pauses': '中间有明显停顿', 'desperately': '近乎绝望', 'nervously': '紧张', 'deadpan': '毫无情绪', 'sarcastic': '讥讽', 'alarmed': '惊慌', 'frustrated': '烦躁', 'gulps': '先咽一下口水', 'curious': '疑惑', 'dramatically': '戏剧化', 'warmly': '温柔', 'sympathetic': '心疼', 'reassuring': '安抚', 'questioning': '追问', 'excited': '兴奋'}
+def qwen_tts(sp, text, emotion, intensity, key, phone=False):
+    import time, urllib.request, urllib.error
+    raw = os.path.join(RAW, 'q_' + key + '.wav')
+    if os.path.exists(raw) and os.path.getsize(raw) > 3000: return raw
+    qk = [l.split('=', 1)[1].strip() for l in open(os.path.join(ROOT, '.dev.vars')) if l.startswith('DASHSCOPE_API_KEY=')][0]
+    c = CAST[sp]; tags = [TAG_ZH[t] for t in re.findall(r'\[(\w+)\]', text) if t in TAG_ZH]
+    lvl = '情绪很强烈' if float(intensity or .5) > .75 else ('情绪克制' if float(intensity or .5) < .35 else '')
+    ins = f"{c['qwen_persona']}这一句：{EMO_ZH.get(emotion, '克制')}{'，' + lvl if lvl else ''}{'，' + '，'.join(tags) if tags else ''}{'，是在电话或耳机里说的' if phone else ''}。像影视剧里的真人演员在对戏，自然口语化，有呼吸感，不要播音腔，不要拖长字音。"
+    body = {'model': 'qwen3-tts-instruct-flash', 'input': {'text': re.sub(r'\[[^\]]+\]\s*', '', text).strip(), 'voice': c['qwen_voice'], 'language_type': 'Chinese', 'instructions': ins, 'optimize_instructions': True}}
+    for a in range(12):
+        try:
+            req = urllib.request.Request('https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation', data=json.dumps(body).encode(), headers={'Authorization': 'Bearer ' + qk, 'Content-Type': 'application/json'})
+            url = json.load(urllib.request.urlopen(req, timeout=120))['output']['audio']['url']
+            urllib.request.urlretrieve(url, raw); return raw
+        except urllib.error.HTTPError as e:
+            m = e.read().decode()[:200]
+            if 'Throttling' in m or e.code >= 500: time.sleep(2 + a * 2); continue
+            print('QWEN ERR', sp, m, flush=True); return None
+        except Exception as e: time.sleep(3)
+    return None
+
 def tts(sp, text, intensity, key):
     c = CAST[sp]; raw = os.path.join(RAW, key + '.mp3')
     if os.path.exists(raw) and os.path.getsize(raw) > 3000: return raw
@@ -42,9 +68,9 @@ def tts(sp, text, intensity, key):
     return None
 
 def post(sp, raw, out, phone):
-    c = CAST[sp]; fx = c['fx'] + (',' + c['phone_fx'] if phone and c.get('phone_fx') else '')
+    c = CAST[sp]; fx = (c.get('qwen_fx') if ENGINE == 'qwen' and c.get('qwen_fx') else c['fx']) + (',' + c['phone_fx'] if phone and c.get('phone_fx') else '')
     # 去掉首尾静音 → 角色声音链 → 统一响度
-    af = f'silenceremove=start_periods=1:start_threshold=-50dB:start_silence=0.05,areverse,silenceremove=start_periods=1:start_threshold=-50dB:start_silence=0.12,areverse,{fx},loudnorm=I=-17:TP=-1.5:LRA=9'
+    af = ('aresample=24000,' if ENGINE == 'qwen' else '') + f'silenceremove=start_periods=1:start_threshold=-50dB:start_silence=0.05,areverse,silenceremove=start_periods=1:start_threshold=-50dB:start_silence=0.12,areverse,{fx},loudnorm=I=-17:TP=-1.5:LRA=9'
     subprocess.run(['ffmpeg', '-loglevel', 'error', '-y', '-i', raw, '-af', af, '-ar', '44100', '-ac', '1', '-b:a', '64k', out])
     return os.path.exists(out)
 
@@ -64,10 +90,11 @@ def build_seg(sid, lines, kind='seg'):
         text, shown = clean(sp, l['text'])
         if not shown.strip('…—.。 '): continue
         phone = sp == '林小雨' and bool(PHONE.search(l.get('context', '') + shown))
-        key = hashlib.md5(f"{sp}|{text}|{CAST[sp].get('custom_voice_id') or CAST[sp]['voice']}".encode()).hexdigest()[:12]
+        vid = CAST[sp]['qwen_voice'] if ENGINE == 'qwen' else (CAST[sp].get('custom_voice_id') or CAST[sp]['voice'])
+        key = hashlib.md5(f"{ENGINE}|{sp}|{text}|{vid}|{l.get('emotion')}|{CAST[sp].get('qwen_persona','')}|{CAST[sp].get('qwen_fx','')}".encode()).hexdigest()[:12]
         jobs.append({'i': i, 'speaker': sp, 'text': text, 'shown': shown, 'emotion': l.get('emotion', 'neutral'), 'intensity': l.get('intensity', 0.5), 'key': key, 'phone': phone})
     for j in jobs:
-        raw = tts(j['speaker'], j['text'], j['intensity'], j['key'])
+        raw = qwen_tts(j['speaker'], j['text'], j['emotion'], j['intensity'], j['key'], j['phone']) if ENGINE == 'qwen' else tts(j['speaker'], j['text'], j['intensity'], j['key'])
         out = os.path.join(LINE, j['key'] + '.mp3')
         j['ok'] = bool(raw) and (os.path.exists(out) or post(j['speaker'], raw, out, j['phone']))
         j['dur'] = round(ffdur(out), 2) if j['ok'] else 0
@@ -76,7 +103,7 @@ def build_seg(sid, lines, kind='seg'):
     # 按时间轴混成一条连续对白轨，并且记录每句的起止时间（字幕和立绘都跟着这条时间轴走）
     t = 0.15; cues = []
     for n, j in enumerate(jobs):
-        cues.append({'speaker': j['speaker'], 'text': j['shown'], 'emotion': j['emotion'], 'phone': j['phone'], 'start': round(t, 2), 'end': round(t + j['dur'], 2), 'line': f"/static/comic/v3/line/{j['key']}.mp3"})
+        cues.append({'speaker': j['speaker'], 'text': j['shown'], 'emotion': j['emotion'], 'phone': j['phone'], 'start': round(t, 2), 'end': round(t + j['dur'], 2), 'line': f"/static/comic/{VD}/line/{j['key']}.mp3"})
         t += j['dur'] + gap_after(j, jobs[n + 1] if n + 1 < len(jobs) else None)
     total = round(max(c['end'] for c in cues) + 0.35, 2)
     trk = os.path.join(TRK, f'{kind}_{sid}.mp3')
@@ -87,10 +114,10 @@ def build_seg(sid, lines, kind='seg'):
         flt.append(f"[{n}]pan=stereo|c0={gl}*c0|c1={gr}*c0,adelay={int(cq['start'] * 1000)}|{int(cq['start'] * 1000)}[a{n}]")
     flt.append(''.join(f'[a{n}]' for n in range(len(cues))) + f"amix=inputs={len(cues)}:normalize=0:dropout_transition=0,apad=whole_dur={total},atrim=0:{total}[o]")
     subprocess.run(['ffmpeg', '-loglevel', 'error', '-y', *inputs, '-filter_complex', ';'.join(flt), '-map', '[o]', '-ar', '44100', '-ac', '2', '-b:a', '96k', trk])
-    return sid, {'track': f'/static/comic/v3/track/{kind}_{sid}.mp3', 'dur': total, 'cues': cues}
+    return sid, {'track': f'/static/comic/{VD}/track/{kind}_{sid}.mp3', 'dur': total, 'cues': cues}
 
 if __name__ == '__main__':
-    OUT = os.path.join(D, 'voice_v3.json')
+    OUT = os.path.join(D, 'voice_qwen.json' if ENGINE == 'qwen' else 'voice_v3.json')
     res = json.load(open(OUT)) if os.path.exists(OUT) else {'segments': {}, 'cues': {}}
     want = set(sys.argv[1:])
     jobs = [('seg', sid, s['lines']) for sid, s in dlg['segments'].items() if (not want or sid in want)]

@@ -15,7 +15,11 @@
 - **机制**：和漫剧共用同一套对弈引擎（`src/comic/factory.ts` 里的 `createEngine(DATA)`），包括承诺-揭示、种子扰动、二选一和新变数两种悔棋、复式记账、验证
 - **生产脚本**：`scripts/film/story.py`（分镜脚本）→ `produce_film.py`（按层生成，子片段接父片段的末帧）→ `build_film.py`（压制、转写、对齐，生成 `src/film/data.json`）
 - **成本**：mini 档每段 12 秒约 1,000 积分，9 段合计约 9,000 积分
-- **千问配音（备选）**：`scripts/comic/produce_voice_qwen.py`，用 Qwen3-TTS-Instruct-Flash 逐句写自然语言表演指令；需要在 `.dev.vars` 里配置 `DASHSCOPE_API_KEY`
+- **千问配音 V4（漫剧当前默认）**：用 Qwen3-TTS-Instruct-Flash，每句台词配一条自然语言表演指令（角色人设 + 情绪 + 强度 + 呼吸/叹气/耳语），盲测明显胜过 ElevenLabs
+  - 角色音色：林夏 Serena / 陈默 Arthur / 渡鸦 Kai + 面具混响 / 林小雨 Vivian / 顾衡 Moon + 降调增加年龄感
+  - Key 放在 `.dev.vars`（`DASHSCOPE_API_KEY`，不进 git），走北京区
+  - 断点续跑：`cd scripts/comic && CONC=3 python3 produce_voice_v3.py && python3 build_data.py && npm run build`（已生成的会跳过）
+  - 某段千问配音不完整时，这一整段自动回退到 ElevenLabs V3，保证同一场戏里不会混用两种声音；设 `VOICE=el` 可以整体切回 V3
 
 ## 对弈式漫剧《穹顶之下》（/comic）
 - **规模**：34 个抉择点（4 幕：1→3→9→21），75 条常规分支，34 条悔棋隐藏分支，63 个结局（其中 21 个是隐藏结局）

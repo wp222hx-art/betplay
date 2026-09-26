@@ -8,6 +8,17 @@ dlg = json.load(open(os.path.join(D, 'dialogue.json'))) if os.path.exists(os.pat
 v2 = json.load(open(os.path.join(D, 'voice_v2.json'))) if os.path.exists(os.path.join(D, 'voice_v2.json')) else {}
 SFX_OK = {f[:-4] for f in os.listdir(os.path.join(root, 'public/static/comic/sfx'))} if os.path.isdir(os.path.join(root, 'public/static/comic/sfx')) else set()
 v3 = json.load(open(os.path.join(D, 'voice_v3.json'))) if os.path.exists(os.path.join(D, 'voice_v3.json')) else {'segments': {}, 'cues': {}}
+# V4 千问配音优先（VOICE=el 时回退到 ElevenLabs V3）
+_q = os.path.join(D, 'voice_qwen.json')
+if os.environ.get('VOICE', 'qwen') == 'qwen' and os.path.exists(_q):
+    import re as _re
+    vq = json.load(open(_q)); d3_ = json.load(open(os.path.join(D, 'dialogue_v3.json')))
+    _n = lambda ls: sum(1 for l in ls if _re.sub(r'\[[^\]]+\]\s*', '', l['text']).strip('…—.。 '))
+    # 只采用整段完整的千问配音（避免同一场戏混用两种引擎）
+    vq['segments'] = {k: v for k, v in vq.get('segments', {}).items() if len(v['cues']) == _n(d3_['segments'][k]['lines'])}
+    vq['cues'] = {k: v for k, v in vq.get('cues', {}).items() if len(v['cues']) == _n(d3_['cues'][k])}
+    v3 = {'segments': {**v3['segments'], **vq['segments']}, 'cues': {**v3['cues'], **vq['cues']}}
+    print('qwen voice', len(vq.get('segments', {})), 'segs', len(vq.get('cues', {})), 'cues')
 d3 = json.load(open(os.path.join(D, 'dialogue_v3.json'))) if os.path.exists(os.path.join(D, 'dialogue_v3.json')) else {'segments': {}}
 CAST = {k: {'color': v['color'], 'img': f"/static/comic/cast/{v['img']}.webp", 'side': v['side'], 'brand': v['brand'], 'voice': v.get('custom_voice_id') or v['voice']} for k, v in json.load(open(os.path.join(D, 'cast.json'))).items() if not k.startswith('_')}
 c['cast'] = CAST
