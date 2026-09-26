@@ -8,7 +8,33 @@ html,body{margin:0;background:var(--ink);color:var(--txt);font-family:'Noto Sans
 .nav-links{display:flex;gap:6px}
 .nav-links a{color:var(--mut);text-decoration:none;padding:6px 12px;border-radius:999px;font-size:13px;display:flex;gap:6px;align-items:center}
 .nav-links a.on,.nav-links a:hover{color:var(--ink);background:var(--gold)}
-@media(max-width:640px){.nav-links b{display:none}.brand span{display:none}}
+/* 工作台下拉 */
+.nav-more{position:relative}
+.nav-more summary{list-style:none;color:var(--mut);padding:6px 12px;border-radius:999px;font-size:13px;display:flex;gap:6px;align-items:center;cursor:pointer}
+.nav-more summary::-webkit-details-marker{display:none}
+.nav-more.on summary,.nav-more[open] summary{color:var(--ink);background:var(--gold)}
+.more-menu{position:absolute;right:0;top:calc(100% + 8px);background:#151a2c;border:1px solid var(--line);border-radius:14px;padding:6px;min-width:170px;box-shadow:0 20px 50px rgba(0,0,0,.5);z-index:60}
+.more-menu a{display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:10px;color:var(--txt);text-decoration:none;font-size:14px}
+.more-menu a:hover{background:#1f2640}
+/* 手机底部 Tab 栏 */
+.tab-bar{display:none}
+html,body{overflow-x:hidden}
+@media(max-width:760px){
+  .top-nav{padding:8px 12px;padding-top:calc(8px + env(safe-area-inset-top))}
+  .brand{font-size:16px}.brand span{display:none}
+  .nav-links{gap:2px}
+  .nav-links>a{display:none}
+  .nav-more summary b{display:none}
+  .nav-more summary{padding:8px 10px}
+  .tab-bar{display:flex;position:fixed;z-index:70;left:0;right:0;bottom:0;height:calc(58px + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);background:rgba(12,12,20,.94);backdrop-filter:blur(14px);border-top:1px solid #22223a}
+  .tab-bar a{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#8a8aa6;text-decoration:none;font-size:10.5px}
+  .tab-bar a i{font-size:19px}
+  .tab-bar a.on{color:#ff9ec7}
+  body{padding-bottom:calc(58px + env(safe-area-inset-bottom))}
+  /* 播放页：沉浸，不显示底栏 */
+  .comic-body .tab-bar,.player-body .tab-bar{display:none}
+  .comic-body,.player-body{padding-bottom:0}
+}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(120px);background:#1c2238;border:1px solid var(--line);padding:10px 18px;border-radius:12px;transition:.3s;z-index:99;font-size:14px;max-width:90vw}
 .toast.show{transform:translateX(-50%) translateY(0)}
 /* console */
@@ -42,3 +68,4 @@ input.inp,select.inp,textarea.inp{background:#0f1325;border:1px solid var(--line
 pre.code{background:#090b14;border:1px solid var(--line);border-radius:10px;padding:12px;font-size:12px;overflow:auto;max-height:340px;color:#a9b4d8}
 .agents-main{max-width:1280px;margin:0 auto;padding:24px}
 .poem{font-family:'Noto Serif SC',serif;white-space:pre-line;line-height:1.9;color:#f3e3b5}
+@media(max-width:760px){.console-main{padding:12px}.console-main .card{overflow-x:auto}.tbl{min-width:560px}.agents-main{padding:12px}}

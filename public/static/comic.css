@@ -172,3 +172,26 @@
 .cue-host .cap{margin:0;min-height:0;padding:9px 12px}
 .cue-host .cap .tx{font-size:14.5px}
 .cue-host.fade{opacity:.55}
+/* ⟲ 时间裂隙：悔棋撕开的平行时间线 */
+.rw-pick .pb.rift{grid-column:1/-1;border-color:#c084fc;background:linear-gradient(135deg,#2a1450,#14102a 60%,#1f0f3a);color:#f0e4ff;position:relative;overflow:hidden}
+.rw-pick .pb.rift::before{content:'';position:absolute;inset:-40%;background:conic-gradient(from 0deg,transparent,rgba(192,132,252,.35),transparent 30%);animation:riftspin 3s linear infinite}
+.rw-pick .pb.rift>*{position:relative}
+@keyframes riftspin{to{transform:rotate(360deg)}}
+.rift-c{color:#d8b4fe!important;text-shadow:0 0 12px rgba(192,132,252,.8)}
+.rift-fx{position:absolute;inset:0;z-index:40;pointer-events:none;background:radial-gradient(circle at 50% 45%,rgba(192,132,252,.35),rgba(20,8,40,.92) 70%);animation:riftIn 1.5s ease forwards;display:flex;align-items:center;justify-content:center}
+.rift-fx i{position:absolute;left:50%;top:0;bottom:0;width:3px;background:linear-gradient(transparent,#f0abfc,#fff,#c084fc,transparent);box-shadow:0 0 18px #e879f9;transform-origin:center;animation:crack 1.5s ease forwards}
+.rift-fx i:nth-child(2){transform:rotate(38deg);animation-delay:.12s}.rift-fx i:nth-child(3){transform:rotate(-52deg);animation-delay:.24s}
+.rift-fx b{font-family:'Noto Serif SC',serif;font-size:22px;letter-spacing:8px;color:#fff;text-shadow:0 0 20px #c084fc;animation:riftT 1.5s ease forwards}
+@keyframes riftIn{0%{opacity:0;backdrop-filter:blur(0)}25%{opacity:1;backdrop-filter:blur(3px) hue-rotate(60deg)}85%{opacity:1}100%{opacity:0}}
+@keyframes crack{0%{clip-path:inset(50% 0 50% 0)}40%{clip-path:inset(0 0 0 0)}100%{clip-path:inset(0 0 0 0);opacity:0}}
+@keyframes riftT{0%,20%{opacity:0;transform:scale(1.4)}45%{opacity:1;transform:none}85%{opacity:1}100%{opacity:0}}
+.tree .ol.rift{color:#d8b4fe}.tree .ol.rift.hit{color:#f0abfc;font-weight:700}
+/* 手机：播放页全屏沉浸 */
+@media(max-width:760px){
+  #comic-wrap{padding:0 0 12px;gap:12px}
+  .comic-stage{width:100%;max-height:none;height:calc(100svh - 53px);aspect-ratio:auto;border-radius:0}
+  .comic-side{width:100%!important;padding:0 10px}
+  .q-card{max-height:calc(100svh - 150px);overflow:auto}
+  .opt2{min-height:52px}
+  .stake2 button{min-height:40px}
+}

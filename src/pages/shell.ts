@@ -10,18 +10,24 @@ const head = (title: string, extra = '') => `<!DOCTYPE html>
 ${extra}
 </head>`
 
+// 内容分类统一：只保留「恋爱」「影剧」两大类；工具页（声线/后台/Agent）收进“工作台”
 const nav = (active: string) => `
 <nav id="top-nav" class="top-nav">
   <a href="/" class="brand"><i class="fas fa-chess-knight"></i> DreamForge<span>· Cash 剧场</span></a>
   <div class="nav-links">
-    <a href="/love" class="${active === 'love' ? 'on' : ''}"><i class="fas fa-heart"></i><b>恋爱</b></a>
-    <a href="/film" class="${active === 'film' ? 'on' : ''}"><i class="fas fa-film"></i><b>影剧</b></a>
-    <a href="/comic" class="${active === 'comic' ? 'on' : ''}"><i class="fas fa-book-open"></i><b>漫剧</b></a>
-    <a href="/" class="${active === 'play' ? 'on' : ''}"><i class="fas fa-play"></i><b>剧场</b></a>
-    <a href="/voice" class="${active === 'voice' ? 'on' : ''}"><i class="fas fa-microphone-lines"></i><b>声线</b></a>
-    <a href="/console" class="${active === 'console' ? 'on' : ''}"><i class="fas fa-gauge-high"></i><b>后台</b></a>
-    <a href="/agents" class="${active === 'agents' ? 'on' : ''}"><i class="fas fa-robot"></i><b>7-Agent</b></a>
+    <a href="/" class="${active === 'discover' ? 'on' : ''}"><i class="fas fa-compass"></i><b>发现</b></a>
+    <a href="/?cat=love" class="${active === 'love' ? 'on' : ''}"><i class="fas fa-heart"></i><b>恋爱</b></a>
+    <a href="/?cat=film" class="${active === 'film' ? 'on' : ''}"><i class="fas fa-film"></i><b>影剧</b></a>
+    <details class="nav-more ${['voice', 'console', 'agents'].includes(active) ? 'on' : ''}"><summary><i class="fas fa-toolbox"></i><b>工作台</b></summary>
+      <div class="more-menu"><a href="/voice"><i class="fas fa-microphone-lines"></i> 声线工作室</a><a href="/console"><i class="fas fa-gauge-high"></i> 运营后台</a><a href="/agents"><i class="fas fa-robot"></i> 7-Agent</a></div>
+    </details>
   </div>
+</nav>
+<nav id="tab-bar" class="tab-bar">
+  <a href="/" class="${active === 'discover' ? 'on' : ''}"><i class="fas fa-compass"></i><span>发现</span></a>
+  <a href="/?cat=love" class="${active === 'love' ? 'on' : ''}"><i class="fas fa-heart"></i><span>恋爱</span></a>
+  <a href="/?cat=film" class="${active === 'film' ? 'on' : ''}"><i class="fas fa-film"></i><span>影剧</span></a>
+  <a href="/?tab=mine" class="${active === 'mine' ? 'on' : ''}"><i class="fas fa-bookmark"></i><span>想看</span></a>
 </nav>`
 
 export const playerPage = () => `${head('DreamForge · Cash 剧场 | 对弈式交互剧', '<link href="/static/player.css" rel="stylesheet">')}
@@ -114,4 +120,12 @@ ${nav('love')}
 </main>
 <div id="modal-root"></div>
 <script>window.DF_MODE="film";window.DF_API="/api/love";window.DF_THEME="love"</script><script src="/static/comic.js"></script>
+</body></html>`
+
+export const discoverPage = () => `${head('DreamForge · 对弈式互动剧 | 恋爱 · 影剧', '<link href="/static/discover.css" rel="stylesheet">')}
+<body class="discover-body">
+${nav('discover')}
+<main id="discover" class="discover"></main>
+<div id="sheet-root"></div>
+<script src="/static/discover.js"></script>
 </body></html>`

@@ -203,6 +203,14 @@ Shot 3: Hina, Ichigo and Rin throw their graduation caps into the air, laughing.
 Shot 4: close-up Shion, she says in Mandarin Chinese: {所以——三年后，我们还在这里见！}
 Shot 5: wide crane up, everyone together under an explosion of glowing petals and golden light. (grand joyful finale theme)"""),
 })
+# ───────── 时间裂隙（悔棋撕开的平行时间线）─────────
+CLIPS['K_1'] = {'parent': None, 'env': 'tree', 'dur': 12, 'cast': ['Yuma', 'Yuki'], 'title': '时间裂隙·你记得一切', 'fork': True, 'shots': TREE_NOTE + """
+Shot 1: graduation day beneath the cherry tree as in @Image2; suddenly everything freezes, falling petals hang motionless in the air, the students around are frozen mid-step. <sound abruptly cuts to silence, then a deep reverse whoosh>
+Shot 2: the sky cracks like glass, glowing violet fissures spreading across it; petals begin to float upward in reverse. <glass cracking, low hum>
+Shot 3: Yuki walks toward Yuma through the frozen crowd, her white hair flowing in slow motion, the only moving person besides him.
+Shot 4: close-up Yuki, a knowing sad smile, she says in Mandarin Chinese, soft and echoing: {你已经看过这个结局了，对吗？}
+Shot 5: close-up Yuma, trembling, he says in Mandarin Chinese: {为什么……我全都记得？}
+Shot 6: close-up Yuki holding out her hand, violet light pouring through the cracks behind her, she whispers in Mandarin Chinese: {因为这一次——轮到你改写传说了。} (eerie music box turning into soaring strings)"""}
 ENDING_ORDER = ['E_S1', 'E_S2', 'E_S3', 'E_S4', 'E_H1', 'E_H2', 'E_H3', 'E_H4', 'E_R1', 'E_R2', 'E_R3', 'E_R4', 'E_I1', 'E_I2', 'E_I3', 'E_I4', 'E_Y1', 'E_Y2', 'E_Y3', 'E_Y4', 'E_Y5']
 
 def prompt(cid, parent_last=None):

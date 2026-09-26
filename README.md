@@ -108,3 +108,11 @@ Hono + Cloudflare Pages/Workers + D1 · Tailwind CDN · Chart.js · Web Crypto �
 - **API**：`/api/love/meta|tree|start|rounds/:id/bet|settle|rewind|next|verify|simulate`
 - **管线**：`scripts/love/story.py`（剧本/提示词）→ `produce.py`（并行生成）→ `build.py`（压制+转写+字幕+头像+data.json）
 - **测试**：`python3 tests/ui_love.py`
+
+## 🧭 平台改版（发现页 · 两大类 · 时间裂隙 · 移动适配）
+- **内容分类统一**：只保留「恋爱」「影剧」两大类。首页 `/` = 发现页；旧剧场移至 `/theater`，漫剧 `/comic` 保留直链但不进导航；声线/后台/Agent 收进「工作台」下拉。
+- **发现页**（`public/static/discover.{js,css}`）：主推轮播（手势滑动）→ 分类 Tab → 玩法条 → 恋爱/影剧货架 → 深夜禁区（18+ 模糊遮罩 + 年龄确认）→ 想看榜 TOP10 → 全部作品（标签筛选 + 最热/最新/结局最多排序）→ 底部弹出详情抽屉 → 想看/上线提醒 → 我的想看 + 结局收集进度。
+- **上架目录**：31 部（恋爱 16 / 影剧 15），2 部可玩，29 部概念封面（nano-banana-pro，`public/static/covers/`）。数据源 `scripts/catalog/catalog.py` → `export.py` → `src/catalog/data.json`；封面 `covers.py`。
+- **API**：`GET /api/catalog`（含想看数/我是否想看/游玩数）、`POST /api/catalog/:id/wish {on}`；表 `catalog_wish`（migrations/0004）。
+- **⟲ 时间裂隙（悔棋诞生新分支）**：节点可配置 `fork: {node, seg, label, desc}`；揭晓后悔棋多出第三种变局 `mode=fork` —— 不回到原局面，而是撕开平行时间线：播放裂隙片段 → 进入全新抉择节点（新选项/新结局），剧情树与战报记录 `⟲ 时间裂隙`。《心动回廊》四位女主毕业抉择均可裂隙 → K_1「时间裂隙·你记得一切」→ N_K「平行时间线里，你要改写哪一个传说？」
+- **移动适配**：顶栏精简 + 底部 Tab 栏（发现/恋爱/影剧/想看），播放页全屏沉浸（100svh）、画面切换自动拉回舞台，全站消除横向溢出（441→390），后台表格横向滚动。测试：`tests/ui_mobile.py`、`tests/ui_rift.py`。

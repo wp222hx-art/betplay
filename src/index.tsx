@@ -9,7 +9,8 @@ import { modelHealth, predictiveQueue, rankVideoModels, submitVideo, buildVideoP
 import { branches, overview, scriptTree } from './agents/console'
 import { applyClipPlan, approveExtension, clipPairs, derive, generatePoems, ingestSignals, regulate } from './agents/deriver'
 import type { Bindings } from './gateway/llm'
-import { playerPage, consolePage, agentsPage, comicPage, filmPage, voicePage, lovePage } from './pages/shell'
+import { playerPage, consolePage, agentsPage, comicPage, filmPage, voicePage, lovePage, discoverPage } from './pages/shell'
+import CATALOG from './catalog/data.json'
 import * as Comic from './comic/engine'
 import * as Film from './film/engine'
 import * as Love from './love/engine'
@@ -34,8 +35,32 @@ app.onError((err, c) => {
 const body = async (c: any) => { try { return await c.req.json() } catch { return {} } }
 const uidOf = (c: any, b: any = {}) => String(b.user_id || c.req.header('x-user-id') || c.req.query('user_id') || '').slice(0, 40)
 
+// ─────────────── 上架目录 ───────────────
+app.get('/api/catalog', async (c) => {
+  const u = uidOf(c)
+  const rows = (await c.env.DB.prepare('SELECT item_id, COUNT(*) n FROM catalog_wish GROUP BY item_id').all()).results as any[]
+  const cnt = Object.fromEntries(rows.map((r) => [r.item_id, r.n]))
+  const mine = u ? ((await c.env.DB.prepare('SELECT item_id FROM catalog_wish WHERE user_id=?').bind(u).all()).results as any[]).map((r) => r.item_id) : []
+  const plays = Object.fromEntries(((await c.env.DB.prepare(`SELECT series_id, COUNT(*) n FROM comic_runs GROUP BY series_id`).all()).results as any[]).map((r) => [r.series_id, r.n]))
+  const SID: Record<string, string> = { love_corridor: 'love_corridor', under_dome: (Film.COMIC as any).series.id }
+  const items = (CATALOG as any).items.map((it: any) => ({ ...it, wish: (it.heat * 3 + (cnt[it.id] || 0)), wished: mine.includes(it.id), plays: plays[SID[it.id]] || 0 }))
+  return c.json({ cats: (CATALOG as any).cats, items })
+})
+app.post('/api/catalog/:id/wish', async (c) => {
+  const b = await body(c), u = uidOf(c, b), id = c.req.param('id')
+  if (!u) throw new GameError('NO_USER', '缺少用户')
+  if (!(CATALOG as any).items.some((x: any) => x.id === id)) throw new GameError('NOT_FOUND', '作品不存在')
+  const on = b.on !== false
+  if (on) await c.env.DB.prepare('INSERT OR IGNORE INTO catalog_wish (user_id,item_id,created_at) VALUES (?,?,?)').bind(u, id, Date.now()).run()
+  else await c.env.DB.prepare('DELETE FROM catalog_wish WHERE user_id=? AND item_id=?').bind(u, id).run()
+  return c.json({ ok: true, wished: on })
+})
+
 // ─────────────── 页面 ───────────────
-app.get('/', (c) => c.html(playerPage()))
+// 首页 = 发现页（恋爱 / 影剧两大类上架列表）；旧“剧场”下沉到 /theater，漫剧保留直链不进导航
+app.get('/', (c) => c.html(discoverPage()))
+app.get('/discover', (c) => c.html(discoverPage()))
+app.get('/theater', (c) => c.html(playerPage()))
 app.get('/play/:series', (c) => c.html(playerPage()))
 app.get('/console', (c) => c.html(consolePage()))
 app.get('/agents', (c) => c.html(agentsPage()))

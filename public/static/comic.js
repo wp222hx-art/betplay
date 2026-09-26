@@ -165,8 +165,11 @@
       <div class="c-pill" style="cursor:pointer" id="vbtn">${S.voice ? '<i class="fas fa-volume-high"></i>' : '<i class="fas fa-volume-xmark"></i>'}</div></div>
       <div class="c-depth">${[1, 2, 3, 4].map((d) => `<i class="${d <= depth ? 'on' : ''}"></i>`).join('')}</div>`
   }
+  const stageEl = document.getElementById('comic-stage')
   function frame(inner) {
     L.innerHTML = hud() + inner
+    // 手机上侧栏在舞台下方：每次切换画面都把舞台拉回视口，避免用户“看不到剧情”
+    if (innerWidth <= 760 && stageEl && Math.abs(stageEl.getBoundingClientRect().top - 53) > 4) scrollTo({ top: stageEl.offsetTop - 53, behavior: 'smooth' })
     $('#vbtn').onclick = () => { S.voice = !S.voice; localStorage.df_voice = S.voice ? '1' : '0'; if (!S.voice) audio.pause(); $('#vbtn').innerHTML = S.voice ? '<i class="fas fa-volume-high"></i>' : '<i class="fas fa-volume-xmark"></i>' }
     $('#lockp') && ($('#lockp').onclick = () => openModal(`<h2>🔒 结果已锁定</h2><div class="sub">本抉择的结果在你下注前已由服务端种子抽出并公开承诺。客户端只持有 ${S.round.encrypted.length} 份等长密文分镜（每个选项一份），揭晓时才下发真分镜的密钥。</div><pre class="code" style="margin-top:10px">${S.round.commit}</pre><div style="text-align:right"><button class="btn gold" data-close>关闭</button></div>`))
   }
@@ -268,7 +271,8 @@
     SFX.heart(); panelFx('desat'); Amb.setTension(1); if (FILM) vfront.classList.add('dim')
     const modeTxt = { normal: '', binary: '<span style="color:#ff9aa8">⚔ 二选一变局</span>', plus: '<span style="color:#c4a8ff">✦ 新变数出现</span>', binary_plus: '<span style="color:#c4a8ff">⚔✦ 二选一 + 新变数</span>' }[rd.mode]
     const maxS = Math.max(rd.min_bet, Math.min(S.balance, 1000))
-    frame(`<div class="c-chapter">第 ${rd.depth} 幕 · 抉择${rd.rewind_no ? ` · 悔棋 ${rd.rewind_no}` : ''}</div><div class="spacer"></div>
+    const inRift = S.tree?.nodes.some((n) => n.fork?.node === rd.node_id)
+    frame(`<div class="c-chapter ${inRift ? 'rift-c' : ''}">${inRift ? '⟲ 平行时间线 · 抉择' : `第 ${rd.depth} 幕 · 抉择`}${rd.rewind_no ? ` · 悔棋 ${rd.rewind_no}` : ''}</div><div class="spacer"></div>
       <div class="q-card" id="qc">
         ${modeTxt ? `<div class="mode">${modeTxt}</div>` : ''}
         ${rd.excluded?.length ? `<div class="excl">已排除：${rd.excluded.map((x) => `<s>${esc(x.label)}</s>`).join(' ')}</div>` : ''}
@@ -344,13 +348,16 @@
     if (b) (b.won ? SFX.win : SFX.lose)()
     setBal(st.balance)
     const modes = st.rewind.modes
+    // 时间裂隙可用 → 提前预载裂隙片段，点下去立即播放
+    const fk = S.tree?.nodes.find((n) => n.id === S.round?.node_id)?.fork
+    if (fk && modes.some((m) => m.mode === 'fork')) { const v = S.tree.segments[fk.seg]?.video_url; if (v) { if (FILM) preV(v); if (!cache.has(v)) { const l = document.createElement('link'); l.rel = 'preload'; l.as = 'video'; l.href = v; document.head.appendChild(l); cache.set(v, l) } } }
     frame(`<div class="c-chapter">第 ${S.round.depth} 幕 · 结算</div><div class="spacer"></div>
       <div class="settle2">
         <div class="sub" style="text-align:center;font-size:11px;letter-spacing:3px">本幕结果 · <b style="color:${seg.twist ? '#d9c6ff' : 'var(--gold)'}">${esc(seg.label)}</b></div>
         <div class="res ${b ? (b.won ? 'win' : 'lose') : ''}">${b ? (b.won ? '+' + b.payout : '−' + b.amount) : '观战'}</div>
         <div class="sub" style="text-align:center;font-size:12px">${b ? `押「${esc(S.round.options.find((o) => o.id === b.option_id)?.label)}」×${b.odds}` : '本幕未下注'}</div>
         ${modes.length ? `<div class="sub" style="margin-top:8px;font-size:11px;text-align:center"><i class="fas fa-clock-rotate-left" style="color:#c4a8ff"></i> 悔棋（税 ${st.rewind.fee}，剩 ${st.rewind.max - st.rewind.used} 次）——回到这一刻，但局面会改变：</div>
-          <div class="rw-pick">${modes.map((m) => `<button class="pb violet" data-rw="${m.mode}"><b>${m.mode === 'binary' ? '⚔ ' : '✦ '}${m.label}</b><small>${esc(m.desc)}</small></button>`).join('')}</div>` : ''}
+          <div class="rw-pick">${modes.map((m) => `<button class="pb violet ${m.mode === 'fork' ? 'rift' : ''}" data-rw="${m.mode}"><b>${m.mode === 'binary' ? '⚔ ' : m.mode === 'fork' ? '⟲ ' : '✦ '}${m.label}</b><small>${esc(m.desc)}</small></button>`).join('')}</div>` : ''}
         <div class="btns"><button class="pb" id="vf"><i class="fas fa-shield-halved"></i> 验证</button><button class="pb gold" id="nx">${seg.next ? (LOVE ? '时光流转' : '翻到下一幕') : (LOVE ? '毕业那天' : '走向结局')} <i class="fas fa-forward"></i></button></div>
       </div>`)
     L.querySelectorAll('[data-rw]').forEach((x) => (x.onclick = () => { clearInterval(at); doRewind(st.round_id, x.dataset.rw) }))
@@ -370,6 +377,17 @@
       const [nr] = await Promise.all([api(`${API}/rounds/${rid}/rewind`, { body: { mode } }), sleep(1600)])
       S.log[0] && (S.log[0].rewound = true)
       setBal(nr.balance)
+      if (nr.fork) {
+        // 时间裂隙：撕开平行时间线 → 播放裂隙片段 → 进入全新的抉择节点
+        S.path = nr.path || S.path; S.forks = (S.forks || 0) + 1
+        S.log.unshift({ label: '⟲ ' + nr.fork.label, twist: true })
+        L.insertAdjacentHTML('beforeend', '<div class="rift-fx"><i></i><i></i><i></i><b>平 行 时 间 线</b></div>')
+        navigator.vibrate?.([30, 60, 30]); Amb.sfx('reveal', 1)
+        await sleep(1500)
+        L.querySelector('.rift-fx')?.remove()
+        if (nr.fork.seg) { if (FILM) preV(nr.fork.seg.video_url); await playSegment(nr.fork.seg, { header: `<div class="c-chapter rift-c">⟲ 时间裂隙 · 平行时间线</div>` }) }
+        return decision(nr)
+      }
       decision(nr, nr.changed)
     } catch (e) { toast(e.message); frame('<div class="spacer"></div>') }
   }
@@ -420,9 +438,9 @@
     const walked = new Set(S.path.map((p) => p.option))
     const nodeHtml = (id, d = 0) => {
       const n = S.tree.nodes.find((x) => x.id === id); if (!n || d > 4) return ''
-      const onPath = S.path.some((p) => p.node === id) || cur === id
+      const onPath = S.path.some((p) => p.node === id || p.option === 'fork:' + id) || cur === id
       if (!onPath && d > 0) return ''
-      return `<div class="nd ${cur === id ? 'cur' : ''}">${esc(n.question)}${n.options.filter((o) => !o.twist || walked.has(o.id) || (cur === id && S.round?.options.some((x) => x.id === o.id))).map((o) => `<div class="ol ${walked.has(o.id) ? 'hit' : ''} ${o.twist ? 'tw' : ''}">${walked.has(o.id) ? '●' : '○'} ${esc(o.label)}${o.twist ? ' ✦' : ''}${o.next && walked.has(o.id) ? nodeHtml(o.next, d + 1) : ''}</div>`).join('')}</div>`
+      return `<div class="nd ${cur === id ? 'cur' : ''}">${esc(n.question)}${n.options.filter((o) => !o.twist || walked.has(o.id) || (cur === id && S.round?.options.some((x) => x.id === o.id))).map((o) => `<div class="ol ${walked.has(o.id) ? 'hit' : ''} ${o.twist ? 'tw' : ''}">${walked.has(o.id) ? '●' : '○'} ${esc(o.label)}${o.twist ? ' ✦' : ''}${o.next && walked.has(o.id) ? nodeHtml(o.next, d + 1) : ''}</div>`).join('')}${n.fork ? `<div class="ol rift ${walked.has('fork:' + n.fork.node) ? 'hit' : ''}">${walked.has('fork:' + n.fork.node) ? '●' : '○'} ⟲ ${esc(n.fork.label || '时间裂隙')}${walked.has('fork:' + n.fork.node) ? nodeHtml(n.fork.node, d + 1) : ''}</div>` : ''}</div>`
     }
     const ends = [...new Map(S.tree.nodes.flatMap((n) => n.options.filter((o) => !o.next).map((o) => [o.id, { id: o.id, twist: o.twist && !S.tree.nodes.some((m) => m.options.some((x) => x.id === o.id && !x.twist)), title: o.ending_title || o.label }]))).values()]
     const got = new Set(S.meta.my_endings)

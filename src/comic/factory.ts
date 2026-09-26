@@ -194,7 +194,9 @@ async function settle(env: Env, p: { roundId: string; userId: string }) {
   const remainingRegular = regular - excl.length - (outcomeIsTwist ? 0 : 1)
   const rewindModes = used >= cfg.max_rewinds ? [] : [
     ...(remainingRegular >= 2 ? [{ mode: 'binary', label: '二选一', desc: `排除「${node.options.find((o: any) => o.id === s.outcome_id)?.label}」，剩余选项重算概率与赔率` }] : []),
-    ...(!hasTwist && node.options.some((o: any) => o.twist) ? [{ mode: 'plus', label: '新变数', desc: '保留原选项，并多出一个隐藏选项（概率/赔率重新分配）' }] : [])
+    ...(!hasTwist && node.options.some((o: any) => o.twist) ? [{ mode: 'plus', label: '新变数', desc: '保留原选项，并多出一个隐藏选项（概率/赔率重新分配）' }] : []),
+    // 时间裂隙：悔棋不回到原局面，而是撕开一条平行时间线 → 播放专属裂隙片段 → 进入全新抉择节点
+    ...(node.fork && NODES[node.fork.node] ? [{ mode: 'fork', label: node.fork.label || '时间裂隙', desc: node.fork.desc || '世界察觉了你的悔棋——一条从未出现过的平行时间线被撕开' }] : [])
   ]
   return {
     round_id: s.id, outcome_id: s.outcome_id, reveal: { slot: idx, key: slots[idx]?.key }, seed: s.seed, commit: s.commit_hash,
@@ -203,7 +205,7 @@ async function settle(env: Env, p: { roundId: string; userId: string }) {
   }
 }
 
-async function rewind(env: Env, p: { roundId: string; userId: string; mode: 'binary' | 'plus' }) {
+async function rewind(env: Env, p: { roundId: string; userId: string; mode: 'binary' | 'plus' | 'fork' }) {
   const r = await loadRound(env, p.roundId, p.userId)
   if (r.state !== 'SETTLE') throw new GameError('BAD_STATE', '仅揭晓后可悔棋')
   const st: any = await settle(env, p)
@@ -217,6 +219,17 @@ async function rewind(env: Env, p: { roundId: string; userId: string; mode: 'bin
   await env.DB.prepare('UPDATE users SET chips=chips-? WHERE id=?').bind(fee, p.userId).run()
   await post(env, '漫剧悔棋税', r.id, [[`user:${p.userId}:available`, 'D', fee], ['platform:rewind_tax', 'C', fee]])
   await env.DB.prepare('UPDATE comic_runs SET rewinds=rewinds+1, pnl=pnl-? WHERE id=?').bind(fee, r.run_id).run()
+  const run0: any = await env.DB.prepare('SELECT * FROM comic_runs WHERE id=?').bind(r.run_id).first()
+  if (p.mode === 'fork') {
+    // 平行时间线：记录裂隙分叉到路径，开启新节点（新选项、新片段、新结局）
+    const node = NODES[r.node_id], fk = node.fork
+    const path = J(run0.path, [])
+    path.push({ round: r.id, node: r.node_id, q: node.question, option: 'fork:' + fk.node, label: '⟲ ' + (fk.label || '时间裂隙'), twist: true, fork: true, mode: 'fork' })
+    await env.DB.prepare('UPDATE comic_runs SET path=? WHERE id=?').bind(JSON.stringify(path), run0.id).run()
+    const nr = await openRound(env, run0, fk.node, { mode: 'normal', rewindNo: r.rewind_no + 1, rewindOf: r.id })
+    const seg = fk.seg && COMIC.segments[fk.seg] ? { id: fk.seg, ...COMIC.segments[fk.seg], title: fk.title || COMIC.segments[fk.seg].title } : null
+    return { ...nr, rewind_fee: fee, balance: u.chips - fee, changed: m, fork: { seg, from: r.node_id, to: fk.node, label: fk.label || '时间裂隙' }, path }
+  }
   const prev = J(r.options)
   const prevMode = r.mode
   const exclude = [...(prev.exclude || [])]
@@ -224,8 +237,7 @@ async function rewind(env: Env, p: { roundId: string; userId: string; mode: 'bin
   if (p.mode === 'binary') exclude.push(r.outcome_id)
   // 叠加：先二选一再新变数 = binary_plus；先新变数再二选一 = binary_plus（排除刚发生的结局）
   if ((p.mode === 'binary' && prevMode.includes('plus')) || (p.mode === 'plus' && prevMode.includes('binary'))) mode = 'binary_plus'
-  const run: any = await env.DB.prepare('SELECT * FROM comic_runs WHERE id=?').bind(r.run_id).first()
-  const nr = await openRound(env, run, r.node_id, { mode, exclude, rewindNo: r.rewind_no + 1, rewindOf: r.id })
+  const nr = await openRound(env, run0, r.node_id, { mode, exclude, rewindNo: r.rewind_no + 1, rewindOf: r.id })
   return { ...nr, rewind_fee: fee, balance: u.chips - fee, changed: m }
 }
 
