@@ -9,7 +9,7 @@ async def main():
         ctx = await b.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=2, is_mobile=True, has_touch=True)
         pg = await ctx.new_page(); errs = []; vids = []
         pg.on('pageerror', lambda e: errs.append(str(e)))
-        pg.on('request', lambda r: vids.append(r.url.split('/')[-1]) if r.url.endswith('.mp4') else None)
+        pg.on('request', lambda r: vids.append(r.url.split('?')[0].split('/')[-1]) if '.mp4' in r.url else None)
         await pg.goto(BASE + '/love'); await pg.wait_for_selector('#st'); await pg.tap('#st')
         async def until(sel):
             for _ in range(80):

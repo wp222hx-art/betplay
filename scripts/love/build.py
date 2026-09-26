@@ -84,7 +84,7 @@ def align(cid, chars, dur):
 def build_clip(cid):
     raw = os.path.join(RAW, f'{cid}.mp4')
     if not os.path.exists(raw): return None
-    mp4, poster, last = (os.path.join(OUT, f'{cid}{s}') for s in ('.mp4', '.webp', '_last.webp'))
+    poster, last = (os.path.join(OUT, f'{cid}{s}') for s in ('.webp', '_last.webp')); os.makedirs(os.path.join(ROOT, 'media_src/love'), exist_ok=True); mp4 = os.path.join(ROOT, 'media_src/love', f'{cid}.mp4')  # 受保护视频 → R2
     if not os.path.exists(mp4):
         subprocess.run(['ffmpeg', '-loglevel', 'error', '-y', '-i', raw, '-vf', 'scale=576:-2', '-c:v', 'libx264', '-crf', '24', '-preset', 'slow', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', mp4])
     for f, ss in ((poster, ['-ss', '0.8']), (last, ['-sseof', '-0.2'])):
@@ -132,7 +132,7 @@ if __name__ == '__main__':
     for cid in CLIPS:
         s = build_clip(cid)
         if s: segs[cid] = s; print(cid, s['dur'], [(l['speaker'], l['text'][:8], l['start']) for l in s['lines']], flush=True)
-    data = {'series': {'id': 'love_corridor', 'title': '心动回廊 ～传说之樱下的约定～', 'logline': '三年高中，五位少女，一棵传说之樱。21 种结局，每一次心动都是一场博弈。'},
+    data = {'series': {'id': 'love_corridor', 'title': '心动回廊 ～传说之樱下的约定～', 'logline': '三年高中，五位少女，一棵传说之樱。21 种结局，每一次心动都是一场博弈。', 'gated': True},
             'prologue': ['L_P'], 'nodes': NODES, 'segments': segs, 'cast': CAST}
     os.makedirs(os.path.join(ROOT, 'src/love'), exist_ok=True)
     json.dump(data, open(os.path.join(ROOT, 'src/love/data.json'), 'w'), ensure_ascii=False)

@@ -6,7 +6,7 @@ async def main():
         b = await p.chromium.launch(args=['--autoplay-policy=no-user-gesture-required'])
         pg = await b.new_page(viewport={'width': 1280, 'height': 900}); errs = []; vids = []
         pg.on('pageerror', lambda e: errs.append(str(e)))
-        pg.on('request', lambda r: vids.append(r.url.split('/')[-1]) if '/static/film/' in r.url and r.url.endswith('.mp4') else None)
+        pg.on('request', lambda r: vids.append(r.url.split('/')[-1]) if '.mp4' in r.url else None)
         await pg.goto(BASE + '/film'); await pg.wait_for_selector('#st'); await pg.wait_for_timeout(1200)
         await pg.screenshot(path='/tmp/shots/f1_cover.png')
         await pg.click('#st'); await pg.wait_for_timeout(6500)

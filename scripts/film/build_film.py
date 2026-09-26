@@ -58,7 +58,7 @@ clips = {}
 for cid in ['F_P'] + list(CLIPS):
     m = meta.get(cid)
     if not m or not os.path.exists(m['raw']): print('skip', cid); continue
-    mp4 = os.path.join(OUT, f'{cid}.mp4'); poster = os.path.join(OUT, f'{cid}.webp')
+    os.makedirs(os.path.join(ROOT, 'media_src/film'), exist_ok=True); mp4 = os.path.join(ROOT, 'media_src/film', f'{cid}.mp4'); poster = os.path.join(OUT, f'{cid}.webp')
     if not os.path.exists(mp4):
         subprocess.run(['ffmpeg', '-loglevel', 'error', '-y', '-i', m['raw'], '-vf', 'scale=576:-2', '-c:v', 'libx264', '-crf', '24', '-preset', 'slow', '-profile:v', 'main', '-pix_fmt', 'yuv420p',
                         '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', mp4])
@@ -77,7 +77,7 @@ T = {'F_P': '雨夜天台', 'F_A': '如约交付', 'F_B': '指间调包', 'F_T':
 seg = lambda cid: {'title': T[cid], 'mood': '', 'image_url': clips.get(cid, {}).get('poster'), 'video_url': clips.get(cid, {}).get('video'), 'last_url': clips.get(cid, {}).get('last'),
                    'dur': clips.get(cid, {}).get('dur', 0), 'lines': clips.get(cid, {}).get('subs', []), 'film': True, 'ambience': 'rain_roof', 'sfx': None, 'sfx_at': 0}
 data = {
- 'series': {'id': 'dome_film', 'title': '穹顶之下 · 影剧版', 'logline': '9 段电影级音画一体片段 · 3 个抉择 · 5 种结局'},
+ 'series': {'id': 'dome_film', 'title': '穹顶之下 · 影剧版', 'logline': '9 段电影级音画一体片段 · 3 个抉择 · 5 种结局', 'gated': True},
  'prologue': ['F_P'],
  'nodes': [
   {'id': 'N1', 'depth': 1, 'question': '星核，交还是不交？', 'options': [

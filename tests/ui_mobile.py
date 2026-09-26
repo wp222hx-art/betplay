@@ -2,7 +2,7 @@
 import asyncio, json, sys
 from playwright.async_api import async_playwright
 BASE = sys.argv[1] if len(sys.argv) > 1 else 'http://localhost:3000'
-PAGES = ['/', '/?cat=love', '/?cat=film', '/?tab=mine', '/love', '/film', '/voice', '/console', '/agents']
+PAGES = ['/', '/?cat=love', '/?tab=mine', '/market', '/market?tab=mine', '/studio', '/arch', '/love', '/film', '/voice', '/console']
 async def main():
     async with async_playwright() as p:
         b = await p.chromium.launch()

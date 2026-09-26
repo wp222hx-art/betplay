@@ -8,3 +8,4 @@ dist/
 *.tar.gz
 scripts/film/raw/
 scripts/love/raw/
+media_src/

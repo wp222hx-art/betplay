@@ -9,14 +9,17 @@ import { modelHealth, predictiveQueue, rankVideoModels, submitVideo, buildVideoP
 import { branches, overview, scriptTree } from './agents/console'
 import { applyClipPlan, approveExtension, clipPairs, derive, generatePoems, ingestSignals, regulate } from './agents/deriver'
 import type { Bindings } from './gateway/llm'
-import { playerPage, consolePage, agentsPage, comicPage, filmPage, voicePage, lovePage, discoverPage } from './pages/shell'
+import { playerPage, consolePage, agentsPage, comicPage, filmPage, voicePage, lovePage, discoverPage, marketPage, studioPage, archPage } from './pages/shell'
 import CATALOG from './catalog/data.json'
 import * as Comic from './comic/engine'
 import * as Film from './film/engine'
 import * as Love from './love/engine'
 import * as Voice from './voice/studio'
+import { authUid, checkTicket, ipKey, issueDevice, rateLimit, riskEvent } from './core/guard'
+import * as Market from './market/cards'
+import * as Studio from './studio/pipeline'
 
-const app = new Hono<{ Bindings: Bindings }>()
+const app = new Hono<{ Bindings: Bindings & { MEDIA?: R2Bucket; AUTH_SECRET?: string; ADMIN_KEY?: string }; Variables: { uid: string } }>()
 app.use('/api/*', cors())
 
 // 首次访问自动播种（Agent-1 蓝图）
@@ -33,7 +36,55 @@ app.onError((err, c) => {
 })
 
 const body = async (c: any) => { try { return await c.req.json() } catch { return {} } }
-const uidOf = (c: any, b: any = {}) => String(b.user_id || c.req.header('x-user-id') || c.req.query('user_id') || '').slice(0, 40)
+// 身份只来自服务端签发的令牌；body/header 里的 user_id 一律忽略（旧逻辑可被任意冒充）
+// uidOf(c) = 可选身份；uidOf(c, b) = 必须登录
+const uidOf = (c: any, b?: any) => { const u = c.get('uid') || ''; if (b !== undefined && !u) throw new GameError('UNAUTHORIZED', '身份无效，请刷新页面'); return u }
+const ADMIN_PREFIX = ['/api/console', '/api/agents', '/api/studio', '/api/admin']
+app.use('/api/*', async (c, next) => {
+  const path = c.req.path
+  const u = await authUid(c.env as any, c, false)
+  c.set('uid', u)
+  const claimed = c.req.header('x-user-id')
+  if (claimed && u && claimed !== u && !claimed.startsWith('console') && !claimed.startsWith('agent')) await riskEvent(c.env as any, u, 'spoof', 2, { claimed, path })
+  // 管理面：生产环境必须携带 ADMIN_KEY（本地未配置时开放，便于开发）
+  const isAdminWrite = ADMIN_PREFIX.some((p) => path.startsWith(p)) || (c.req.method !== 'GET' && (path.startsWith('/api/comic/config') || path.startsWith('/api/voice/')))
+  if (isAdminWrite && (c.env as any).ADMIN_KEY && c.req.header('x-admin-key') !== (c.env as any).ADMIN_KEY) return c.json({ error: 'ADMIN_ONLY', message: '需要管理员密钥' }, 403)
+  // 通用写操作限流：每设备 120 次/分钟，每 IP 600 次/分钟
+  if (c.req.method === 'POST') {
+    const ik = await ipKey(c)
+    await rateLimit(c.env as any, 'ip:' + ik, 600, 60000)
+    if (u) await rateLimit(c.env as any, 'u:' + u, 120, 60000)
+  }
+  await next()
+})
+app.post('/api/auth/device', async (c) => {
+  const b = await body(c)
+  await rateLimit(c.env as any, 'dev:' + (await ipKey(c)), 20, 3600000)
+  return c.json(await issueDevice(c.env as any, c, b.legacy))
+})
+app.get('/api/auth/me', (c) => c.json({ uid: c.get('uid') || null }))
+
+// ─── 媒体门禁：视频只能凭“揭晓后签发的短时票据”从 R2 读取，支持 Range 流式 ───
+app.get('/m/:series/:clip', async (c) => {
+  const series = c.req.param('series'), clip = c.req.param('clip').replace(/\.mp4$/, '')
+  if (!(await checkTicket(c.env as any, series, clip, { u: c.req.query('u'), e: c.req.query('e'), s: c.req.query('s') }))) return c.text('ticket required', 403)
+  const bucket = (c.env as any).MEDIA as R2Bucket | undefined
+  if (!bucket) return c.text('media bucket not bound', 503)
+  const key = `${series}/${clip}.mp4`
+  const range = c.req.header('range')
+  let opt: any = {}
+  let head: R2Object | null = null
+  if (range) {
+    head = await bucket.head(key); if (!head) return c.notFound()
+    const m = range.match(/bytes=(\d*)-(\d*)/)
+    const start = m && m[1] ? +m[1] : 0, end = m && m[2] ? Math.min(+m[2], head.size - 1) : head.size - 1
+    opt = { range: { offset: start, length: end - start + 1 } }
+    const obj = await bucket.get(key, opt); if (!obj) return c.notFound()
+    return new Response(obj.body, { status: 206, headers: { 'Content-Type': 'video/mp4', 'Accept-Ranges': 'bytes', 'Content-Range': `bytes ${start}-${end}/${head.size}`, 'Content-Length': String(end - start + 1), 'Cache-Control': 'private, max-age=3600' } })
+  }
+  const obj = await bucket.get(key); if (!obj) return c.notFound()
+  return new Response(obj.body, { headers: { 'Content-Type': 'video/mp4', 'Accept-Ranges': 'bytes', 'Content-Length': String(obj.size), 'Cache-Control': 'private, max-age=3600' } })
+})
 
 // ─────────────── 上架目录 ───────────────
 app.get('/api/catalog', async (c) => {
@@ -56,11 +107,66 @@ app.post('/api/catalog/:id/wish', async (c) => {
   return c.json({ ok: true, wished: on })
 })
 
+// ─────────────── 结局卡交易所 ───────────────
+const ENGINES: Record<string, any> = { [Love.SERIES]: Love, [Film.SERIES]: Film }
+const SERIES_URL: Record<string, string> = { [Love.SERIES]: '/love', [Film.SERIES]: '/film' }
+const titles = (series: string, ending: string) => {
+  const E = ENGINES[series]; if (!E) return { series_title: series, ending_title: ending }
+  const o = E.COMIC.nodes.flatMap((n: any) => n.options).find((x: any) => x.id === ending)
+  const seg = E.COMIC.segments[ending] || {}
+  return { series_title: E.COMIC.series.title, ending_title: o?.ending_title || o?.label || seg.title, image: seg.last_url || seg.image_url, poster: seg.image_url, twist: !!o?.twist, url: SERIES_URL[series] }
+}
+app.get('/api/market', async (c) => c.json(await Market.market(c.env as any, titles, { series: c.req.query('series'), rarity: c.req.query('rarity'), sort: c.req.query('sort') })))
+app.get('/api/market/cards/:id', async (c) => c.json(await Market.cardDetail(c.env as any, c.req.param('id'), titles)))
+app.get('/api/me/cards', async (c) => { const u = uidOf(c, {}); const me: any = await ensureUser(c.env, u); return c.json({ cards: await Market.myCards(c.env as any, u, titles), balance: me.chips }) })
+app.post('/api/market/list', async (c) => { const b = await body(c); const u = uidOf(c, b); await rateLimit(c.env as any, 'list:' + u, 30, 3600000); return c.json(await Market.listCard(c.env as any, { owner: u, card: b.card_id, price: b.price })) })
+app.post('/api/market/cancel', async (c) => { const b = await body(c); return c.json(await Market.cancelListing(c.env as any, { owner: uidOf(c, b), listing: b.listing_id })) })
+app.post('/api/market/buy', async (c) => { const b = await body(c); const u = uidOf(c, b); await rateLimit(c.env as any, 'buy:' + u, 30, 3600000); return c.json(await Market.buyListing(c.env as any, { buyer: u, listing: b.listing_id, ipHash: await ipKey(c) })) })
+app.get('/api/me/cards/:id/watch', async (c) => c.json(await Market.watchPath(c.env as any, { owner: uidOf(c, {}), card: c.req.param('id'), segs: (s) => ENGINES[s]?.COMIC.segments || {} })))
+
+// ─────────────── 风控台（管理） ───────────────
+app.get('/api/admin/risk', async (c) => {
+  const ev = (await c.env.DB.prepare('SELECT * FROM risk_events ORDER BY id DESC LIMIT 100').all()).results
+  const by = (await c.env.DB.prepare('SELECT kind, COUNT(*) n FROM risk_events WHERE created_at>? GROUP BY kind').bind(Date.now() - 86400000).all()).results
+  const dev: any = await c.env.DB.prepare('SELECT COUNT(*) n, SUM(legacy) legacy FROM auth_devices').first()
+  const banned = (await c.env.DB.prepare('SELECT * FROM user_flags WHERE banned=1 ORDER BY updated_at DESC LIMIT 50').all()).results
+  const ledger: any = await c.env.DB.prepare(`SELECT SUM(CASE WHEN direction='D' THEN amount ELSE 0 END) d, SUM(CASE WHEN direction='C' THEN amount ELSE 0 END) cr FROM ledger`).first()
+  return c.json({ events: ev, by_kind_24h: by, devices: dev, banned, ledger_balanced: ledger.d === ledger.cr, ledger })
+})
+app.post('/api/admin/ban', async (c) => {
+  const b = await body(c)
+  await c.env.DB.prepare('INSERT OR REPLACE INTO user_flags (uid,banned,reason,updated_at) VALUES (?,?,?,?)').bind(b.uid, b.ban ? 1 : 0, b.reason || '', Date.now()).run()
+  if (b.ban) await c.env.DB.prepare('UPDATE auth_devices SET token_ver=token_ver+1 WHERE uid=?').bind(b.uid).run()
+  await c.env.DB.prepare('INSERT INTO audit_log (actor,action,detail,created_at) VALUES (?,?,?,?)').bind('admin', b.ban ? 'ban' : 'unban', JSON.stringify(b), Date.now()).run()
+  return c.json({ ok: true })
+})
+
+// ─────────────── 制作平台（管理） ───────────────
+app.get('/api/studio/projects', async (c) => c.json({ projects: await Studio.listProjects(c.env), stages: Studio.STAGES, credits: Studio.CREDITS }))
+app.get('/api/studio/projects/:id', async (c) => c.json(await Studio.projectDetail(c.env, c.req.param('id'))))
+app.post('/api/studio/projects', async (c) => {
+  const b = await body(c)
+  const it = b.item_id ? (CATALOG as any).items.find((x: any) => x.id === b.item_id) : null
+  const src = it || b
+  if (!src?.title) throw new GameError('BAD_INPUT', '缺少标题')
+  return c.json(await Studio.scriptProject(c.env, { title: src.title, logline: src.logline || '', cat: src.cat || 'love', tags: src.tags, source_item: it?.id, parent: b.parent, kind: b.parent ? 'sequel' : 'series' }))
+})
+app.post('/api/studio/projects/:id/validate', async (c) => { const d: any = await Studio.projectDetail(c.env, c.req.param('id')); return c.json(d.validation) })
+app.post('/api/studio/projects/:id/repair', async (c) => c.json(await Studio.repairProject(c.env, c.req.param('id'))))
+app.post('/api/studio/projects/:id/render', async (c) => c.json(await Studio.queueRender(c.env, c.req.param('id'))))
+app.post('/api/studio/jobs/claim', async (c) => { const b = await body(c); return c.json({ job: await Studio.claimJob(c.env, b.worker || 'worker') }) })
+app.post('/api/studio/jobs/:id/report', async (c) => { const b = await body(c); return c.json(await Studio.reportJob(c.env, { id: c.req.param('id'), ok: !!b.ok, url: b.url, qc: b.qc })) })
+app.post('/api/studio/jobs/:id/review', async (c) => { const b = await body(c); return c.json(await Studio.reviewJob(c.env, { id: c.req.param('id'), approve: !!b.approve })) })
+app.get('/api/studio/next', async (c) => c.json(await Studio.nextUp(c.env, (CATALOG as any).items)))
+
 // ─────────────── 页面 ───────────────
 // 首页 = 发现页（恋爱 / 影剧两大类上架列表）；旧“剧场”下沉到 /theater，漫剧保留直链不进导航
 app.get('/', (c) => c.html(discoverPage()))
 app.get('/discover', (c) => c.html(discoverPage()))
 app.get('/theater', (c) => c.html(playerPage()))
+app.get('/market', (c) => c.html(marketPage()))
+app.get('/studio', (c) => c.html(studioPage()))
+app.get('/arch', (c) => c.html(archPage()))
 app.get('/play/:series', (c) => c.html(playerPage()))
 app.get('/console', (c) => c.html(consolePage()))
 app.get('/agents', (c) => c.html(agentsPage()))
@@ -96,7 +202,7 @@ app.get('/api/me', async (c) => {
   const endings = (await c.env.DB.prepare(`SELECT DISTINCT v.outcome_id FROM branch_registry b JOIN variants v ON v.id=b.variant_id WHERE b.user_id=?`).bind(id).all()).results.map((x: any) => x.outcome_id)
   return c.json({ ...u, stats, collected_outcomes: endings })
 })
-app.post('/api/me/faucet', async (c) => { const b = await body(c); return c.json(await claimFaucet(c.env, uidOf(c, b))) })
+app.post('/api/me/faucet', async (c) => { const b = await body(c); const u = uidOf(c, b); await rateLimit(c.env as any, 'faucet:' + u, 1, 20 * 3600000); return c.json(await claimFaucet(c.env, u)) })
 app.post('/api/me/limits', async (c) => {
   const b = await body(c); const id = uidOf(c, b)
   if (b.daily_limit) await c.env.DB.prepare('UPDATE users SET daily_limit=? WHERE id=?').bind(Math.max(100, Math.min(100000, b.daily_limit | 0)), id).run()
@@ -222,7 +328,7 @@ app.get('/api/comic/stats', async (c) => c.json(await Comic.comicStats(c.env)))
 
 // ─────────────── 影剧 Film 模式（Seedance 2.0 音画一体，5 结局）：与漫剧共用对弈引擎 ───────────────
 app.get('/api/film/meta', async (c) => { const id = uidOf(c); return c.json({ series: Film.COMIC.series, nodes: Film.COMIC.nodes.length, total_endings: Film.totalEndings(), my_endings: id ? await Film.myEndings(c.env, id) : [], config: await Film.getConfig(c.env) }) })
-app.get('/api/film/tree', (c) => c.json(Film.COMIC))
+app.get('/api/film/tree', (c) => c.json(Film.publicTree()))
 app.post('/api/film/start', async (c) => { const b = await body(c); return c.json(await Film.startRun(c.env, uidOf(c, b), b.nick)) })
 app.post('/api/film/rounds/:id/bet', async (c) => { const b = await body(c); return c.json(await Film.bet(c.env, { roundId: c.req.param('id'), userId: uidOf(c, b), optionId: b.option_id, amount: b.amount })) })
 app.post('/api/film/rounds/:id/settle', async (c) => { const b = await body(c); return c.json(await Film.settle(c.env, { roundId: c.req.param('id'), userId: uidOf(c, b) })) })
@@ -233,7 +339,7 @@ app.post('/api/film/simulate', async (c) => { const b = await body(c); return c.
 
 // ─────────────── 恋爱剧《心动回廊》（Seedance 2.0 音画一体，21 结局）：与漫剧共用对弈引擎 ───────────────
 app.get('/api/love/meta', async (c) => { const id = uidOf(c); return c.json({ series: Love.COMIC.series, nodes: Love.COMIC.nodes.length, total_endings: Love.totalEndings(), my_endings: id ? await Love.myEndings(c.env, id) : [], config: await Love.getConfig(c.env) }) })
-app.get('/api/love/tree', (c) => c.json(Love.COMIC))
+app.get('/api/love/tree', (c) => c.json(Love.publicTree()))
 app.post('/api/love/start', async (c) => { const b = await body(c); return c.json(await Love.startRun(c.env, uidOf(c, b), b.nick)) })
 app.post('/api/love/rounds/:id/bet', async (c) => { const b = await body(c); return c.json(await Love.bet(c.env, { roundId: c.req.param('id'), userId: uidOf(c, b), optionId: b.option_id, amount: b.amount })) })
 app.post('/api/love/rounds/:id/settle', async (c) => { const b = await body(c); return c.json(await Love.settle(c.env, { roundId: c.req.param('id'), userId: uidOf(c, b) })) })

@@ -8,7 +8,7 @@
   const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
   const api = async (url, opt = {}) => {
-    const r = await fetch(url, { ...opt, method: opt.body ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json', 'x-user-id': uid }, body: opt.body ? JSON.stringify({ user_id: uid, ...opt.body }) : undefined })
+    const r = await fetch(url, { ...opt, method: opt.body ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json',  }, body: opt.body ? JSON.stringify({ user_id: uid, ...opt.body }) : undefined })
     const j = await r.json(); if (!r.ok) throw new Error(j.message || j.error); return j
   }
   const toast = (m) => { const d = document.createElement('div'); d.className = 'tst'; d.textContent = m; document.body.appendChild(d); setTimeout(() => d.remove(), 2600) }
@@ -411,6 +411,7 @@
       <div class="t ${r.ending.twist ? 'tw' : ''}">${esc(r.ending.title)}</div>
       <div class="route">${r.path.map((p) => `<span class="${p.twist ? 'tw' : ''}">${esc(p.label)}</span>`).join('')}</div>
       <div class="sub">${LOVE ? '心动收支' : '本夜盈亏'} <b style="color:${r.pnl >= 0 ? 'var(--gold)' : '#ff9aa8'}">${r.pnl >= 0 ? '+' : ''}${r.pnl}</b> · 悔棋 ${r.rewinds} 次 · 已收集结局 ${S.meta.my_endings.length}/${r.total_endings}</div>
+      ${r.card ? `<a class="mint" href="/market?tab=mine&card=${r.card.id}"><i class="rar r-${r.card.rarity}">${r.card.rarity}</i><div><b>获得结局卡 · No.${r.card.serial}</b><span>${r.card.forked ? '⟲ 含时间裂隙 · ' : ''}参考价 ${r.card.ref_price} · 可收藏 / 交易 / 重看完整路径</span></div><i class="fas fa-angle-right"></i></a>` : ''}
       <div class="btns" style="margin-top:12px"><button class="pb" id="sh"><i class="fas fa-share-nodes"></i> 战报</button><button class="pb gold" id="ag"><i class="fas fa-rotate"></i> ${LOVE ? '重新入学' : '再走一夜'}</button></div></div>`)
     $('#ag').onclick = cover
     $('#sh').onclick = () => { const t = `我在《${S.meta.series.title}》走到了「${r.ending.title}」：${r.path.map((p) => p.label).join('→')}，你能走出不同的结局吗？`; navigator.clipboard?.writeText(t + ' ' + location.href); toast('战报文案已复制') }

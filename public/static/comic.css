@@ -195,3 +195,9 @@
   .opt2{min-height:52px}
   .stake2 button{min-height:40px}
 }
+/* 通关铸造的结局卡 */
+.mint{display:flex;align-items:center;gap:10px;margin:12px auto 0;max-width:320px;padding:10px 12px;border-radius:14px;background:linear-gradient(135deg,rgba(245,196,81,.16),rgba(138,92,255,.16));border:1px solid rgba(245,196,81,.5);color:#fff;text-decoration:none;text-align:left;animation:mintIn .8s cubic-bezier(.2,1.4,.4,1)}
+.mint>div{flex:1}.mint b{display:block;font-size:13.5px}.mint span{font-size:11px;color:#cfc6e6}
+@keyframes mintIn{0%{transform:scale(.6) rotate(-6deg);opacity:0}100%{transform:none;opacity:1}}
+.rar{font-style:normal;font-weight:900;font-size:12px;min-width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff}
+.r-R{background:linear-gradient(135deg,#64748b,#334155)}.r-SR{background:linear-gradient(135deg,#38bdf8,#2563eb)}.r-SSR{background:linear-gradient(135deg,#f5c451,#f97316)}.r-UR{background:linear-gradient(135deg,#f0abfc,#8b5cf6,#22d3ee);box-shadow:0 0 16px rgba(192,132,252,.7)}

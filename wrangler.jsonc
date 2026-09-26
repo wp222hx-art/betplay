@@ -4,6 +4,9 @@
   "compatibility_date": "2025-01-01",
   "pages_build_output_dir": "./dist",
   "compatibility_flags": ["nodejs_compat"],
+  "r2_buckets": [
+    { "binding": "MEDIA", "bucket_name": "webapp-media" }
+  ],
   "d1_databases": [
     { "binding": "DB", "database_name": "webapp-production", "database_id": "local-dev-placeholder" }
   ]

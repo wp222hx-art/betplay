@@ -8,7 +8,7 @@
   const nick = localStorage.df_nick || (localStorage.df_nick = '玩家' + uid.slice(-4).toUpperCase())
   const S = { series: null, nodes: [], idx: 0, mode: 'solo', me: null, round: null, path: [], log: [], stake: 50, sel: null, betPlaced: false, sessionStart: Date.now(), clientCommit: null, lastOdds: {} }
   const api = async (url, opt = {}) => {
-    const r = await fetch(url, { ...opt, headers: { 'Content-Type': 'application/json', 'x-user-id': uid, ...(opt.headers || {}) }, body: opt.body ? JSON.stringify({ user_id: uid, ...opt.body }) : undefined })
+    const r = await fetch(url, { ...opt, headers: { 'Content-Type': 'application/json', ...(opt.headers || {}) }, body: opt.body ? JSON.stringify({ user_id: uid, ...opt.body }) : undefined })
     const j = await r.json(); if (!r.ok) throw Object.assign(new Error(j.message || j.error), { code: j.error }); return j
   }
   const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))

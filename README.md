@@ -116,3 +116,31 @@ Hono + Cloudflare Pages/Workers + D1 · Tailwind CDN · Chart.js · Web Crypto �
 - **API**：`GET /api/catalog`（含想看数/我是否想看/游玩数）、`POST /api/catalog/:id/wish {on}`；表 `catalog_wish`（migrations/0004）。
 - **⟲ 时间裂隙（悔棋诞生新分支）**：节点可配置 `fork: {node, seg, label, desc}`；揭晓后悔棋多出第三种变局 `mode=fork` —— 不回到原局面，而是撕开平行时间线：播放裂隙片段 → 进入全新抉择节点（新选项/新结局），剧情树与战报记录 `⟲ 时间裂隙`。《心动回廊》四位女主毕业抉择均可裂隙 → K_1「时间裂隙·你记得一切」→ N_K「平行时间线里，你要改写哪一个传说？」
 - **移动适配**：顶栏精简 + 底部 Tab 栏（发现/恋爱/影剧/想看），播放页全屏沉浸（100svh）、画面切换自动拉回舞台，全站消除横向溢出（441→390），后台表格横向滚动。测试：`tests/ui_mobile.py`、`tests/ui_rift.py`。
+
+## 🛡️ 平台化：防作弊 · 可延续生成 · 制作/管理 · 结局卡交易（本轮）
+架构文档页：`/arch`（六层架构 · 威胁模型 · 生成工作流 · 结局卡经济 · 路线图）
+
+### 防作弊（多人）
+| 威胁 | 方案 | 代码 |
+|---|---|---|
+| 冒充他人 user_id | 服务端签发 HMAC 设备令牌（`POST /api/auth/device`），body/header 的 user_id 一律忽略并记 `spoof` 风控 | `src/core/guard.ts` · `public/static/auth.js` |
+| 跳过博弈直接看结局 | 视频移出 public → R2 `MEDIA` 桶；`/m/:series/:clip` 仅凭“用户+片段+过期”签名票据（揭晓/持卡后签发）；`/api/*/tree` 剥离视频与结局图 | `guard.mediaTicket` · `factory.publicTree` |
+| 女巫刷币 | 同 IP 24h 新设备 ≤5，超出不发币；免费币 20h 一次；写操作限流（设备 120/min、IP 600/min、建号 20/h） | `guard.issueDevice/rateLimit` |
+| 洗售 / 刷价 | 同网络环境禁止成交；7 天双向 ≥2 次拦截；限价带 0.3~10× 参考价；新卡冷却 1h；每日 20 笔 | `src/market/cards.ts` |
+| 竞态 / 重复 | 所有状态迁移 CAS；结局卡 `run_id` 唯一；挂单 CAS + 条件扣款 | — |
+| 管理面 | `/api/console|agents|studio|admin` 需 `ADMIN_KEY`（生产 secret） | `src/index.tsx` 中间件 |
+
+### 结局卡交易所 `/market`
+通关 → 服务端铸造（稀有度 R/SR/SSR/UR：出现率 + 隐藏 + 裂隙）→ 冷却 → 挂单 → CAS 成交（5% 手续费入复式账本）→ 持卡人**完整观看路径**（逐段签发媒体票据的竖屏连播）。
+API：`GET /api/market` · `GET /api/market/cards/:id` · `GET /api/me/cards` · `POST /api/market/list|cancel|buy` · `GET /api/me/cards/:id/watch`
+
+### 制作平台 `/studio`
+选题池（想看 × 通关热度 × 成交）→ AI 剧本树（`outline` 能力，失败时模板兜底）→ `repairTree` 自动修复 → `validateTree` 静态校验 → 渲染队列（幂等入队、原子认领）→ `scripts/studio/worker.py`（Seedance 生成，`--dry` 演练不花积分）→ 审核通过/驳回重排 → 上架；看板 · 风控台（事件、封禁、账本平衡）。
+
+### 部署前必做
+```bash
+npx wrangler r2 bucket create webapp-media && ./scripts/upload_media.sh --remote   # 上传受保护视频
+npx wrangler pages secret put AUTH_SECRET && npx wrangler pages secret put ADMIN_KEY
+npx wrangler d1 migrations apply webapp-production                                 # 含 0005_platform
+```
+测试：`tests/ui_market.py`（通关得卡→卡详情→完整路径）· `tests/ui_mobile.py` · `tests/ui_rift.py`

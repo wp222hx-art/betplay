@@ -4,6 +4,8 @@
 // · 悔棋两种变局：binary 二选一（排除刚发生的结局，剩余重算概率）/ plus 新变数（多出一个隐藏选项）
 import { encryptSlot, hmac, randomHex, seedFloat, sha256, uid } from '../core/crypto'
 import { ensureUser, GameError, post } from '../core/engine'
+import { mediaTicket } from '../core/guard'
+import { mintCard } from '../market/cards'
 
 type Env = { DB: D1Database }
 
@@ -17,6 +19,21 @@ const COMIC: any = DATA
 const NODES: Record<string, any> = Object.fromEntries(COMIC.nodes.map((n: any) => [n.id, n]))
 const ROOT = COMIC.nodes.find((n: any) => n.depth === 1).id
 const SERIES = COMIC.series.id
+// 媒体门禁：影剧/恋爱的视频不再公开，URL 只以“用户+片段+过期时间”签名票据的形式出现在加密分片里
+const GATED = !!COMIC.series.gated
+const clipOf = (url: string) => (url.split('/').pop() || '').replace(/\.mp4$/, '')
+async function vurl(env: any, uid: string, url?: string | null) {
+  if (!url) return null
+  return GATED ? mediaTicket(env, uid, SERIES, clipOf(url)) : url
+}
+async function withTicket(env: any, uid: string, seg: any) { return { ...seg, video_url: await vurl(env, uid, seg.video_url) } }
+/** 公开剧情树：去掉所有视频地址与结局末帧（防止跳过博弈直接看结局） */
+function publicTree() {
+  const endIds = new Set(COMIC.nodes.flatMap((n: any) => n.options.filter((o: any) => !o.next).map((o: any) => o.id)))
+  const segs = Object.fromEntries(Object.entries<any>(COMIC.segments).map(([k, v]) => [k, { title: v.title, mood: v.mood, image_url: endIds.has(k) ? null : v.image_url, dur: v.dur, film: v.film,
+    ...(GATED ? {} : { video_url: v.video_url || null, lines: v.lines, track: v.track || null, track_dur: v.track_dur || 0, ambience: v.ambience, sfx: v.sfx, sfx_at: v.sfx_at, last_url: v.last_url }) }]))
+  return { series: COMIC.series, cast: COMIC.cast || {}, prologue: COMIC.prologue, nodes: COMIC.nodes, segments: segs }
+}
 
 const DEFAULT_CFG = { jitter: 0.25, rake: 0.08, window_sec: 15, min_bet: 10, rewind_tax: 1.5, twist_weight: 0.25, max_rewinds: 2 }
 
@@ -85,9 +102,9 @@ async function pickOutcome(seed: string, sorted: any[]) {
 }
 const oddsOf = (p: number, rake: number) => Math.max(1.05, Math.floor(((1 - rake) / p) * 100) / 100)
 
-function segPayload(o: any) {
+async function segPayload(env: any, uid: string, o: any) {
   const seg = COMIC.segments[o.id]
-  return JSON.stringify({ option_id: o.id, label: o.label, twist: !!o.twist, title: seg.title, mood: seg.mood, image: seg.image_url, video: seg.video_url || null, lines: seg.lines, track: seg.track || null, track_dur: seg.track_dur || 0, sfx_t: seg.sfx_t ?? null, ambience: seg.ambience, sfx: seg.sfx, sfx_at: seg.sfx_at, next: o.next, ending_title: o.ending_title })
+  return JSON.stringify({ option_id: o.id, label: o.label, twist: !!o.twist, title: seg.title, mood: seg.mood, image: seg.image_url, video: await vurl(env, uid, seg.video_url), last_url: seg.last_url || null, lines: seg.lines, track: seg.track || null, track_dur: seg.track_dur || 0, sfx_t: seg.sfx_t ?? null, ambience: seg.ambience, sfx: seg.sfx, sfx_at: seg.sfx_at, next: o.next, ending_title: o.ending_title })
 }
 
 async function openRound(env: Env, run: any, nodeId: string, p: { mode?: string; exclude?: string[]; rewindNo?: number; rewindOf?: string }) {
@@ -102,7 +119,7 @@ async function openRound(env: Env, run: any, nodeId: string, p: { mode?: string;
   const optIds = sorted.map((o) => o.id).join(',')
   const commit = await hmac(seed, `${rid}|${chosen.id}|${optIds}`)
   // 生成-播放分离：所有选项等长密文，客户端可预载全部分镜/配音，揭晓时只下发真分片密钥
-  const plains = sorted.map((o) => ({ id: o.id, plain: segPayload(o) }))
+  const plains = await Promise.all(sorted.map(async (o) => ({ id: o.id, plain: await segPayload(env, run.user_id, o) })))
   const maxB = Math.max(...plains.map((x) => new TextEncoder().encode(x.plain).length))
   const padTo = Math.ceil(maxB / 512) * 512
   const slots: any[] = []
@@ -119,7 +136,7 @@ async function openRound(env: Env, run: any, nodeId: string, p: { mode?: string;
   return {
     round_id: rid, node_id: nodeId, depth: node.depth, question: node.question, cue: node.cue || null, mode, commit, rewind_no: p.rewindNo || 0,
     window_sec: cfg.window_sec, lock_at: lockAt, server_time: t, min_bet: Math.ceil(cfg.min_bet * taxMul), jitter: cfg.jitter,
-    options, preload: sorted.map((o) => ({ image: COMIC.segments[o.id].image_url, video: COMIC.segments[o.id].video_url || null, audio: COMIC.segments[o.id].track || COMIC.segments[o.id].lines?.[0]?.audio, ambience: COMIC.segments[o.id].ambience, sfx: COMIC.segments[o.id].sfx })),
+    options, preload: sorted.map((o) => ({ image: GATED ? null : COMIC.segments[o.id].image_url, video: GATED ? null : COMIC.segments[o.id].video_url || null, audio: COMIC.segments[o.id].track || COMIC.segments[o.id].lines?.[0]?.audio, ambience: COMIC.segments[o.id].ambience, sfx: COMIC.segments[o.id].sfx })),
     encrypted: slots.map((s, i) => ({ slot: i, iv: s.iv, ct: s.ct })),
     excluded: (p.exclude || []).map((id) => ({ id, label: NODES[nodeId].options.find((o: any) => o.id === id)?.label }))
   }
@@ -132,7 +149,7 @@ async function startRun(env: Env, userId: string, nick?: string) {
   await env.DB.prepare('INSERT INTO comic_runs (id,user_id,series_id,node_id,created_at) VALUES (?,?,?,?,?)').bind(id, userId, SERIES, ROOT, now()).run()
   const run = { id, user_id: userId }
   const round = await openRound(env, run, ROOT, {})
-  return { run_id: id, series: COMIC.series, prologue: COMIC.prologue.map((sid: string) => ({ id: sid, ...COMIC.segments[sid] })), round, balance: u.chips, total_nodes: COMIC.nodes.length }
+  return { run_id: id, series: COMIC.series, prologue: await Promise.all(COMIC.prologue.map((sid: string) => withTicket(env, userId, { id: sid, ...COMIC.segments[sid] }))), round, balance: u.chips, total_nodes: COMIC.nodes.length }
 }
 
 async function loadRound(env: Env, id: string, userId: string) {
@@ -227,7 +244,7 @@ async function rewind(env: Env, p: { roundId: string; userId: string; mode: 'bin
     path.push({ round: r.id, node: r.node_id, q: node.question, option: 'fork:' + fk.node, label: '⟲ ' + (fk.label || '时间裂隙'), twist: true, fork: true, mode: 'fork' })
     await env.DB.prepare('UPDATE comic_runs SET path=? WHERE id=?').bind(JSON.stringify(path), run0.id).run()
     const nr = await openRound(env, run0, fk.node, { mode: 'normal', rewindNo: r.rewind_no + 1, rewindOf: r.id })
-    const seg = fk.seg && COMIC.segments[fk.seg] ? { id: fk.seg, ...COMIC.segments[fk.seg], title: fk.title || COMIC.segments[fk.seg].title } : null
+    const seg = fk.seg && COMIC.segments[fk.seg] ? await withTicket(env, p.userId, { id: fk.seg, ...COMIC.segments[fk.seg], title: fk.title || COMIC.segments[fk.seg].title }) : null
     return { ...nr, rewind_fee: fee, balance: u.chips - fee, changed: m, fork: { seg, from: r.node_id, to: fk.node, label: fk.label || '时间裂隙' }, path }
   }
   const prev = J(r.options)
@@ -255,7 +272,10 @@ async function advance(env: Env, p: { roundId: string; userId: string }) {
     await env.DB.prepare(`UPDATE comic_runs SET path=?, status='ended', ending_id=?, ended_at=? WHERE id=?`).bind(JSON.stringify(path), opt.id, now(), run.id).run()
     const fin: any = await env.DB.prepare('SELECT pnl, rewinds FROM comic_runs WHERE id=?').bind(run.id).first()
     const u: any = await env.DB.prepare('SELECT chips FROM users WHERE id=?').bind(p.userId).first()
-    return { ended: true, ending: { id: opt.id, title: opt.ending_title || opt.label, twist: !!opt.twist }, path, pnl: fin.pnl, rewinds: fin.rewinds, balance: u.chips, total_endings: totalEndings() }
+    // 通关即铸造结局卡（服务端唯一来源，一局一张），卡内保存完整观看路径
+    const playlist = [...COMIC.prologue, ...path.map((x: any) => (x.fork ? NODES[x.node]?.fork?.seg : x.option)).filter((id: string) => id && COMIC.segments[id])]
+    const card = GATED ? await mintCard(env, { series: SERIES, ending: opt.id, owner: p.userId, run: run.id, path, playlist, twist: !!opt.twist, rewinds: fin.rewinds }) : null
+    return { ended: true, ending: { id: opt.id, title: opt.ending_title || opt.label, twist: !!opt.twist }, path, pnl: fin.pnl, rewinds: fin.rewinds, balance: u.chips, total_endings: totalEndings(), card }
   }
   await env.DB.prepare('UPDATE comic_runs SET path=? WHERE id=?').bind(JSON.stringify(path), run.id).run()
   return { ended: false, round: await openRound(env, run, opt.next, {}), path }
@@ -324,6 +344,6 @@ async function comicStats(env: Env) {
 }
 
 
-  return { COMIC, ROOT, DEFAULT_CFG, getConfig, setConfig, baseOptions, jitterWeights, pickOutcome, startRun, bet, settle, rewind, advance, verify, totalEndings, myEndings, simulateTree, comicStats }
+  return { COMIC, ROOT, SERIES, NODES, publicTree, withTicket, DEFAULT_CFG, getConfig, setConfig, baseOptions, jitterWeights, pickOutcome, startRun, bet, settle, rewind, advance, verify, totalEndings, myEndings, simulateTree, comicStats }
 }
 export { sha256 }

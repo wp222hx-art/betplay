@@ -3,7 +3,7 @@
   const $ = (s, r = document) => r.querySelector(s)
   const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
   const uid = localStorage.df_uid || (localStorage.df_uid = 'u_' + Math.random().toString(36).slice(2, 10))
-  const api = async (url, body) => { const r = await fetch(url, { method: body ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json', 'x-user-id': uid }, body: body ? JSON.stringify({ user_id: uid, ...body }) : undefined }); const j = await r.json(); if (!r.ok) throw new Error(j.message || '请求失败'); return j }
+  const api = async (url, body) => { const r = await fetch(url, { method: body ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json',  }, body: body ? JSON.stringify({ user_id: uid, ...body }) : undefined }); const j = await r.json(); if (!r.ok) throw new Error(j.message || '请求失败'); return j }
   const qs = new URLSearchParams(location.search)
   const S = { cats: [], items: [], cat: qs.get('cat') || 'all', tab: qs.get('tab') || '', tag: '', sort: 'heat', adult: localStorage.df_adult === '1', mine: {} }
   const K = (n) => (n >= 10000 ? (n / 10000).toFixed(1) + '万' : n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n))
