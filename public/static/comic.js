@@ -407,6 +407,7 @@
     S.round = null
     SFX.win()
     const F = r.fate
+    if (typeof r.balance === 'number') setBal(r.balance)
     if (F?.tier) {
       // 命运等级揭晓 → 播放专属彩蛋片段
       L.insertAdjacentHTML('beforeend', `<div class="fate-fx ft-${F.tier.id}"><i></i><b>${F.tier.icon}</b><h2>${esc(F.tier.name)}</h2><p>押注 ${F.stats.staked} · 押中 ${F.stats.hits}/${F.stats.bets} · 净赢 ${F.stats.pnl}</p>${F.bonus ? `<em>命运奖池分红 +${F.bonus}</em>` : ''}</div>`)

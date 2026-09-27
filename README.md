@@ -144,3 +144,22 @@ npx wrangler pages secret put AUTH_SECRET && npx wrangler pages secret put ADMIN
 npx wrangler d1 migrations apply webapp-production                                 # 含 0005_platform
 ```
 测试：`tests/ui_market.py`（通关得卡→卡详情→完整路径）· `tests/ui_mobile.py` · `tests/ui_rift.py`
+
+## 🎬 AI 导演台 · 全自动生成流水线（/director）
+主题一句话 → LLM 剧本（自动插入博弈抉择 / 隐藏分支 / 时间裂隙）→ repairTree/validateTree → 预算估算 → 立项(greenlight)
+→ render_jobs（sheet 角色设定图 → cover → clips）→ `scripts/studio/director_worker.py`（gsk nano-banana-pro + Seedance 2.0 参考模式+原声）
+→ 字幕对齐 → ffmpeg 576p → R2 → AI 质检 → 自动审核 → 自动上架 `published_series` → 播放 `/s/:sid`
+- 积分台账：`credit_ledger` 每任务真实扣费；预算/余额守卫；worker 心跳与超时任务回收
+- 试点《深夜禁区：总裁的秘书》/s/gen_176e47ae：13 个任务，共 12,454 积分（主线 9,904 + 三档彩蛋 2,550）
+- API：`/api/director/brief|projects/:id/greenlight|publish|pause|bonus`、`/api/director/claim`、`/api/director/jobs/:id/report|review`（ADMIN_KEY）
+
+## 💎 命运等级 · 黄金 / 白金 / 钻石结局（收益模型）
+| 等级 | 条件（本局） | 奖池分红 | 结局卡 | 专属彩蛋 |
+|---|---|---|---|---|
+| 👑 黄金 | 押注≥200 · 押中≥1 · 不亏 | 奖池 2%（≤400） | 稀有度 +1 · 参考价×1.2 | BONUS_gold |
+| 🏆 白金 | 押注≥600 · 押中≥2 · 净赢≥200 | 奖池 5%（≤1200） | +2 · ×1.5 | BONUS_platinum |
+| 💎 钻石 | 押注≥1500 · 每幕都押且全中 · 净赢≥800 | 奖池 12%（≤3000） | +3 · ×2 | BONUS_diamond |
+- 命运奖池 `pool:fate:<series>` = 每注 2%（平台抽水划转）+ 悔棋税 30%；分红以奖池余额封顶，平台永不超发
+- 10 万局模拟：平台净利 6.74% 流水；黄金 14% / 白金 0.68% / 钻石 0.35% 触达率，奖池可持续
+- 前端：决策卡命运进度条、结局 fate-fx 揭晓动画 → 专属彩蛋片段 → 徽章 / “差一点就是…”提示
+- 测试：`python3 tests/ui_fate.py`（手机视口，已验证白金结局 + 彩蛋播放 + UR 卡）
