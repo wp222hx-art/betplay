@@ -265,6 +265,9 @@
   // ─── 抉择：押注面板 ───
   function decision(rd, changed) {
     S.round = rd; S.sel = null; S.placed = false; S.offset = rd.server_time - Date.now()
+    // 倒计时从“看到面板”这一刻开始：先本地按完整窗口显示，服务端激活后以服务端时间为准
+    rd.lock_at = Date.now() + S.offset + rd.window_sec * 1000
+    api(`${API}/rounds/${rd.round_id}/arm`, { body: {} }).then((a) => { if (S.round === rd) { S.offset = a.server_time - Date.now(); rd.lock_at = a.lock_at } }).catch(() => {})
     S.visited.add(rd.node_id)
     if (FILM) rd.preload.forEach((p) => preV(p.video))
     rd.preload.forEach((p) => { preload(p.image); preA(p.audio); if (p.ambience) Amb.load(p.ambience); if (p.sfx) Amb.load(p.sfx); if (p.video && !cache.has(p.video)) { const l = document.createElement('link'); l.rel = 'preload'; l.as = 'video'; l.href = p.video; document.head.appendChild(l); cache.set(p.video, l) } })
@@ -309,8 +312,10 @@
       if (s && !S.placed) { S.stake = s.dataset.s === 'MAX' ? maxS : Math.min(maxS, +s.dataset.s); refresh() }
     }
     $('#watch').onclick = () => reveal()
+    const left = () => rd.lock_at - (Date.now() + S.offset)
     $('#go').onclick = async () => {
       if (S.placed) return reveal()
+      if (left() <= 0) return reveal()  // 已到时：直接揭晓，不再提交注单
       const b = $('#go'); b.disabled = true; b.textContent = '提交中…'
       try { const r = await api(`${API}/rounds/${rd.round_id}/bet`, { body: { option_id: S.sel, amount: S.stake } }); S.placed = true; setBal(r.balance); SFX.lock() } catch (e) { toast(e.message) }
       refresh()
@@ -324,7 +329,7 @@
       $('#rc').setAttribute('stroke-dashoffset', String(144.5 * (1 - remain / (rd.window_sec * 1000))))
       if (sec <= 3) { $('#ring').classList.add('hot'); $('#rc').setAttribute('stroke', '#ff5d73') }
       if (sec !== last) { last = sec; sec <= 3 && sec > 0 ? SFX.heart() : SFX.tick() }
-      if (remain <= 0) { clearInterval(tm); reveal() }
+      if (remain <= 0) { clearInterval(tm); if (!S.placed) { const g = $('#go'); if (g) { g.disabled = true; g.textContent = '已锁盘 · 揭晓中…' } qc.classList.add('locked') } reveal() }
     }, 250)
   }
 

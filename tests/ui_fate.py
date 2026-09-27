@@ -20,9 +20,11 @@ async def one(p, n):
         if st['end']: break
         if st['qc'] and st['go'] == 'go' and not st['settle']:
             ps = await pg.eval_on_selector_all('.opt2', 'e=>e.map(x=>parseInt(x.querySelector(".pp").innerText))')
+            if not ps: await pg.wait_for_timeout(300); continue
             await pg.locator('.opt2').nth(ps.index(max(ps))).tap(); await pg.tap('#stk [data-s="MAX"]')
             if not shot: await pg.screenshot(path='/tmp/shots/f1_bar.png'); shot = True
-            await pg.tap('#go'); await pg.wait_for_timeout(600); await pg.tap('#go')
+            await pg.wait_for_selector('#go:not([disabled])', timeout=5000); await pg.tap('#go'); await pg.wait_for_timeout(700)
+            if await pg.query_selector('#go.placed'): await pg.tap('#go')
         elif st['nx']: await pg.tap('#nx')
         await pg.evaluate(FF); await pg.wait_for_timeout(450)
     for _ in range(100):

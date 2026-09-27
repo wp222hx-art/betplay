@@ -7,7 +7,7 @@ import { GameError, post } from '../core/engine'
 type Env = { DB: D1Database }
 const now = () => Date.now()
 export const CONTRA = { share: 0.85, bonus: 0.2, prior: 20 } // 少数派阈值 = 0.85/选项数（3 选≈28%，4 选≈21%），奖励 = 押注额 20%
-export const minorOf = (n: number) => Math.round((CONTRA.share / Math.max(2, n)) * 1000) / 1000
+export const minorOf = (n: number) => Math.round(Math.min(0.3, CONTRA.share / Math.max(2, n)) * 1000) / 1000 // 二选一时封顶 30%
 export const REF = { reward: 200, perDay: 10 }
 export const EVENTS = ['play_start', 'play_end', 'meme_make', 'meme_share', 'ref_join', 'crosssell_view', 'crosssell_click', 'live_start', 'live_end'] as const
 

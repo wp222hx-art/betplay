@@ -2,4 +2,4 @@
 import DATA from './data.json'
 import { createEngine } from '../comic/factory'
 const E = createEngine(DATA)
-export const { COMIC, ROOT, SERIES, NODES, publicTree, withTicket, getConfig, setConfig, startRun, bet, settle, rewind, advance, verify, totalEndings, myEndings, simulateTree, comicStats } = E
+export const { COMIC, ROOT, SERIES, NODES, publicTree, withTicket, getConfig, setConfig, startRun, arm, bet, settle, rewind, advance, verify, totalEndings, myEndings, simulateTree, comicStats } = E

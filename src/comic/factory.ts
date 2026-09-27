@@ -129,7 +129,8 @@ async function openRound(env: Env, run: any, nodeId: string, p: { mode?: string;
   slots.sort(() => Math.random() - 0.5)
   const options = sorted.map((o) => ({ id: o.id, label: o.label, hint: o.hint, twist: !!o.twist, category: o.category, base: o.w, p: o.p, odds: oddsOf(o.p, cfg.rake) }))
   const t = now()
-  const lockAt = t + (cfg.window_sec + 2) * 1000
+  // 未激活：给足 30 分钟（片段播放期间不计时）；前端展示抉择面板时调用 arm() 才开始真正倒计时
+  const lockAt = t + 30 * 60000
   await env.DB.prepare(`INSERT INTO comic_rounds (id,run_id,user_id,node_id,mode,state,seed,options,outcome_id,commit_hash,slots,rewind_no,rewind_of,jitter,lock_at,opened_at)
     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(rid, run.id, run.user_id, nodeId, mode, 'BETTING', seed, JSON.stringify({ options, exclude: p.exclude || [] }),
     chosen.id, commit, JSON.stringify(slots), p.rewindNo || 0, p.rewindOf || null, cfg.jitter, lockAt, t).run()
@@ -166,9 +167,22 @@ async function loadRound(env: Env, id: string, userId: string) {
   return r
 }
 
+/** 激活押注窗口：玩家看到抉择面板的那一刻开始倒计时（只能激活一次，不能反复续时） */
+async function arm(env: Env, p: { roundId: string; userId: string }) {
+  const r = await loadRound(env, p.roundId, p.userId)
+  const cfg = await getConfig(env)
+  if (r.state === 'BETTING' && !r.armed_at) {
+    const t = now(), lockAt = t + cfg.window_sec * 1000
+    await env.DB.prepare('UPDATE comic_rounds SET armed_at=?, lock_at=? WHERE id=? AND armed_at IS NULL').bind(t, lockAt, r.id).run()
+    return { round_id: r.id, lock_at: lockAt, server_time: t, window_sec: cfg.window_sec }
+  }
+  return { round_id: r.id, lock_at: r.lock_at, server_time: now(), window_sec: cfg.window_sec }
+}
+
+const GRACE_MS = 1500 // 网络延迟宽限：倒计时归零前点下的注不会被误判
 async function bet(env: Env, p: { roundId: string; userId: string; optionId: string; amount: number }) {
   const r = await loadRound(env, p.roundId, p.userId)
-  if (r.state !== 'BETTING' || now() > r.lock_at) throw new GameError('LOCKED', '已锁盘，本次下注未生效')
+  if (r.state !== 'BETTING' || now() > r.lock_at + GRACE_MS) throw new GameError('LOCKED', '已锁盘，本次下注未生效')
   if (r.bet_option) throw new GameError('ONE_BET', '本局已下注')
   const cfg = await getConfig(env)
   const opt = J(r.options).options.find((o: any) => o.id === p.optionId)
@@ -363,6 +377,6 @@ async function comicStats(env: Env) {
 }
 
 
-  return { COMIC, ROOT, SERIES, NODES, publicTree, withTicket, DEFAULT_CFG, getConfig, setConfig, baseOptions, jitterWeights, pickOutcome, startRun, bet, settle, rewind, advance, verify, totalEndings, myEndings, simulateTree, comicStats }
+  return { COMIC, ROOT, SERIES, NODES, publicTree, withTicket, DEFAULT_CFG, getConfig, setConfig, baseOptions, jitterWeights, pickOutcome, startRun, arm, bet, settle, rewind, advance, verify, totalEndings, myEndings, simulateTree, comicStats }
 }
 export { sha256 }
