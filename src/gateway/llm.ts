@@ -34,7 +34,7 @@ async function streamChat(env: Bindings, model: string, messages: any[], json: b
     if (!r.ok || !r.body) throw new Error('HTTP ' + r.status)
     const reader = r.body.getReader()
     const dec = new TextDecoder()
-    let buf = '', out = ''
+    let buf = '', out = '', finish = ''
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
@@ -45,13 +45,41 @@ async function streamChat(env: Bindings, model: string, messages: any[], json: b
         if (!l.startsWith('data:')) continue
         const d = l.slice(5).trim()
         if (d === '[DONE]') continue
-        try { out += JSON.parse(d).choices?.[0]?.delta?.content || '' } catch {}
+        try { const ch = JSON.parse(d).choices?.[0]; out += ch?.delta?.content || ''; if (ch?.finish_reason) finish = ch.finish_reason } catch {}
       }
     }
-    return out
+    // finish_reason：stop / length / eof（流断开无结束标记）——用于识别长剧本被截断
+    return { out, finish: finish || (out ? 'eof' : '') }
   } finally {
     clearTimeout(t)
   }
+}
+
+/** 宽容 JSON 解析：去 markdown 围栏 / 尾逗号 / 截断补全括号（长剧本常见的输出被截断） */
+export function looseJson(txt: string) {
+  let t = txt.replace(/```(json)?/g, '').trim()
+  const i = t.indexOf('{'); if (i > 0) t = t.slice(i)
+  try { return JSON.parse(t) } catch {}
+  t = t.replace(/,\s*([}\]])/g, '$1')
+  try { return JSON.parse(t) } catch {}
+  // 截断修复：回退到最后一个完整值，再按栈补齐括号
+  const stack: string[] = []; let inStr = false, esc = false, lastSafe = 0
+  for (let k = 0; k < t.length; k++) {
+    const ch = t[k]
+    if (inStr) { if (esc) esc = false; else if (ch === '\\') esc = true; else if (ch === '"') inStr = false; continue }
+    if (ch === '"') inStr = true
+    else if (ch === '{' || ch === '[') stack.push(ch === '{' ? '}' : ']')
+    else if (ch === '}' || ch === ']') { stack.pop(); lastSafe = k + 1 }
+    else if (ch === ',') lastSafe = k
+  }
+  let cut = t.slice(0, lastSafe).replace(/,\s*$/, '')
+  const st2: string[] = []; inStr = false; esc = false
+  for (const ch of cut) {
+    if (inStr) { if (esc) esc = false; else if (ch === '\\') esc = true; else if (ch === '"') inStr = false; continue }
+    if (ch === '"') inStr = true; else if (ch === '{') st2.push('}'); else if (ch === '[') st2.push(']'); else if (ch === '}' || ch === ']') st2.pop()
+  }
+  cut = cut.replace(/,\s*$/, '') + st2.reverse().join('')
+  return JSON.parse(cut.replace(/,\s*([}\]])/g, '$1'))
 }
 
 export type CallOpts = {
@@ -82,27 +110,30 @@ export async function callCapability(env: Bindings, o: CallOpts) {
 
   let lastErr = ''
   if (env.OPENAI_API_KEY) {
-    for (const model of chain) {
+    const tries = [...chain]; let retried = false
+    for (let ti = 0; ti < tries.length; ti++) {
+      const model = tries[ti]
       const b = breaker[model]
       if (b && b.until > Date.now()) continue
       try {
-        const txt = await streamChat(env, model, [
+        const { out: txt, finish } = await streamChat(env, model, [
           ...(o.system ? [{ role: 'system', content: o.system }] : []),
           { role: 'user', content: o.prompt }
         ], !!o.json, o.timeoutMs || route.sla_ms, route.effort)
         let data: any = txt
-        if (o.json) {
-          const m = txt.match(/\{[\s\S]*\}/)
-          data = JSON.parse(m ? m[0] : txt)
-        }
+        let truncated = finish === 'length' || finish === 'eof'
+        if (o.json) { try { data = JSON.parse(txt.replace(/```(json)?/g, '').trim()) } catch { truncated = true; data = looseJson(txt) } }
         const latency = Date.now() - t0
         await env.DB.prepare('UPDATE gen_tasks SET status=?,model=?,output=?,latency_ms=?,cost=?,updated_at=? WHERE id=?')
           .bind(model === primary ? 'succeeded' : 'degraded', model, (typeof data === 'string' ? data : JSON.stringify(data)).slice(0, 4000),
             latency, Math.round(txt.length / 4), Date.now(), task_id).run()
         if (breaker[model]) breaker[model].fail = 0
-        return { ok: true, data, model, degraded: model !== primary, task_id, latency_ms: latency }
+        if (truncated) await env.DB.prepare('UPDATE gen_tasks SET degrade_reason=? WHERE id=?').bind(`truncated finish=${finish} chars=${txt.length}`, task_id).run()
+        return { ok: true, data, model, degraded: model !== primary, task_id, latency_ms: latency, truncated, finish }
       } catch (e: any) {
         lastErr = String(e?.message || e)
+        // 主模型输出 JSON 损坏（非超时）→ 同模型重试一次，而不是直接降级到小模型
+        if (model === primary && !retried && !/abort/i.test(lastErr)) { retried = true; tries.splice(ti + 1, 0, primary) }
         const b2 = (breaker[model] ||= { fail: 0, until: 0 })
         if (++b2.fail >= 3) b2.until = Date.now() + 60000
       }

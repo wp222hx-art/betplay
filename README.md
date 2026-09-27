@@ -146,6 +146,14 @@ npx wrangler d1 migrations apply webapp-production                              
 测试：`tests/ui_market.py`（通关得卡→卡详情→完整路径）· `tests/ui_mobile.py` · `tests/ui_rift.py`
 
 ## 🎬 AI 导演台 · 全自动生成流水线（/director）
+
+### 两段式编剧 v2（2026-09-27 检验后重构）
+- **问题**：旧版一次性输出整棵树 + 全部分镜（1~1.6 万字），standard 规模下 fork / bonus 常被截断、被 looseJson 静默吞掉 → 时间裂隙 0 个、结局只剩 9 个、彩蛋 0 段；题面常是“你会……还是……？”这类玩家行动题，不是竞猜题；题面里漏出英文 id。
+- **现在**：① 骨架（剧情树 + 竞猜题 + 每段 beat，短 JSON）→ `lintSkeleton`（数量 / 行动题 / 选项≤8 字 / 互斥 / hint / 英文 id 自动替换）→ 不过就带问题清单重写一次 → ② 分镜按 4 段一批**并行**写，每段都知道“结尾要引出哪道题”，不合格段落再重试一次 → compile → repair → validate。
+- 网关记录 `finish_reason`，截断会写进 `gen_tasks.degrade_reason`；台词清洗 `cleanLine`（去括号舞台指示、纯省略号不算台词）。
+- `/api/director/brief` 新增返回 `lint`（非阻断质检提示，导演台卡片展示）与 `secs`。
+- 实测（`python3 tests/director_audit.py`）：3 形态 standard 均为 5 抉择点 / 12 结局 / 3 裂隙入口 / 21 段含 3 彩蛋，结构问题 0，用时 23~56s；pilot 20s、epic 40s（20 结局 / 30 段）。
+
 主题一句话 → LLM 剧本（自动插入博弈抉择 / 隐藏分支 / 时间裂隙）→ repairTree/validateTree → 预算估算 → 立项(greenlight)
 → render_jobs（sheet 角色设定图 → cover → clips）→ `scripts/studio/director_worker.py`（gsk nano-banana-pro + Seedance 2.0 参考模式+原声）
 → 字幕对齐 → ffmpeg 576p → R2 → AI 质检 → 自动审核 → 自动上架 `published_series` → 播放 `/s/:sid`

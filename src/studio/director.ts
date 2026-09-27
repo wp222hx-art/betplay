@@ -29,29 +29,117 @@ export function estimate(scale: string) {
 }
 
 
-const SYS = (s: typeof SCALES[string]) => `你是互动博弈剧总编剧 + 分镜导演。输出严格 JSON，不要多余文字：
-{"title":"爆款中文片名(≤10字)","cast":[{"id":"英文名","name":"中文名","look":"英文外貌服装描述(发型/发色/服装/配饰，便于AI保持一致)","role":"一句中文人设","side":"L或R"}],
- "setting":"英文场景总述",
- "prologue":{"title":"中文","shots":[{"desc":"英文镜头描述","speaker":"英文id或空","line":"中文台词或空","sfx":"英文音效"}]},
- "routes":[{"label":"中文选项(≤8字)","hint":"中文钩子(≤12字)","title":"中文片段名","shots":[...],
-    "endings":[{"label":"中文选项","hint":"中文钩子","title":"中文结局名","tone":"love|sacrifice|betrayal|risk|twist","shots":[...]}]}],
- "hidden_route":{"label":"中文","hint":"中文","title":"中文","shots":[...]},
- "q1":"第一抉择的中文问题","q2":["每条路线第二抉择的中文问题"],
- "fork":${s.forkEnds ? '{"title":"中文","shots":[...],"question":"中文","endings":[同endings结构]}' : 'null'},
- "bonus":{"gold":{"title":"中文","shots":[...]},"platinum":{...},"diamond":{...}}}
-硬性规则：cast 3~4 人（含男/女主角视角人物）；routes 恰好 ${s.routes} 条；每条 endings 恰好 ${s.ends} 个，其中最后一个是反转的隐藏结局(tone=twist)；${s.forkEnds ? `fork.endings 恰好 ${s.forkEnds} 个（平行时间线里改写命运）；` : ''}
-bonus 是“命运等级彩蛋”：只有下注够大且押得准的玩家才能看到——gold=心动/高光加长、platinum=隐藏真相揭露、diamond=最震撼的终极彩蛋（尺度最大、最华丽），越高级越惊艳；
-每段 shots 4~6 个镜头，至少 2 句台词，台词口语化、有冲突、有钩子，每句 ≤ 22 字；镜头描述写清人物动作/表情/机位/光线；标题要有爆款感。`
+// 每种形态的“博弈题面”设计指引：抉择 = 玩家押注“接下来会发生什么”，而不是“你想怎么做”
+const MECH_GUIDE: Record<string, string> = {
+  anime: '题面示例：“他收回伸出的手，是因为……？”“师尊这一笑，是杀意还是心软？”——押角色的真实动机/下一步反应。',
+  live: '题面示例：“后视镜里她又笑了，下一秒会发生什么？”“赌王推出全部筹码，他手里是？”——押剧情走向/谁在说谎/谁会出手。',
+  abstract: '题面示例：“售货机吐出一张小票，上面写的是？”“喵总拍了三下桌子，意思是？”——押荒诞规则下的“正确解读”，选项要好笑、互相矛盾、都说得通。'
+}
+// ─── 两段式编剧：① 骨架（剧情树 + 博弈题面，短 JSON 不会截断）→ lint → ② 分镜并行批量写（每段知道自己要“引出哪道题”）───
+// 旧版一次性输出整棵树 + 全部分镜（1~1.6 万字），尾部的 fork / bonus 常被截断后被 looseJson 静默补括号吞掉。
+const SKEL_SYS = (s: typeof SCALES[string], cat = 'live') => `你是互动博弈剧总编剧。只输出一个 JSON 对象，不要 markdown、不要解释。本步只写【剧情骨架与博弈题面】，不写分镜。
+【核心玩法】玩家在每个抉择点“押注接下来会发生什么”，押中赢筹码 —— 题面是“竞猜题”，不是“你想怎么做”。
+- 问题：具体、有悬念、以“？”结尾，紧贴上一段最后一幕，主语是剧中角色或事件（例：“他收回手，是因为……？”“她推出全部筹码，底牌是？”）；
+  禁止“你会/你要/你想/要不要/是否/还是继续”这类玩家行动题，禁止“第一抉择”“路线A”等空洞编号。
+- 选项 label ≤8 字，彼此互斥、都合理、都有画面感；hint ≤12 字，像弹幕一样制造犹豫；每组最后一个是出人意料的反转（tone=twist）。
+- ${MECH_GUIDE[cat] || MECH_GUIDE.live}
+- 所有中文字段里提到角色一律用中文名，禁止出现英文 id；cast.name 必须是真正的人名/称号（不要“我”“（弟子）”这类）。
+- beat = 该段剧情一句话（≤40 字），写清发生了什么、结尾停在哪个画面。
+【JSON 结构】
+{"title":"爆款片名≤10字","logline":"一句话剧情≤40字","mech":{"name":"玩法名≤6字","rule":"一句话规则≤20字"},
+ "cast":[{"id":"英文单词如 Mo","name":"中文名","look":"ENGLISH ONLY: hair, face, outfit, accessories","role":"中文人设≤16字","side":"L或R"}],
+ "setting":"ENGLISH ONLY scene description",
+ "prologue":{"title":"","beat":""},
+ "q1":"第一道竞猜题？",
+ "routes":[{"label":"","hint":"","title":"片段名","beat":"","q2":"该路线的竞猜题？",
+    "endings":[{"label":"","hint":"","title":"结局名","tone":"love|sacrifice|betrayal|risk|twist","beat":""}]}],
+ "hidden_route":{"label":"","hint":"","title":"","beat":"q1 的隐藏答案，之后接入第 1 条路线"},
+ "fork":${s.forkEnds ? `{"title":"","beat":"平行时间线开启","question":"平行时间线的竞猜题？","endings":[常规结局×${s.forkEnds} + 1 个 tone=twist 的隐藏结局]}` : 'null'},
+ "bonus":{"gold":{"title":"","beat":"高光加长"},"platinum":{"title":"","beat":"隐藏真相揭露"},"diamond":{"title":"","beat":"最震撼的终极彩蛋"}}}
+【硬性规则】cast 3~4 人；routes 恰好 ${s.routes} 条；每条 endings 恰好 ${s.ends} 个（最后一个 tone=twist）；${s.forkEnds ? `fork.endings 恰好 ${s.forkEnds + 1} 个（最后一个 twist）；` : ''}标题要有爆款感。`
 
+const SEG_SYS = `你是互动短剧分镜导演。只输出一个 JSON 对象：{"segs":{"<key>":{"meme":"名场面梗≤14字","shots":[{"desc":"ENGLISH: who does what, expression, camera angle, lighting","speaker":"cast id 或空","line":"中文台词≤22字或空","sfx":"english sound"}]}}}
+规则：每个 key 4~6 个 shots，至少 2 句真正的中文 line（沉默/省略号不算台词，无台词就留空；line 里不要写括号动作）（口语化、有冲突、有钩子，≤22 字）；desc/sfx 必须英文，desc 里用角色英文 id；speaker 只能填 cast id；
+严格按给定 beat 演，不要跳剧情；若给了“结尾要引出的竞猜题”，最后一个镜头必须停在能引出这道题的悬念画面上，但不要说出答案。
+【示例】{"desc":"Mo glances back; the back seat woman in a red dress smiles, face half in shadow","speaker":"Su","line":"师傅，开快一点，他们在等我。","sfx":"low hum"}`
+
+const ACTION_Q = /你(会|要|想|该|选|打算|决定)|要不要|是否|还是继续/
+const lenCJK = (x: any) => [...String(x || '')].length
+/** 骨架 lint：结构数量 / 题面类型 / 选项长度与互斥 / 英文 id 泄漏（可自动修的直接修，其余交给重试） */
+export function lintSkeleton(o: any, s: typeof SCALES[string]) {
+  const issues: string[] = [], fixes: string[] = []
+  const cast = (o.cast || []) as any[]
+  // 自动修：中文字段里的英文 id → 中文名；角色名去掉括号注释
+  for (const c of cast) { const n0 = String(c.name || ''); const n1 = n0.replace(/[（(].*?[)）]/g, '').trim(); if (n1 && n1 !== n0) { c.name = n1; fixes.push(`角色名 ${n0} → ${n1}`) } }
+  const ids = cast.filter((c) => c.id && c.name).map((c) => [String(c.id), String(c.name)] as const)
+  const zh = (x: any, k: string) => { if (typeof x?.[k] !== 'string') return; let v = x[k]; for (const [id, nm] of ids) v = v.replace(new RegExp(`(^|[^A-Za-z])${id}(?![A-Za-z])`, 'g'), `$1${nm}`); if (v !== x[k]) { fixes.push(`英文 id → 中文名：${x[k].slice(0, 14)}`); x[k] = v } }
+  const segs = [o.prologue, ...(o.routes || []), ...(o.routes || []).flatMap((r: any) => r.endings || []), o.hidden_route, o.fork, ...(o.fork?.endings || []), ...Object.values(o.bonus || {})].filter(Boolean)
+  for (const x of segs) for (const k of ['label', 'hint', 'title', 'beat', 'q2', 'question']) zh(x, k)
+  zh(o, 'q1'); zh(o, 'title'); zh(o, 'logline')
+  if (cast.length < 3) issues.push(`cast 只有 ${cast.length} 人（需要 3~4）`)
+  if ((o.routes || []).length !== s.routes) issues.push(`routes 需要恰好 ${s.routes} 条，实际 ${(o.routes || []).length}`)
+  ;(o.routes || []).forEach((r: any, i: number) => { if ((r.endings || []).length !== s.ends) issues.push(`routes[${i}].endings 需要恰好 ${s.ends} 个，实际 ${(r.endings || []).length}`) })
+  if (s.forkEnds && (!o.fork || (o.fork.endings || []).length < s.forkEnds + 1)) issues.push(`fork 缺失或 fork.endings 少于 ${s.forkEnds + 1} 个`)
+  if (!o.hidden_route?.label) issues.push('缺少 hidden_route')
+  if (!['gold', 'platinum', 'diamond'].every((k) => o.bonus?.[k]?.beat)) issues.push('bonus 三档不全')
+  const groups: [string, string, any[]][] = [['q1', o.q1, [...(o.routes || []), o.hidden_route].filter(Boolean)], ...(o.routes || []).map((r: any, i: number) => [`routes[${i}].q2`, r.q2, r.endings || []] as [string, string, any[]]), ...(o.fork ? [['fork.question', o.fork.question, o.fork.endings || []] as [string, string, any[]]] : [])]
+  for (const [where, q, opts] of groups) {
+    if (!q || !/[？?]\s*$/.test(q)) issues.push(`${where} 不是问句：${q || '（空）'}`)
+    else if (ACTION_Q.test(q)) issues.push(`${where} 是“玩家行动题”而不是竞猜题：${q}`)
+    const ls = opts.map((x) => String(x.label || ''))
+    if (new Set(ls).size < ls.length) issues.push(`${where} 选项重复：${ls.join('/')}`)
+    for (const x of opts) { if (!x.label || lenCJK(x.label) > 8) issues.push(`${where} 选项“${x.label}”为空或超过 8 字`); if (!x.hint) issues.push(`${where} 选项“${x.label}”缺少 hint`); if (!x.beat) issues.push(`${where} 选项“${x.label}”缺少 beat`) }
+  }
+  return { issues, fixes }
+}
+
+/** 列出所有需要分镜的片段：key → { 目标对象, 上下文说明, 结尾要引出的题 } */
+function segPlan(o: any) {
+  const P: { key: string; obj: any; ctx: string; lead?: string }[] = []
+  const add = (key: string, obj: any, ctx: string, lead?: string) => obj && P.push({ key, obj, ctx, lead })
+  add('P', o.prologue, `序章《${o.prologue?.title || ''}》：${o.prologue?.beat || o.logline || ''}`, o.q1)
+  ;(o.routes || []).forEach((r: any, i: number) => {
+    add(`R${i + 1}`, r, `竞猜题“${o.q1}”的答案揭晓为「${r.label}」。片段《${r.title}》：${r.beat}`, r.q2)
+    ;(r.endings || []).forEach((e: any, j: number) => add(`R${i + 1}E${j + 1}`, e, `竞猜题“${r.q2}”的答案揭晓为「${e.label}」→ 结局《${e.title}》（${e.tone}）：${e.beat}。要有收束感${e.tone === 'twist' ? '，并给出强反转' : ''}。`))
+  })
+  add('RT', o.hidden_route, `隐藏答案：竞猜题“${o.q1}”的真相其实是「${o.hidden_route?.label}」。片段《${o.hidden_route?.title}》：${o.hidden_route?.beat}`, o.routes?.[0]?.q2)
+  if (o.fork) {
+    add('K', o.fork, `时间裂隙《${o.fork.title}》：${o.fork.beat || '世界静止，平行时间线开启'}`, o.fork.question)
+    ;(o.fork.endings || []).forEach((e: any, j: number) => add(`KE${j + 1}`, e, `平行时间线竞猜题“${o.fork.question}”的答案揭晓为「${e.label}」→ 结局《${e.title}》（${e.tone}）：${e.beat}`))
+  }
+  for (const t of ['gold', 'platinum', 'diamond']) add(`B_${t}`, o.bonus?.[t], `${{ gold: '黄金彩蛋（高光加长）', platinum: '白金彩蛋（隐藏真相揭露）', diamond: '钻石彩蛋（终极、最震撼华丽）' }[t]}《${o.bonus?.[t]?.title || ''}》：${o.bonus?.[t]?.beat || ''}`)
+  return P
+}
+const segOk = (x: any) => Array.isArray(x?.shots) && x.shots.length >= 3 && x.shots.filter((s: any) => cleanLine(s?.line)).length >= 2
+
+/** 分镜并行写：每批 ≤4 段、全部并发；不合格的段落合并重试一次 */
+async function writeSegments(env: Bindings, o: any, plan: ReturnType<typeof segPlan>) {
+  const castTxt = (o.cast || []).map((c: any) => `${c.id}=${c.name}（${c.role}；${c.look}）`).join('\n')
+  const head = `片名《${o.title}》：${o.logline || ''}\n场景（英文）：${o.setting || ''}\n角色（id=中文名）：\n${castTxt}\n`
+  const run = async (items: typeof plan) => {
+    const prompt = head + '\n请为以下每个 key 写分镜：\n' + items.map((x) => `【${x.key}】${x.ctx}${x.lead ? `\n  结尾要引出的竞猜题：${x.lead}` : ''}`).join('\n')
+    const r: any = await callCapability(env, { capability: 'storyboard', tier: 'standard', json: true, system: SEG_SYS, prompt, agent: 7, timeoutMs: 90000, fallback: () => null })
+    const got = r?.ok ? (r.data?.segs || r.data || {}) : {}
+    for (const x of items) if (segOk(got[x.key])) { x.obj.shots = got[x.key].shots; x.obj.meme = got[x.key].meme || x.obj.meme || '' }
+  }
+  const chunks = (xs: typeof plan, n: number) => Array.from({ length: Math.ceil(xs.length / n) }, (_, i) => xs.slice(i * n, i * n + n))
+  await Promise.all(chunks(plan, 4).map(run))
+  const miss = plan.filter((x) => !segOk(x.obj))
+  if (miss.length) await Promise.all(chunks(miss, 3).map(run))
+  return plan.filter((x) => !segOk(x.obj)).map((x) => x.key)
+}
+
+// 台词清洗：去掉括号舞台指示（如“（silent stare）”），纯省略号 / 无中文的“台词”视为无台词（避免 TTS 念出怪声、Seedance 误判口型）
+export const cleanLine = (x: any) => { const t = String(x || '').replace(/[（(][^）)]*[）)]/g, '').replace(/[{}]/g, '').trim(); return /[\u4e00-\u9fff]/.test(t) ? t : '' }
 function shotsText(shots: any[], castMap: Record<string, any>) {
   return (shots || []).slice(0, 6).map((s: any, i: number) => {
     const who = castMap[s.speaker]
-    const line = s.line ? ` ${who ? who.id : 'The character'} says in Mandarin Chinese: {${String(s.line).replace(/[{}]/g, '')}}` : ''
+    const ln = cleanLine(s.line), line = ln ? ` ${who ? who.id : 'The character'} says in Mandarin Chinese: {${ln}}` : ''
     return `Shot ${i + 1}: ${s.desc || ''}${line}${s.sfx ? ` <${s.sfx}>` : ''}`
   }).join('\n')
 }
 function linesOf(shots: any[], castMap: Record<string, any>) {
-  return (shots || []).filter((s: any) => s.line).map((s: any) => ({ speaker: castMap[s.speaker]?.name || s.speaker || '旁白', text: String(s.line) }))
+  return (shots || []).filter((s: any) => cleanLine(s.line)).map((s: any) => ({ speaker: castMap[s.speaker]?.name || s.speaker || '旁白', text: cleanLine(s.line) }))
 }
 
 /** 把 LLM 大纲转成引擎树 + 每段完整 Seedance 提示词 */
@@ -73,7 +161,7 @@ export function compile(out: any, cat: string, scaleKey: string) {
     nodes[0].options.push({ id: rid, key: 'ABCD'[i], label: r.label, hint: r.hint || '', weight: +(1 / routes.length).toFixed(2), category: 'love', next: nid })
     add(rid, r, 12)
     const ends = (r.endings || []).slice(0, sc.ends)
-    const n: any = { id: nid, depth: 2, question: (out.q2 || [])[i] || `${r.label}：结局会是？`, options: [] }
+    const n: any = { id: nid, depth: 2, question: r.q2 || (out.q2 || [])[i] || `${r.label}之后，会发生什么？`, options: [] }
     ends.forEach((e: any, j: number) => {
       const eid = `E_${i + 1}${j + 1}`, twist = j === ends.length - 1
       n.options.push({ id: eid, key: twist ? 'T' : 'ABC'[j], label: e.label, hint: e.hint || '', weight: twist ? 0.25 : +(1 / Math.max(1, ends.length - 1)).toFixed(2), category: e.tone || 'love', twist, ending_title: e.title })
@@ -88,8 +176,8 @@ export function compile(out: any, cat: string, scaleKey: string) {
   }
   if (fk) {
     add('K_1', { title: out.fork.title || '时间裂隙', shots: out.fork.shots }, 12)
-    const fe0 = out.fork.endings || [], fe = [...fe0.filter((e: any) => !e.twist).slice(0, sc.forkEnds), ...fe0.filter((e: any) => e.twist).slice(0, 1)]
-    nodes.push({ id: 'N_K', depth: 3, question: out.fork.question || '平行时间线：你要改写什么？', options: fe.map((e: any, j: number) => { add(`E_K${j + 1}`, e, 10); return { id: `E_K${j + 1}`, key: 'ABCD'[j], label: e.label, hint: e.hint || '', weight: +(1 / fe.length).toFixed(2), category: e.tone || 'love', ending_title: e.title, ...(e.twist ? { twist: true, key: 'T' } : {}) } }) })
+    const fe0 = out.fork.endings || [], fe = [...fe0.filter((e: any) => !(e.twist || e.tone === 'twist')).slice(0, sc.forkEnds), ...fe0.filter((e: any) => e.twist || e.tone === 'twist').slice(0, 1)]
+    nodes.push({ id: 'N_K', depth: 3, question: out.fork.question || '平行时间线：你要改写什么？', options: fe.map((e: any, j: number) => { add(`E_K${j + 1}`, e, 10); return { id: `E_K${j + 1}`, key: 'ABCD'[j], label: e.label, hint: e.hint || '', weight: +(1 / fe.length).toFixed(2), category: e.tone || 'love', ending_title: e.title, ...(e.twist || e.tone === 'twist' ? { twist: true, key: 'T' } : {}) } }) })
   }
   for (const t of ['gold', 'platinum', 'diamond']) if (out.bonus?.[t]) add(`BONUS_${t}`, { title: out.bonus[t].title || t, shots: out.bonus[t].shots }, 10)
   const sheetPrompt = `Character reference sheet, ${Tax.SHEET_STYLE[Tax.fmt(cat)]}, ${cast.length} characters standing side by side left to right on a clean light background, full body plus face close-up, consistent lighting, labeled by position only, no text. ` + cast.map((c: any, i: number) => `#${i + 1}: ${c.look}.`).join(' ')
@@ -102,16 +190,34 @@ export async function direct(env: Bindings, p: { theme: string; cat: string; gen
   if (p.budget && p.budget < est.credits) throw new GameError('BUDGET', `预算 ${p.budget} 不足，${sc.name} 预计需要 ${est.credits} 积分`)
   const prompt = `主题：${p.theme}\n类型：${Tax.brief(p.cat, p.genre)}${p.title ? `\n片名：${p.title}` : ''}${p.logline ? `\n梗概：${p.logline}` : ''}\n请输出完整剧本 JSON。`
   // 导演自带剧本（人工精修 / 外部编剧）→ 跳过 LLM，直接编译校验
-  const r: any = p.outline ? { ok: true, data: p.outline, model: 'director-manual' } : await callCapability(env, { capability: 'outline', tier: 'standard', json: true, system: SYS(sc), prompt, agent: 7, timeoutMs: 110000, fallback: () => null })
-  if (!r?.ok || !r.data?.routes?.length) throw new GameError('LLM_FAILED', '编剧模型超时或输出无效，请重试')
+  const t0 = Date.now(), lint: string[] = [], autofix: string[] = []
+  let r: any
+  if (p.outline) r = { ok: true, data: p.outline, model: 'director-manual' }
+  else {
+    // ① 骨架：lint 不过 → 带着问题清单重写一次
+    const skel = (extra = '') => callCapability(env, { capability: 'outline', tier: 'standard', json: true, system: SKEL_SYS(sc, Tax.fmt(p.cat)), prompt: prompt + extra, agent: 7, timeoutMs: 90000, fallback: () => null })
+    r = await skel()
+    let L = r?.ok && r.data?.routes?.length ? lintSkeleton(r.data, sc) : { issues: ['骨架输出无效'], fixes: [] }
+    if (L.issues.length) {
+      const r2: any = await skel(`\n\n上一版存在以下问题，请全部修正后重新输出完整 JSON：\n- ${L.issues.slice(0, 12).join('\n- ')}`)
+      const L2 = r2?.ok && r2.data?.routes?.length ? lintSkeleton(r2.data, sc) : null
+      if (L2 && L2.issues.length <= L.issues.length) { r = r2; L = L2 }
+    }
+    if (!r?.ok || !r.data?.routes?.length) throw new GameError('LLM_FAILED', '编剧模型超时或输出无效，请重试')
+    lint.push(...L.issues); autofix.push(...L.fixes)
+    // ② 分镜：并行批量写，每段知道自己要引出哪道题
+    const missing = await writeSegments(env, r.data, segPlan(r.data))
+    if (missing.length) lint.push(`分镜重试后仍不合格：${missing.join(',')}`)
+  }
   const c = compile(r.data, p.cat, p.scale)
   const rep = repairTree({ nodes: c.nodes, clips: c.clips })
+  rep.fixes.unshift(...autofix)
   const v = validateTree(rep.tree)
   const id = uid('prj_')
   const title = p.title || r.data.title || p.theme.split(/[，,。]/)[0].slice(0, 12)
   await env.DB.prepare(`INSERT INTO studio_projects (id,kind,source_item,cat,genre,title,logline,status,bible,tree,score,scale,budget,auto,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
     .bind(id, 'series', p.item_id || null, Tax.fmt(p.cat), p.genre || Tax.guessGenre(p.theme + (p.tags || []).join(''), Tax.fmt(p.cat)), title, p.logline || p.theme, 'scripted', JSON.stringify({ cast: c.cast, sheet_prompt: c.sheetPrompt, setting: r.data.setting, mech: p.mech || r.data.mech || null }), JSON.stringify(rep.tree), v.ok ? 1 : 0, p.scale, p.budget || 0, p.auto ? 1 : 0, now(), now()).run()
-  return { id, title, model: r.model, validation: v, fixes: rep.fixes, estimate: est, cast: c.cast }
+  return { id, title, model: r.model, validation: v, fixes: rep.fixes, lint, secs: Math.round((Date.now() - t0) / 1000), estimate: est, cast: c.cast }
 }
 
 /** 开拍：先入“设定图 + 封面”资产任务，片段任务依赖设定图（worker 按 kind 顺序领取） */

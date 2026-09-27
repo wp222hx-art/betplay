@@ -60,7 +60,8 @@
     const v = b.validation
     $('#brief-out').innerHTML = `<section class="st-card dk-script"><h3><i class="fas fa-scroll"></i> ③ 剧本就绪 · 《${esc(b.title)}》 <small class="mut">${esc(b.model)}</small></h3>
       <div class="dk-cast">${b.cast.map((c) => `<div><b>${esc(c.name)}</b><span>${esc(c.role)}</span></div>`).join('')}</div>
-      <div class="dk-v ${v.ok ? 'ok' : 'bad'}">${v.ok ? '✓ 结构校验通过' : '✗ ' + v.errors.join('；')} · ${v.nodes} 抉择点 · ${v.endings} 结局 · ${v.forks} 时间裂隙 · ${v.clips} 段 · <b>${b.estimate.credits.toLocaleString()} 积分</b>${b.fixes?.length ? ` · 自动修复 ${b.fixes.length} 处` : ''}</div>
+      <div class="dk-v ${v.ok ? 'ok' : 'bad'}">${v.ok ? '✓ 结构校验通过' : '✗ ' + v.errors.join('；')} · ${v.nodes} 抉择点 · ${v.endings} 结局 · ${v.forks} 时间裂隙 · ${v.clips} 段 · <b>${b.estimate.credits.toLocaleString()} 积分</b>${b.fixes?.length ? ` · 自动修复 ${b.fixes.length} 处` : ''}${b.secs ? ` · 用时 ${b.secs}s` : ''}</div>
+      ${b.lint?.length ? `<div class="dk-v bad">⚠ 编剧质检提示（不阻断开拍，建议重生成或人工精修）：${b.lint.map(esc).join('；')}</div>` : ''}
       <div id="tree-host" class="mut sm">加载剧情树…</div>
       <div class="dk-go"><button class="btn2 big" data-green="${b.id}" ${v.ok ? '' : 'disabled'}><i class="fas fa-clapperboard"></i> 确认开拍 · 预计消耗 ${b.estimate.credits.toLocaleString()} 积分</button></div></section>`
     api('/api/studio/projects/' + b.id).then((d) => { $('#tree-host').innerHTML = treeHtml(d.tree) }).catch(() => {})
