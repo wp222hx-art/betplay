@@ -7,7 +7,7 @@ import { ensureUser, GameError, post } from '../core/engine'
 import { mediaTicket } from '../core/guard'
 import { mintCard } from '../market/cards'
 import { feedPool, POOL_SHARE, settleTier, runStats, nextGoal, tierOf, TIERS } from '../market/tiers'
-import { crowd, contrarianBonus, CONTRA } from '../growth/growth'
+import { crowd, contrarianBonus, CONTRA, minorOf } from '../growth/growth'
 
 type Env = { DB: D1Database }
 
@@ -32,7 +32,7 @@ async function withTicket(env: any, uid: string, seg: any) { return { ...seg, vi
 /** 公开剧情树：去掉所有视频地址与结局末帧（防止跳过博弈直接看结局） */
 function publicTree() {
   const endIds = new Set(COMIC.nodes.flatMap((n: any) => n.options.filter((o: any) => !o.next).map((o: any) => o.id)))
-  const segs = Object.fromEntries(Object.entries<any>(COMIC.segments).map(([k, v]) => [k, { title: v.title, mood: v.mood, image_url: endIds.has(k) ? null : v.image_url, dur: v.dur, film: v.film,
+  const segs = Object.fromEntries(Object.entries<any>(COMIC.segments).map(([k, v]) => [k, { title: v.title, meme: v.meme || undefined, mood: v.mood, image_url: endIds.has(k) ? null : v.image_url, dur: v.dur, film: v.film,
     ...(GATED ? {} : { video_url: v.video_url || null, lines: v.lines, track: v.track || null, track_dur: v.track_dur || 0, ambience: v.ambience, sfx: v.sfx, sfx_at: v.sfx_at, last_url: v.last_url }) }]))
   return { series: COMIC.series, cast: COMIC.cast || {}, prologue: COMIC.prologue, nodes: COMIC.nodes, segments: segs }
 }
@@ -106,7 +106,7 @@ const oddsOf = (p: number, rake: number) => Math.max(1.05, Math.floor(((1 - rake
 
 async function segPayload(env: any, uid: string, o: any) {
   const seg = COMIC.segments[o.id]
-  return JSON.stringify({ option_id: o.id, label: o.label, twist: !!o.twist, title: seg.title, mood: seg.mood, image: seg.image_url, video: await vurl(env, uid, seg.video_url), last_url: seg.last_url || null, lines: seg.lines, track: seg.track || null, track_dur: seg.track_dur || 0, sfx_t: seg.sfx_t ?? null, ambience: seg.ambience, sfx: seg.sfx, sfx_at: seg.sfx_at, next: o.next, ending_title: o.ending_title })
+  return JSON.stringify({ option_id: o.id, label: o.label, twist: !!o.twist, title: seg.title, meme: seg.meme || '', mood: seg.mood, image: seg.image_url, video: await vurl(env, uid, seg.video_url), last_url: seg.last_url || null, lines: seg.lines, track: seg.track || null, track_dur: seg.track_dur || 0, sfx_t: seg.sfx_t ?? null, ambience: seg.ambience, sfx: seg.sfx, sfx_at: seg.sfx_at, next: o.next, ending_title: o.ending_title })
 }
 
 async function openRound(env: Env, run: any, nodeId: string, p: { mode?: string; exclude?: string[]; rewindNo?: number; rewindOf?: string }) {
@@ -141,7 +141,7 @@ async function openRound(env: Env, run: any, nodeId: string, p: { mode?: string;
   const jury = await crowd(env as any, SERIES, nodeId, options)
   return {
     round_id: rid, node_id: nodeId, depth: node.depth, question: node.question, cue: node.cue || null, mode, commit, rewind_no: p.rewindNo || 0, fate,
-    mech: COMIC.series.mech || null, jury: { voters: jury.voters, share: jury.share, minority: CONTRA.share, bonus_pct: CONTRA.bonus },
+    mech: COMIC.series.mech || null, jury: { voters: jury.voters, share: jury.share, minority: minorOf(options.length), bonus_pct: CONTRA.bonus },
     window_sec: cfg.window_sec, lock_at: lockAt, server_time: t, min_bet: Math.ceil(cfg.min_bet * taxMul), jitter: cfg.jitter,
     options, preload: sorted.map((o) => ({ image: GATED ? null : COMIC.segments[o.id].image_url, video: GATED ? null : COMIC.segments[o.id].video_url || null, audio: COMIC.segments[o.id].track || COMIC.segments[o.id].lines?.[0]?.audio, ambience: COMIC.segments[o.id].ambience, sfx: COMIC.segments[o.id].sfx })),
     encrypted: slots.map((s, i) => ({ slot: i, iv: s.iv, ct: s.ct })),

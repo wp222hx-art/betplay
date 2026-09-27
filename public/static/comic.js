@@ -343,7 +343,7 @@
       const hdr = `<div class="c-chapter">第 ${S.round.depth} 幕 · 揭晓</div><div class="spacer" style="flex:.4"></div><div class="reveal-t"><div class="k">${seg.twist ? (LOVE ? '✦ 意外的邂逅' : '✦ 隐藏分支') : (LOVE ? '心动时刻' : '命运落定')}</div><div class="t ${seg.twist ? 'tw' : ''}">${esc(seg.label)}</div></div>`
       await playSegment(seg, { header: hdr, fx: /枪|爆|violence|战/.test(seg.title + seg.mood) ? 'shake' : '' })
       S.log.unshift({ label: seg.label, bet: st.bet, twist: seg.twist })
-      if (seg.meme) S.memes = [...(S.memes || []).filter((m) => m.text !== seg.meme), { text: seg.meme, img: seg.last_url || seg.image, title: seg.title }]
+      if (seg.meme) S.memes = [...(S.memes || []).filter((m) => m.text !== seg.meme), { text: seg.meme, img: seg.image || seg.last_url, title: seg.title }]
       settled(st, seg)
     } catch (e) { toast(e.message) } finally { busy = false }
   }
@@ -444,7 +444,7 @@
   const SID = (API.match(/\/api\/s\/([^/]+)/) || [])[1] || API.split('/').pop()
   const track = (event, p = {}) => api('/api/growth/track', { body: { event, series: SID, ...p } }).catch(() => {})
   function saveMeme(seg) {
-    S.memes = [...(S.memes || []).filter((m) => m.text !== seg.meme), { text: seg.meme, img: seg.last_url || seg.image, title: seg.title }]
+    S.memes = [...(S.memes || []).filter((m) => m.text !== seg.meme), { text: seg.meme, img: seg.image || seg.last_url, title: seg.title }]
     toast(`📸 已截梗：「${seg.meme}」· 结局页可生成梗图`); track('meme_make', { meta: { t: seg.meme, at: 'settle' } })
   }
   const loadImg = (src) => new Promise((ok) => { if (!src) return ok(null); const i = new Image(); i.crossOrigin = 'anonymous'; i.onload = () => ok(i); i.onerror = () => ok(null); i.src = src })

@@ -175,3 +175,20 @@ npx wrangler d1 migrations apply webapp-production                              
 - URL：`/?cat=anime|live|abstract&genre=suspense&aud=female`；旧链接 `?cat=love|film` 自动映射到 漫剧|真人剧
 - 数据：`migrations/0008_taxonomy.sql`（studio_projects / published_series 增加 genre，cat 迁移为新形态）
 - 测试：`python3 tests/ui_taxonomy.py`
+
+## 🐱 抽象剧试水：《喵总裁今天也在裁员》（/s/gen_422d4304）
+- 导演精修剧本 `scripts/director/cat_ceo.py`（`/api/director/brief` 支持 `outline` 直传，跳过 LLM）→ 23 任务全自动生成：21 段视频 + 设定图 + 封面，共 **19,046 积分**
+- 结构：3 路线 + 隐藏支 + 9 结局 + 时间裂隙（3 结局）+ 黄金/白金/钻石彩蛋 · 黏土定格 × 韦斯·安德森对称构图
+### 新互动玩法
+| 玩法 | 机制 | 目的 |
+|---|---|---|
+| 🐱 **喵语翻译局** | 每个抉择 = 喵总的一声喵，押哪种“翻译”是对的（`series.mech`） | 抽象剧专属题面，降低理解门槛 |
+| 👥 **全民陪审** | 每个选项实时显示“多少人押了它”（真实押注 + 20 票先验平滑） | 社交感 + 从众/反从众博弈 |
+| 🦊 **独行侠奖励** | 押中少数派（人群占比 < 0.85/选项数）额外 +20% 本金 | 鼓励反向思考；模拟平台毛利仍 6.6–7.0%（支出≈1%） |
+| 📸 **截梗 → 梗图** | 每段自带“名场面”梗，结算时一键截梗，结局页 Canvas 合成梗图（含邀请链接） | UGC 传播 |
+| 🎁 **邀请裂变** | `?ref=` 绑定，被邀请人首次开局双方各 +200（sybil 设备 / 每日 10 人上限不发） | K 因子 |
+| 🔮 **押注人格 → 真人剧导流** | 独行侠 / 反转猎人 / 梭哈玩家 / 喵语预言家 / 快乐吃瓜人 → 按题材偏好推荐 3 部真人剧 | 抽象剧拉新 → 真人剧变现 |
+### 增长漏斗（导演台“增长实验”卡片 · `/api/admin/funnel`）
+抽象剧开局 → 通关 → 做梗图 → 分享 → 邀请新人 → 看到真人剧推荐 → 点击 → 真人剧开局；K 因子、邀请奖励、独行侠支出
+- 数据：`migrations/0009_growth.sql`（funnel_events / referrals / comic_rounds.contrarian）· `src/growth/growth.ts`
+- 测试：`python3 tests/ui_abstract.py`（邀请进场 → 截梗 → 人格 → 梗图 → 导流，errors=[]）

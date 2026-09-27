@@ -6,7 +6,8 @@ import { GameError, post } from '../core/engine'
 
 type Env = { DB: D1Database }
 const now = () => Date.now()
-export const CONTRA = { share: 0.25, bonus: 0.2, prior: 20 } // 少数派阈值 25%，奖励 = 押注额 20%
+export const CONTRA = { share: 0.85, bonus: 0.2, prior: 20 } // 少数派阈值 = 0.85/选项数（3 选≈28%，4 选≈21%），奖励 = 押注额 20%
+export const minorOf = (n: number) => Math.round((CONTRA.share / Math.max(2, n)) * 1000) / 1000
 export const REF = { reward: 200, perDay: 10 }
 export const EVENTS = ['play_start', 'play_end', 'meme_make', 'meme_share', 'ref_join', 'crosssell_view', 'crosssell_click', 'live_start', 'live_end'] as const
 
@@ -23,7 +24,7 @@ export async function crowd(env: Env, series: string, nodeId: string, options: {
 export async function contrarianBonus(env: Env, p: { series: string; roundId: string; userId: string; nodeId: string; option: string; amount: number; options: { id: string; p: number }[] }) {
   const c = await crowd(env, p.series, p.nodeId, p.options)
   const sh = c.share[p.option] ?? 1
-  if (sh >= CONTRA.share) return { bonus: 0, share: sh }
+  if (sh >= minorOf(p.options.length)) return { bonus: 0, share: sh }
   const bonus = Math.floor(p.amount * CONTRA.bonus)
   if (bonus <= 0) return { bonus: 0, share: sh }
   await post(env, '独行侠奖励', p.roundId, [['platform:house', 'D', bonus], [`user:${p.userId}:available`, 'C', bonus]])
