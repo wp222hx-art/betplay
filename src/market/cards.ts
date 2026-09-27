@@ -25,15 +25,17 @@ export async function rarityOf(env: Env, series: string, ending: string, twist: 
   return (['R', 'SR', 'SSR', 'UR'] as const)[Math.min(3, score)]
 }
 
-export async function mintCard(env: Env, p: { series: string; ending: string; owner: string; run: string; path: any[]; playlist: string[]; twist: boolean; rewinds: number }) {
+export async function mintCard(env: Env, p: { series: string; ending: string; owner: string; run: string; path: any[]; playlist: string[]; twist: boolean; rewinds: number; tier?: any }) {
   const forked = p.path.some((x) => x.fork)
-  const rarity = await rarityOf(env, p.series, p.ending, p.twist, forked)
+  const base = await rarityOf(env, p.series, p.ending, p.twist, forked)
+  const order = ['R', 'SR', 'SSR', 'UR']
+  const rarity = order[Math.min(3, order.indexOf(base) + (p.tier?.rarity || 0))] as string  // 命运等级升阶
   const ser: any = await env.DB.prepare('SELECT COUNT(*) n FROM ending_cards WHERE series_id=? AND ending_id=?').bind(p.series, p.ending).first()
   const id = 'card_' + (await sha256(p.run + p.ending)).slice(0, 12)
-  const r = await env.DB.prepare(`INSERT OR IGNORE INTO ending_cards (id,series_id,ending_id,serial,rarity,owner_id,minter_id,run_id,path,playlist,forked,locked_until,minted_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`)
-    .bind(id, p.series, p.ending, (ser.n || 0) + 1, rarity, p.owner, p.owner, p.run, JSON.stringify(p.path), JSON.stringify(p.playlist), forked ? 1 : 0, now() + HOLD_MS, now()).run()
+  const r = await env.DB.prepare(`INSERT OR IGNORE INTO ending_cards (id,series_id,ending_id,serial,rarity,owner_id,minter_id,run_id,path,playlist,forked,locked_until,minted_at,tier) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+    .bind(id, p.series, p.ending, (ser.n || 0) + 1, rarity, p.owner, p.owner, p.run, JSON.stringify(p.path), JSON.stringify(p.playlist), forked ? 1 : 0, now() + HOLD_MS, now(), p.tier?.id || null).run()
   if (!r.meta.changes) return null
-  return { id, rarity, serial: (ser.n || 0) + 1, forked, ref_price: BASE[rarity] }
+  return { id, rarity, serial: (ser.n || 0) + 1, forked, tier: p.tier?.id || null, ref_price: Math.round(BASE[rarity] * ({ gold: 1.2, platinum: 1.5, diamond: 2 } as any)[p.tier?.id] || BASE[rarity]) }
 }
 
 const rowToCard = (c: any, titles: (s: string, e: string) => any) => ({ ...c, path: JSON.parse(c.path), playlist: JSON.parse(c.playlist), ...titles(c.series_id, c.ending_id), ref_price: BASE[c.rarity] })

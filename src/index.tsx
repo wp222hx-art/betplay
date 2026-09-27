@@ -9,7 +9,7 @@ import { modelHealth, predictiveQueue, rankVideoModels, submitVideo, buildVideoP
 import { branches, overview, scriptTree } from './agents/console'
 import { applyClipPlan, approveExtension, clipPairs, derive, generatePoems, ingestSignals, regulate } from './agents/deriver'
 import type { Bindings } from './gateway/llm'
-import { playerPage, consolePage, agentsPage, comicPage, filmPage, voicePage, lovePage, discoverPage, marketPage, studioPage, archPage } from './pages/shell'
+import { playerPage, consolePage, agentsPage, comicPage, filmPage, voicePage, lovePage, discoverPage, marketPage, studioPage, archPage, directorPage, seriesPage } from './pages/shell'
 import CATALOG from './catalog/data.json'
 import * as Comic from './comic/engine'
 import * as Film from './film/engine'
@@ -18,6 +18,9 @@ import * as Voice from './voice/studio'
 import { authUid, checkTicket, ipKey, issueDevice, rateLimit, riskEvent } from './core/guard'
 import * as Market from './market/cards'
 import * as Studio from './studio/pipeline'
+import * as Director from './studio/director'
+import * as Tiers from './market/tiers'
+import { createEngine } from './comic/factory'
 
 const app = new Hono<{ Bindings: Bindings & { MEDIA?: R2Bucket; AUTH_SECRET?: string; ADMIN_KEY?: string }; Variables: { uid: string } }>()
 app.use('/api/*', cors())
@@ -39,7 +42,7 @@ const body = async (c: any) => { try { return await c.req.json() } catch { retur
 // 身份只来自服务端签发的令牌；body/header 里的 user_id 一律忽略（旧逻辑可被任意冒充）
 // uidOf(c) = 可选身份；uidOf(c, b) = 必须登录
 const uidOf = (c: any, b?: any) => { const u = c.get('uid') || ''; if (b !== undefined && !u) throw new GameError('UNAUTHORIZED', '身份无效，请刷新页面'); return u }
-const ADMIN_PREFIX = ['/api/console', '/api/agents', '/api/studio', '/api/admin']
+const ADMIN_PREFIX = ['/api/console', '/api/agents', '/api/studio', '/api/admin', '/api/director']
 app.use('/api/*', async (c, next) => {
   const path = c.req.path
   const u = await authUid(c.env as any, c, false)
@@ -94,7 +97,12 @@ app.get('/api/catalog', async (c) => {
   const mine = u ? ((await c.env.DB.prepare('SELECT item_id FROM catalog_wish WHERE user_id=?').bind(u).all()).results as any[]).map((r) => r.item_id) : []
   const plays = Object.fromEntries(((await c.env.DB.prepare(`SELECT series_id, COUNT(*) n FROM comic_runs GROUP BY series_id`).all()).results as any[]).map((r) => [r.series_id, r.n]))
   const SID: Record<string, string> = { love_corridor: 'love_corridor', under_dome: (Film.COMIC as any).series.id }
-  const items = (CATALOG as any).items.map((it: any) => ({ ...it, wish: (it.heat * 3 + (cnt[it.id] || 0)), wished: mine.includes(it.id), plays: plays[SID[it.id]] || 0 }))
+  const pub = (await c.env.DB.prepare(`SELECT p.id, p.project_id, p.cat, p.title, p.logline, p.tags, p.cover, p.data, p.created_at, s.source_item FROM published_series p LEFT JOIN studio_projects s ON s.id=p.project_id WHERE p.status='live' ORDER BY p.created_at DESC`).all()).results as any[]
+  const fromItem = Object.fromEntries(pub.filter((p) => p.source_item).map((p) => [p.source_item, p]))
+  const genItems = pub.filter((p) => !p.source_item).map((p, i) => { const d = JSON.parse(p.data); const ends = new Set(d.nodes.flatMap((n: any) => n.options.filter((o: any) => !o.next).map((o: any) => o.id))).size
+    return { id: p.id, cat: p.cat, title: p.title, sub: 'AI 导演生成', tags: JSON.parse(p.tags || '[]'), heat: 8000, endings: ends, nodes: d.nodes.length, forks: d.nodes.filter((n: any) => n.fork).length, status: 'live', url: '/s/' + p.id, badge: '新作', logline: p.logline, cover: p.cover, order: -1 - i } })
+  const items = [...genItems, ...(CATALOG as any).items.map((it: any) => fromItem[it.id] ? { ...it, status: 'live', url: '/s/' + fromItem[it.id].id, badge: '新上线', cover: it.cover } : it)]
+    .map((it: any) => ({ ...it, wish: (it.heat * 3 + (cnt[it.id] || 0)), wished: mine.includes(it.id), plays: plays[SID[it.id] || it.id] || 0 }))
   return c.json({ cats: (CATALOG as any).cats, items })
 })
 app.post('/api/catalog/:id/wish', async (c) => {
@@ -110,8 +118,18 @@ app.post('/api/catalog/:id/wish', async (c) => {
 // ─────────────── 结局卡交易所 ───────────────
 const ENGINES: Record<string, any> = { [Love.SERIES]: Love, [Film.SERIES]: Film }
 const SERIES_URL: Record<string, string> = { [Love.SERIES]: '/love', [Film.SERIES]: '/film' }
+// 后台生成并上架的作品：从 published_series 动态加载引擎（isolate 内按版本缓存）
+const DYN: Record<string, { v: number; E: any }> = {}
+async function engineOf(env: any, sid: string) {
+  if (ENGINES[sid]) return ENGINES[sid]
+  const r: any = await env.DB.prepare(`SELECT data, version FROM published_series WHERE id=? AND status='live'`).bind(sid).first()
+  if (!r) throw new GameError('NOT_FOUND', '作品不存在或已下架')
+  if (!DYN[sid] || DYN[sid].v !== r.version) DYN[sid] = { v: r.version, E: createEngine(JSON.parse(r.data)) }
+  SERIES_URL[sid] = '/s/' + sid
+  return DYN[sid].E
+}
 const titles = (series: string, ending: string) => {
-  const E = ENGINES[series]; if (!E) return { series_title: series, ending_title: ending }
+  const E = ENGINES[series] || DYN[series]?.E; if (!E) return { series_title: series, ending_title: ending }
   const o = E.COMIC.nodes.flatMap((n: any) => n.options).find((x: any) => x.id === ending)
   const seg = E.COMIC.segments[ending] || {}
   return { series_title: E.COMIC.series.title, ending_title: o?.ending_title || o?.label || seg.title, image: seg.last_url || seg.image_url, poster: seg.image_url, twist: !!o?.twist, url: SERIES_URL[series] }
@@ -122,7 +140,7 @@ app.get('/api/me/cards', async (c) => { const u = uidOf(c, {}); const me: any = 
 app.post('/api/market/list', async (c) => { const b = await body(c); const u = uidOf(c, b); await rateLimit(c.env as any, 'list:' + u, 30, 3600000); return c.json(await Market.listCard(c.env as any, { owner: u, card: b.card_id, price: b.price })) })
 app.post('/api/market/cancel', async (c) => { const b = await body(c); return c.json(await Market.cancelListing(c.env as any, { owner: uidOf(c, b), listing: b.listing_id })) })
 app.post('/api/market/buy', async (c) => { const b = await body(c); const u = uidOf(c, b); await rateLimit(c.env as any, 'buy:' + u, 30, 3600000); return c.json(await Market.buyListing(c.env as any, { buyer: u, listing: b.listing_id, ipHash: await ipKey(c) })) })
-app.get('/api/me/cards/:id/watch', async (c) => c.json(await Market.watchPath(c.env as any, { owner: uidOf(c, {}), card: c.req.param('id'), segs: (s) => ENGINES[s]?.COMIC.segments || {} })))
+app.get('/api/me/cards/:id/watch', async (c) => { const cd: any = await c.env.DB.prepare('SELECT series_id FROM ending_cards WHERE id=?').bind(c.req.param('id')).first(); if (cd) await engineOf(c.env, cd.series_id).catch(() => null); return c.json(await Market.watchPath(c.env as any, { owner: uidOf(c, {}), card: c.req.param('id'), segs: (s) => (ENGINES[s] || DYN[s]?.E)?.COMIC.segments || {} })) })
 
 // ─────────────── 风控台（管理） ───────────────
 app.get('/api/admin/risk', async (c) => {
@@ -157,6 +175,34 @@ app.post('/api/studio/projects/:id/render', async (c) => c.json(await Studio.que
 app.post('/api/studio/jobs/claim', async (c) => { const b = await body(c); return c.json({ job: await Studio.claimJob(c.env, b.worker || 'worker') }) })
 app.post('/api/studio/jobs/:id/report', async (c) => { const b = await body(c); return c.json(await Studio.reportJob(c.env, { id: c.req.param('id'), ok: !!b.ok, url: b.url, qc: b.qc })) })
 app.post('/api/studio/jobs/:id/review', async (c) => { const b = await body(c); return c.json(await Studio.reviewJob(c.env, { id: c.req.param('id'), approve: !!b.approve })) })
+// ── 后台指挥：主题 → 剧本(自动植入博弈) → 预算 → 开拍 → worker 生成 → 自动质检/审核 → 自动上架 ──
+app.get('/api/director/meta', async (c) => c.json(await Director.creditReport(c.env)))
+app.post('/api/director/brief', async (c) => {
+  const b = await body(c)
+  const it = b.item_id ? (CATALOG as any).items.find((x: any) => x.id === b.item_id) : null
+  if (!b.theme && !it) throw new GameError('BAD_INPUT', '请输入主题')
+  return c.json(await Director.direct(c.env, { theme: b.theme || `${it.title}：${it.logline}`, cat: b.cat || it?.cat || 'love', scale: b.scale || 'standard', budget: +b.budget || 0, auto: !!b.auto, item_id: it?.id, title: it?.title || b.title, logline: it?.logline, tags: it?.tags }))
+})
+app.post('/api/director/projects/:id/greenlight', async (c) => c.json(await Director.greenlight(c.env, c.req.param('id'))))
+app.post('/api/director/projects/:id/bonus', async (c) => c.json(await Director.addBonus(c.env, c.req.param('id'))))
+app.post('/api/admin/pool/seed', async (c) => { const b = await body(c); await Tiers.feedPool(c.env as any, b.series, +b.amount || 5000, 'platform:house', 'seed:' + Date.now()); return c.json(await Tiers.tierBoard(c.env as any, b.series)) })
+app.get('/api/fate/:series', async (c) => c.json(await Tiers.tierBoard(c.env as any, c.req.param('series'))))
+app.post('/api/director/projects/:id/publish', async (c) => c.json(await Director.publish(c.env, c.req.param('id'))))
+app.post('/api/director/projects/:id/pause', async (c) => { await c.env.DB.prepare(`UPDATE studio_projects SET status=CASE status WHEN 'rendering' THEN 'paused' WHEN 'paused' THEN 'rendering' ELSE status END WHERE id=?`).bind(c.req.param('id')).run(); return c.json(await Director.progress(c.env, c.req.param('id'))) })
+app.post('/api/director/claim', async (c) => { const b = await body(c); return c.json({ job: await Director.claim(c.env, b.worker || 'worker', b.balance) }) })
+app.post('/api/director/jobs/:id/report', async (c) => { const b = await body(c); return c.json(await Director.report(c.env, { id: c.req.param('id'), ok: !!b.ok, url: b.url, spent: b.spent, meta: b.meta, qc: b.qc })) })
+app.post('/api/director/jobs/:id/review', async (c) => { const b = await body(c); return c.json(await Director.review(c.env, c.req.param('id'), !!b.approve)) })
+
+// ── 动态作品：/s/:sid 播放页 + /api/s/:sid/* 引擎 ──
+app.get('/api/s/:sid/meta', async (c) => { const E = await engineOf(c.env, c.req.param('sid')); const id = uidOf(c); return c.json({ series: E.COMIC.series, nodes: E.COMIC.nodes.length, total_endings: E.totalEndings(), my_endings: id ? await E.myEndings(c.env, id) : [], config: await E.getConfig(c.env) }) })
+app.get('/api/s/:sid/tree', async (c) => c.json((await engineOf(c.env, c.req.param('sid'))).publicTree()))
+app.post('/api/s/:sid/start', async (c) => { const b = await body(c); return c.json(await (await engineOf(c.env, c.req.param('sid'))).startRun(c.env, uidOf(c, b), b.nick)) })
+app.post('/api/s/:sid/rounds/:id/bet', async (c) => { const b = await body(c); return c.json(await (await engineOf(c.env, c.req.param('sid'))).bet(c.env, { roundId: c.req.param('id'), userId: uidOf(c, b), optionId: b.option_id, amount: b.amount })) })
+app.post('/api/s/:sid/rounds/:id/settle', async (c) => { const b = await body(c); return c.json(await (await engineOf(c.env, c.req.param('sid'))).settle(c.env, { roundId: c.req.param('id'), userId: uidOf(c, b) })) })
+app.post('/api/s/:sid/rounds/:id/rewind', async (c) => { const b = await body(c); return c.json(await (await engineOf(c.env, c.req.param('sid'))).rewind(c.env, { roundId: c.req.param('id'), userId: uidOf(c, b), mode: b.mode })) })
+app.post('/api/s/:sid/rounds/:id/next', async (c) => { const b = await body(c); return c.json(await (await engineOf(c.env, c.req.param('sid'))).advance(c.env, { roundId: c.req.param('id'), userId: uidOf(c, b) })) })
+app.get('/api/s/:sid/rounds/:id/verify', async (c) => c.json(await (await engineOf(c.env, c.req.param('sid'))).verify(c.env, c.req.param('id'))))
+
 app.get('/api/studio/next', async (c) => c.json(await Studio.nextUp(c.env, (CATALOG as any).items)))
 
 // ─────────────── 页面 ───────────────
@@ -167,6 +213,10 @@ app.get('/theater', (c) => c.html(playerPage()))
 app.get('/market', (c) => c.html(marketPage()))
 app.get('/studio', (c) => c.html(studioPage()))
 app.get('/arch', (c) => c.html(archPage()))
+app.get('/director', (c) => c.html(directorPage()))
+app.get('/s/:sid', async (c) => { const r: any = await c.env.DB.prepare(`SELECT title, cat FROM published_series WHERE id=? AND status='live'`).bind(c.req.param('sid')).first(); if (!r) return c.notFound(); return c.html(seriesPage(c.req.param('sid'), r.title, r.cat)) })
+// 生成作品的公开海报/末帧/角色图（R2：<sid>/img/<name>.webp）
+app.get('/gimg/:sid/:name', async (c) => { const o = await (c.env as any).MEDIA?.get(`${c.req.param('sid')}/img/${c.req.param('name')}`); if (!o) return c.notFound(); return new Response(o.body, { headers: { 'Content-Type': o.httpMetadata?.contentType || 'image/webp', 'Cache-Control': 'public, max-age=86400' } }) })
 app.get('/play/:series', (c) => c.html(playerPage()))
 app.get('/console', (c) => c.html(consolePage()))
 app.get('/agents', (c) => c.html(agentsPage()))

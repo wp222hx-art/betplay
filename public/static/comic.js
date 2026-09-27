@@ -236,8 +236,8 @@
     frame(`<div class="spacer"></div><div class="cover">
       <div class="sub" style="letter-spacing:4px;color:var(--gold)">${LOVE ? '恋爱博弈剧 · 电影级动画 · 原声对白' : FILM ? '对弈式影剧 · Seedance 2.0 电影级音画一体 · 原声对白' : '对弈式漫剧 · GPT Image 2 分镜 · 全程配音'}</div>
       <h1>${esc(m.series.title)}</h1>
-      <div class="lg">${LOVE ? `后山那棵千年樱花树有个传说：<b style="color:#ffc2dc">毕业那天在树下告白的人，会永远幸福。</b><br>三年高中，五位少女，每一次心动都在你押注前锁定——你押的是她的心。悔棋？可以。但命运会<b style="color:#d9c6ff">变成二选一</b>，或让<b style="color:#d9c6ff">一个本不该出现的她</b>走进你的故事。` : `${FILM ? '9 段电影级片段，3 次抉择，<b style="color:var(--gold)">5 种结局</b>。' : ''}一夜之间，新港的命运系于一枚“星核”。每个抉择都在你下注之前锁定——你押的是人心。悔棋？可以。但故事会<b style="color:#d9c6ff">变成二选一</b>，或<b style="color:#d9c6ff">多出一个你没见过的选项</b>。`}</div>
-      ${LOVE ? `<div class="heroines">${Object.entries(S.tree.cast || {}).filter(([k]) => k !== '悠真').map(([k, v]) => `<div class="hr" style="--c:${v.color}" title="${esc(v.brand)}"><img src="${v.img}"><b>${esc(k)}</b></div>`).join('')}</div>` : ''}
+      <div class="lg">${m.series.generated ? `${esc(m.series.logline)}<br><b style="color:var(--gold)">${m.total_endings} 种结局</b> · 每一次押注都在你下注前锁定 · 悔棋会改写命运` : LOVE ? `后山那棵千年樱花树有个传说：<b style="color:#ffc2dc">毕业那天在树下告白的人，会永远幸福。</b><br>三年高中，五位少女，每一次心动都在你押注前锁定——你押的是她的心。悔棋？可以。但命运会<b style="color:#d9c6ff">变成二选一</b>，或让<b style="color:#d9c6ff">一个本不该出现的她</b>走进你的故事。` : `${FILM ? '9 段电影级片段，3 次抉择，<b style="color:var(--gold)">5 种结局</b>。' : ''}一夜之间，新港的命运系于一枚“星核”。每个抉择都在你下注之前锁定——你押的是人心。悔棋？可以。但故事会<b style="color:#d9c6ff">变成二选一</b>，或<b style="color:#d9c6ff">多出一个你没见过的选项</b>。`}</div>
+      ${LOVE || m.series.generated ? `<div class="heroines">${Object.entries(S.tree.cast || {}).filter(([k, v]) => k !== '悠真' && v.img).map(([k, v]) => `<div class="hr" style="--c:${v.color}" title="${esc(v.brand)}"><img src="${v.img}"><b>${esc(k)}</b></div>`).join('')}</div>` : ''}
       <div class="stats3"><div><b>${m.nodes}</b><span>抉择点</span></div><div><b>${regular}</b><span>${LOVE ? '心动分支' : '常规分支'}</span></div><div><b>${twist}</b><span>${LOVE ? '隐藏邂逅' : '悔棋隐藏支'}</span></div><div><b>${m.my_endings.length}/${m.total_endings}</b><span>我的结局</span></div></div>
       <button class="start2" id="st"><i class="fas ${LOVE ? 'fa-heart' : 'fa-book-open'}"></i> ${LOVE ? '推开校门' : '开始这一夜'}</button>
       <div class="toggle"><label><input type="checkbox" id="tv" ${S.voice ? 'checked' : ''}> 配音</label><label><input type="checkbox" id="ta" ${S.auto ? 'checked' : ''}> 自动翻页</label><label><input type="checkbox" id="tb" ${S.bgm ? 'checked' : ''}> 环境音效</label></div></div>`)
@@ -277,6 +277,7 @@
         ${modeTxt ? `<div class="mode">${modeTxt}</div>` : ''}
         ${rd.excluded?.length ? `<div class="excl">已排除：${rd.excluded.map((x) => `<s>${esc(x.label)}</s>`).join(' ')}</div>` : ''}
         <div class="q">${esc(rd.question)}</div>
+        ${rd.fate ? `<div class="fate-bar" id="fate-bar">${rd.fate.ladder.slice().reverse().map((t) => `<span class="ft-${t.id} ${rd.fate.current && ['gold', 'platinum', 'diamond'].indexOf(rd.fate.current.id) >= ['gold', 'platinum', 'diamond'].indexOf(t.id) ? 'on' : ''}" title="押注≥${t.need.staked} · 押中≥${t.need.hits}${t.need.perfect ? ' · 全押全中' : ''}${t.need.pnl ? ' · 净赢≥' + t.need.pnl : ''}">${t.icon}</span>`).join('')}<em>${rd.fate.next ? `距${esc(rd.fate.next.name)}：${rd.fate.next.miss.slice(0, 2).map(esc).join(' · ')}` : '已达最高命运'}</em><b>已押 ${rd.fate.stats.staked}</b></div>` : ''}
         ${rd.options.map((o) => `<div class="opt2 ${o.twist ? 'twist' : ''}" data-o="${o.id}">
           <div class="pbar" style="width:${o.p * 100}%"></div>
           <div class="lb"><b>${esc(o.label)}${o.twist ? '<span class="new-badge">新变数</span>' : ''}</b><span>${esc(o.hint)}</span></div>
@@ -402,16 +403,25 @@
     } catch (e) { toast(e.message) }
   }
 
-  function ending(r) {
+  async function ending(r) {
     S.round = null
     SFX.win()
+    const F = r.fate
+    if (F?.tier) {
+      // 命运等级揭晓 → 播放专属彩蛋片段
+      L.insertAdjacentHTML('beforeend', `<div class="fate-fx ft-${F.tier.id}"><i></i><b>${F.tier.icon}</b><h2>${esc(F.tier.name)}</h2><p>押注 ${F.stats.staked} · 押中 ${F.stats.hits}/${F.stats.bets} · 净赢 ${F.stats.pnl}</p>${F.bonus ? `<em>命运奖池分红 +${F.bonus}</em>` : ''}</div>`)
+      navigator.vibrate?.([40, 80, 40, 80, 120]); SFX.win()
+      await sleep(2600); L.querySelector('.fate-fx')?.remove()
+      if (F.bonus_seg) { if (FILM) preV(F.bonus_seg.video_url); await playSegment(F.bonus_seg, { header: `<div class="c-chapter ft-c ft-${F.tier.id}">${F.tier.icon} ${esc(F.tier.name)} · 专属彩蛋</div>` }) }
+    }
     S.meta.my_endings = [...new Set([...S.meta.my_endings, r.ending.id])]
     frame(`<div class="spacer"></div><div class="ending2">
       <div class="sub" style="letter-spacing:6px;color:${r.ending.twist ? '#c4a8ff' : 'var(--gold)'}">${LOVE ? (r.ending.twist ? '隐 藏 恋 情' : 'E N D I N G') : (r.ending.twist ? '隐 藏 结 局' : '结 局')}</div>
       <div class="t ${r.ending.twist ? 'tw' : ''}">${esc(r.ending.title)}</div>
       <div class="route">${r.path.map((p) => `<span class="${p.twist ? 'tw' : ''}">${esc(p.label)}</span>`).join('')}</div>
       <div class="sub">${LOVE ? '心动收支' : '本夜盈亏'} <b style="color:${r.pnl >= 0 ? 'var(--gold)' : '#ff9aa8'}">${r.pnl >= 0 ? '+' : ''}${r.pnl}</b> · 悔棋 ${r.rewinds} 次 · 已收集结局 ${S.meta.my_endings.length}/${r.total_endings}</div>
-      ${r.card ? `<a class="mint" href="/market?tab=mine&card=${r.card.id}"><i class="rar r-${r.card.rarity}">${r.card.rarity}</i><div><b>获得结局卡 · No.${r.card.serial}</b><span>${r.card.forked ? '⟲ 含时间裂隙 · ' : ''}参考价 ${r.card.ref_price} · 可收藏 / 交易 / 重看完整路径</span></div><i class="fas fa-angle-right"></i></a>` : ''}
+      ${F?.tier ? `<div class="fate-badge ft-${F.tier.id}">${F.tier.icon} ${esc(F.tier.name)}${F.bonus ? ` · 奖池分红 +${F.bonus}` : ''}</div>` : F?.next ? `<div class="fate-miss">差一点就是 ${F.next.icon} ${esc(F.next.name)}：${F.next.miss.map(esc).join(' · ')}</div>` : ''}
+      ${r.card ? `<a class="mint" href="/market?tab=mine&card=${r.card.id}"><i class="rar r-${r.card.rarity}">${r.card.rarity}</i><div><b>获得${r.card.tier ? ({ gold: '黄金', platinum: '白金', diamond: '钻石' })[r.card.tier] : ''}结局卡 · No.${r.card.serial}</b><span>${r.card.forked ? '⟲ 含时间裂隙 · ' : ''}参考价 ${r.card.ref_price} · 可收藏 / 交易 / 重看完整路径</span></div><i class="fas fa-angle-right"></i></a>` : ''}
       <div class="btns" style="margin-top:12px"><button class="pb" id="sh"><i class="fas fa-share-nodes"></i> 战报</button><button class="pb gold" id="ag"><i class="fas fa-rotate"></i> ${LOVE ? '重新入学' : '再走一夜'}</button></div></div>`)
     $('#ag').onclick = cover
     $('#sh').onclick = () => { const t = `我在《${S.meta.series.title}》走到了「${r.ending.title}」：${r.path.map((p) => p.label).join('→')}，你能走出不同的结局吗？`; navigator.clipboard?.writeText(t + ' ' + location.href); toast('战报文案已复制') }

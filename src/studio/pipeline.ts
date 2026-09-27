@@ -70,7 +70,7 @@ export function repairTree(tree: any) {
   if (nodes.length && !nodes.some((n) => n.depth === 1)) nodes[0].depth = 1
   // 只保留被引用的片段
   const used = new Set<string>(['P', ...nodes.flatMap((n) => [...n.options.map((o: any) => o.id), n.fork?.seg].filter(Boolean))])
-  for (const k of Object.keys(clips)) if (!used.has(k) && !/^P|prologue/i.test(k)) delete clips[k]
+  for (const k of Object.keys(clips)) if (!used.has(k) && !/^P|prologue|^BONUS_/i.test(k)) delete clips[k]
   return { tree: { ...tree, nodes, clips }, fixes }
 }
 
@@ -163,7 +163,7 @@ export async function listProjects(env: Bindings) {
 export async function projectDetail(env: Bindings, id: string) {
   const p: any = await env.DB.prepare('SELECT * FROM studio_projects WHERE id=?').bind(id).first()
   if (!p) throw new GameError('NOT_FOUND', '项目不存在')
-  const jobs = (await env.DB.prepare('SELECT id,clip_id,title,dur,credits,status,result_url,worker,updated_at FROM render_jobs WHERE project_id=? ORDER BY clip_id').bind(id).all()).results
+  const jobs = (await env.DB.prepare(`SELECT id,clip_id,kind,title,dur,credits,spent,status,result_url,worker,attempts,updated_at FROM render_jobs WHERE project_id=? ORDER BY CASE kind WHEN 'sheet' THEN 0 WHEN 'cover' THEN 1 ELSE 2 END, clip_id`).bind(id).all()).results
   const tree = J(p.tree, {})
   return { ...p, bible: J(p.bible, {}), tree, validation: validateTree(tree), jobs }
 }

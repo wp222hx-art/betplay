@@ -201,3 +201,18 @@
 @keyframes mintIn{0%{transform:scale(.6) rotate(-6deg);opacity:0}100%{transform:none;opacity:1}}
 .rar{font-style:normal;font-weight:900;font-size:12px;min-width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff}
 .r-R{background:linear-gradient(135deg,#64748b,#334155)}.r-SR{background:linear-gradient(135deg,#38bdf8,#2563eb)}.r-SSR{background:linear-gradient(135deg,#f5c451,#f97316)}.r-UR{background:linear-gradient(135deg,#f0abfc,#8b5cf6,#22d3ee);box-shadow:0 0 16px rgba(192,132,252,.7)}
+/* 命运等级：黄金 / 白金 / 钻石 */
+.ft-gold{--ft:#fbbf24;--ft2:#f59e0b}.ft-platinum{--ft:#f1f5f9;--ft2:#94a3b8}.ft-diamond{--ft:#7dd3fc;--ft2:#a78bfa}
+.fate-bar{display:flex;align-items:center;gap:5px;margin:4px 0 8px;padding:6px 8px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);font-size:11px}
+.fate-bar span{filter:grayscale(1) opacity(.35);font-size:15px;transition:.3s}.fate-bar span.on{filter:none;text-shadow:0 0 10px var(--ft)}
+.fate-bar em{flex:1;font-style:normal;color:#c9c3dc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.fate-bar b{color:#f5c451;font-weight:700;flex-shrink:0}
+.fate-fx{position:absolute;inset:0;z-index:45;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;background:radial-gradient(circle at 50% 45%,color-mix(in srgb,var(--ft) 45%,transparent),rgba(5,5,12,.94) 70%);animation:fateIn 2.6s ease forwards;overflow:hidden}
+.fate-fx i{position:absolute;inset:-50%;background:conic-gradient(from 0deg,transparent,color-mix(in srgb,var(--ft) 50%,transparent),transparent 20%,color-mix(in srgb,var(--ft2) 40%,transparent),transparent 45%);animation:riftspin 2.6s linear infinite}
+.fate-fx b{position:relative;font-size:72px;animation:fateIcon .9s cubic-bezier(.2,1.6,.4,1)}
+.fate-fx h2{position:relative;margin:6px 0;font-family:'Noto Serif SC',serif;font-size:34px;font-weight:900;letter-spacing:8px;background:linear-gradient(135deg,#fff,var(--ft),var(--ft2));-webkit-background-clip:text;color:transparent}
+.fate-fx p{position:relative;margin:0;font-size:13px;color:#e8e4f4}.fate-fx em{position:relative;margin-top:10px;font-style:normal;font-weight:800;font-size:18px;color:var(--ft);text-shadow:0 0 16px var(--ft)}
+@keyframes fateIn{0%{opacity:0}12%{opacity:1}88%{opacity:1}100%{opacity:0}}
+@keyframes fateIcon{0%{transform:scale(.2) rotate(-40deg);opacity:0}100%{transform:none;opacity:1}}
+.ft-c{color:var(--ft)!important;text-shadow:0 0 12px var(--ft)}
+.fate-badge{display:inline-block;margin:10px auto 0;padding:6px 14px;border-radius:999px;font-weight:800;font-size:13px;color:#111;background:linear-gradient(135deg,var(--ft),var(--ft2));box-shadow:0 0 18px color-mix(in srgb,var(--ft) 60%,transparent)}
+.fate-miss{margin:10px auto 0;max-width:320px;font-size:11.5px;color:#cfc6e6;padding:6px 10px;border-radius:10px;background:rgba(255,255,255,.05);border:1px dashed rgba(255,255,255,.18)}

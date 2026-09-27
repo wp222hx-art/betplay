@@ -6,6 +6,7 @@ import { encryptSlot, hmac, randomHex, seedFloat, sha256, uid } from '../core/cr
 import { ensureUser, GameError, post } from '../core/engine'
 import { mediaTicket } from '../core/guard'
 import { mintCard } from '../market/cards'
+import { feedPool, POOL_SHARE, settleTier, runStats, nextGoal, tierOf, TIERS } from '../market/tiers'
 
 type Env = { DB: D1Database }
 
@@ -133,8 +134,11 @@ async function openRound(env: Env, run: any, nodeId: string, p: { mode?: string;
     chosen.id, commit, JSON.stringify(slots), p.rewindNo || 0, p.rewindOf || null, cfg.jitter, lockAt, t).run()
   await env.DB.prepare('UPDATE comic_runs SET node_id=? WHERE id=?').bind(nodeId, run.id).run()
   const taxMul = Math.pow(cfg.rewind_tax, p.rewindNo || 0)
+  const st0 = await runStats(env as any, run.id)
+  const cur = tierOf(st0, 99)
+  const fate = { stats: st0, current: cur ? { id: cur.id, name: cur.name, icon: cur.icon } : null, next: nextGoal(st0, cur?.id || null), ladder: TIERS.map((t) => ({ id: t.id, name: t.name, icon: t.icon, need: t.need })) }
   return {
-    round_id: rid, node_id: nodeId, depth: node.depth, question: node.question, cue: node.cue || null, mode, commit, rewind_no: p.rewindNo || 0,
+    round_id: rid, node_id: nodeId, depth: node.depth, question: node.question, cue: node.cue || null, mode, commit, rewind_no: p.rewindNo || 0, fate,
     window_sec: cfg.window_sec, lock_at: lockAt, server_time: t, min_bet: Math.ceil(cfg.min_bet * taxMul), jitter: cfg.jitter,
     options, preload: sorted.map((o) => ({ image: GATED ? null : COMIC.segments[o.id].image_url, video: GATED ? null : COMIC.segments[o.id].video_url || null, audio: COMIC.segments[o.id].track || COMIC.segments[o.id].lines?.[0]?.audio, ambience: COMIC.segments[o.id].ambience, sfx: COMIC.segments[o.id].sfx })),
     encrypted: slots.map((s, i) => ({ slot: i, iv: s.iv, ct: s.ct })),
@@ -193,6 +197,7 @@ async function settle(env: Env, p: { roundId: string; userId: string }) {
       else await post(env, '漫剧收注', r.id, [[`${U}:frozen`, 'D', r.bet_amount], ['platform:house', 'C', r.bet_amount]])
       await env.DB.prepare('UPDATE users SET frozen=frozen-?, chips=chips+? WHERE id=?').bind(r.bet_amount, payout, r.user_id).run()
       await env.DB.prepare('UPDATE comic_rounds SET payout=? WHERE id=?').bind(payout, r.id).run()
+      await feedPool(env as any, SERIES, r.bet_amount * POOL_SHARE.bet, 'platform:house', r.id)
       await env.DB.prepare('UPDATE comic_runs SET pnl=pnl+? WHERE id=?').bind(payout - r.bet_amount, r.run_id).run()
     }
   }
@@ -235,6 +240,7 @@ async function rewind(env: Env, p: { roundId: string; userId: string; mode: 'bin
   if (!cas.meta.changes) throw new GameError('BAD_STATE', '已悔棋')
   await env.DB.prepare('UPDATE users SET chips=chips-? WHERE id=?').bind(fee, p.userId).run()
   await post(env, '漫剧悔棋税', r.id, [[`user:${p.userId}:available`, 'D', fee], ['platform:rewind_tax', 'C', fee]])
+  await feedPool(env as any, SERIES, fee * POOL_SHARE.rewind, 'platform:rewind_tax', r.id)
   await env.DB.prepare('UPDATE comic_runs SET rewinds=rewinds+1, pnl=pnl-? WHERE id=?').bind(fee, r.run_id).run()
   const run0: any = await env.DB.prepare('SELECT * FROM comic_runs WHERE id=?').bind(r.run_id).first()
   if (p.mode === 'fork') {
@@ -274,8 +280,16 @@ async function advance(env: Env, p: { roundId: string; userId: string }) {
     const u: any = await env.DB.prepare('SELECT chips FROM users WHERE id=?').bind(p.userId).first()
     // 通关即铸造结局卡（服务端唯一来源，一局一张），卡内保存完整观看路径
     const playlist = [...COMIC.prologue, ...path.map((x: any) => (x.fork ? NODES[x.node]?.fork?.seg : x.option)).filter((id: string) => id && COMIC.segments[id])]
-    const card = GATED ? await mintCard(env, { series: SERIES, ending: opt.id, owner: p.userId, run: run.id, path, playlist, twist: !!opt.twist, rewinds: fin.rewinds }) : null
-    return { ended: true, ending: { id: opt.id, title: opt.ending_title || opt.label, twist: !!opt.twist }, path, pnl: fin.pnl, rewinds: fin.rewinds, balance: u.chips, total_endings: totalEndings(), card }
+    // 命运等级：按本局真实押注额 / 命中 / 净盈利判定 黄金·白金·钻石，奖池分红 + 彩蛋片段 + 卡升阶
+    const depth = path.filter((x: any) => !x.fork).length
+    const ft = await settleTier(env as any, { series: SERIES, runId: run.id, userId: p.userId, depth })
+    const bonusSeg = ft.tier ? (COMIC.segments[`${opt.id}_${ft.tier.id}`] || COMIC.segments[`BONUS_${ft.tier.id}`]) : null
+    const bonusId = bonusSeg ? (COMIC.segments[`${opt.id}_${ft.tier.id}`] ? `${opt.id}_${ft.tier.id}` : `BONUS_${ft.tier.id}`) : null
+    if (bonusId) playlist.push(bonusId)
+    const card = GATED ? await mintCard(env, { series: SERIES, ending: opt.id, owner: p.userId, run: run.id, path, playlist, twist: !!opt.twist, rewinds: fin.rewinds, tier: ft.tier }) : null
+    const u2: any = await env.DB.prepare('SELECT chips FROM users WHERE id=?').bind(p.userId).first()
+    return { ended: true, ending: { id: opt.id, title: opt.ending_title || opt.label, twist: !!opt.twist }, path, pnl: fin.pnl + ft.bonus, rewinds: fin.rewinds, balance: u2.chips, total_endings: totalEndings(), card,
+      fate: { ...ft, bonus_seg: bonusSeg ? await withTicket(env, p.userId, { id: bonusId, ...bonusSeg }) : null } }
   }
   await env.DB.prepare('UPDATE comic_runs SET path=? WHERE id=?').bind(JSON.stringify(path), run.id).run()
   return { ended: false, round: await openRound(env, run, opt.next, {}), path }

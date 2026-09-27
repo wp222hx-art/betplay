@@ -1,0 +1,28 @@
+.dk-status{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.dk-status div{background:#11111b;border:1px solid #22223a;border-radius:14px;padding:10px}
+.dk-status span{display:block;font-size:11px;color:var(--mut)}.dk-status b{font-size:17px}.dk-status em{display:block;font-style:normal;font-size:10.5px;color:#777;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.seg{display:flex;gap:6px;margin-bottom:10px}.seg button{flex:1;min-height:42px;border-radius:12px;border:1px solid #2e2e4a;background:#13131f;color:#bbb;font-weight:700;cursor:pointer}
+.seg button.on{background:linear-gradient(135deg,#3a2466,#27183f);color:#fff;border-color:#8a5cff}
+.ta{min-height:84px;padding:10px 12px;line-height:1.6;resize:vertical}
+.ideas{display:flex;gap:6px;overflow-x:auto;padding:8px 0 2px;scrollbar-width:none}.ideas::-webkit-scrollbar{display:none}
+.ideas button{flex-shrink:0;max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:6px 12px;border-radius:999px;border:1px solid #2e2e4a;background:none;color:#c8c8dc;font-size:12px;cursor:pointer}
+.scales{display:grid;gap:8px}.scales button{text-align:left;padding:10px 12px;border-radius:14px;border:1px solid #2e2e4a;background:#13131f;color:#ddd;cursor:pointer;display:grid;grid-template-columns:1fr auto;gap:2px 10px}
+.scales button b{font-size:15px}.scales button span{grid-column:1;font-size:12px;color:var(--mut)}.scales button em{grid-row:1/3;grid-column:2;align-self:center;font-style:normal;font-weight:800;color:#f5c451}
+.scales button.on{border-color:#8a5cff;background:#1d1433;box-shadow:0 0 0 1px #8a5cff inset}
+.chk{display:flex;gap:8px;align-items:center;font-size:13px;margin:12px 0}.chk input{width:18px;height:18px}
+.btn2.big{width:100%;min-height:50px;font-size:15px;border-radius:14px}
+.dk-cast{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:10px}.dk-cast div{background:#161625;border-radius:10px;padding:8px}.dk-cast b{display:block;font-size:13.5px}.dk-cast span{font-size:11.5px;color:var(--mut)}
+.dk-v{padding:10px;border-radius:12px;font-size:12.5px;line-height:1.6;margin-bottom:10px}.dk-v.ok{background:#0f2a20;border:1px solid #1f5a40}.dk-v.bad{background:#2a1015;border:1px solid #5a1f2a}
+.dk-go{margin-top:12px}
+.dk-row{display:grid;grid-template-columns:1fr 80px;gap:4px 10px;align-items:center;padding:10px 0;border-top:1px solid #1c1c2e;cursor:pointer}
+.dk-row b{display:block;font-size:14px}.dk-row span{font-size:11.5px;color:var(--mut)}.dk-row .bar{grid-column:1}.dk-row em{grid-row:1/3;grid-column:2;font-style:normal;font-size:11px;color:#bbb;text-align:right}
+.dk-prj header{display:flex;justify-content:space-between;align-items:center}.dk-prj .pill{--c:#c084fc}
+.dk-k{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:10px 0}.dk-k div{background:#161625;border-radius:10px;padding:8px;text-align:center}.dk-k b{display:block;font-size:15px}.dk-k span{font-size:10.5px;color:var(--mut)}
+.bar.big{height:10px;margin-bottom:10px}
+.jb2{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;background:#161625;border-left:3px solid var(--c);margin-bottom:6px;font-size:12.5px}
+.jb2 i{font-style:normal;font-size:10.5px;color:#999;width:34px}.jb2 b{min-width:44px}.jb2 span{flex:1;min-width:0;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.jb2 em{font-style:normal;font-size:11px;color:var(--c)}.jb2 small{color:#777;font-size:10.5px;width:36px;text-align:right}.jb2 .lnk{color:#a78bfa}
+@media(min-width:760px){.scales{grid-template-columns:repeat(3,1fr)}.dk-cast{grid-template-columns:repeat(4,1fr)}}
+.fate-lad{display:grid;gap:8px}.fate-lad div{background:#161625;border-radius:12px;padding:10px 12px;border-left:3px solid #f5c451}.fate-lad div:nth-child(2){border-color:#e5e7eb}.fate-lad div:nth-child(3){border-color:#7dd3fc}
+.fate-lad b{display:block;font-size:14px}.fate-lad span,.fate-lad em{display:block;font-size:12px;color:var(--mut);font-style:normal}.fate-lad em{color:#d8d0ee}
+@media(min-width:760px){.fate-lad{grid-template-columns:repeat(3,1fr)}}

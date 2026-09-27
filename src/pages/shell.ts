@@ -20,8 +20,8 @@ const nav = (active: string) => `
     <a href="/?cat=love" class="${active === 'love' ? 'on' : ''}"><i class="fas fa-heart"></i><b>恋爱</b></a>
     <a href="/?cat=film" class="${active === 'film' ? 'on' : ''}"><i class="fas fa-film"></i><b>影剧</b></a>
     <a href="/market" class="${active === 'market' ? 'on' : ''}"><i class="fas fa-gem"></i><b>结局卡</b></a>
-    <details class="nav-more ${['voice', 'console', 'agents', 'studio', 'arch'].includes(active) ? 'on' : ''}"><summary><i class="fas fa-toolbox"></i><b>工作台</b></summary>
-      <div class="more-menu"><a href="/studio"><i class="fas fa-clapperboard"></i> 制作平台</a><a href="/arch"><i class="fas fa-sitemap"></i> 技术架构</a><a href="/voice"><i class="fas fa-microphone-lines"></i> 声线工作室</a><a href="/console"><i class="fas fa-gauge-high"></i> 运营后台</a><a href="/agents"><i class="fas fa-robot"></i> 7-Agent</a></div>
+    <details class="nav-more ${['voice', 'console', 'agents', 'studio', 'arch', 'director'].includes(active) ? 'on' : ''}"><summary><i class="fas fa-toolbox"></i><b>工作台</b></summary>
+      <div class="more-menu"><a href="/director"><i class="fas fa-video"></i> 导演台 · 一键生成</a><a href="/studio"><i class="fas fa-clapperboard"></i> 制作平台</a><a href="/arch"><i class="fas fa-sitemap"></i> 技术架构</a><a href="/voice"><i class="fas fa-microphone-lines"></i> 声线工作室</a><a href="/console"><i class="fas fa-gauge-high"></i> 运营后台</a><a href="/agents"><i class="fas fa-robot"></i> 7-Agent</a></div>
     </details>
   </div>
 </nav>
@@ -153,4 +153,27 @@ export const archPage = () => `${head('技术架构 · DreamForge', '<link href=
 ${nav('arch')}
 <main id="arch" class="arch"></main>
 <script src="/static/arch.js"></script>
+</body></html>`
+
+export const directorPage = () => `${head('导演台 · 主题一键生成互动剧 | DreamForge', '<link href="/static/studio.css" rel="stylesheet"><link href="/static/director.css" rel="stylesheet">')}
+<body class="studio-body">
+${nav('director')}
+<main id="director" class="studio"></main>
+<script src="/static/director.js"></script>
+</body></html>`
+
+export const seriesPage = (sid: string, title: string, cat: string) => `${head(title + ' | DreamForge', '<link href="/static/comic.css" rel="stylesheet"><link href="/static/film.css" rel="stylesheet">' + (cat === 'love' ? '<link href="/static/love.css" rel="stylesheet">' : ''))}
+<body class="comic-body film-body ${cat === 'love' ? 'love-body' : ''}">
+${nav(cat)}
+<main id="comic-wrap">
+  <section id="comic-stage" class="comic-stage film-stage">
+    <video id="film-v" class="film-v" playsinline preload="auto"></video>
+    <video id="film-v2" class="film-v" playsinline preload="auto"></video>
+    ${cat === 'love' ? '<div id="petals" class="petals"></div>' : ''}
+    <div id="comic-layer" class="comic-layer"></div>
+  </section>
+  <aside id="comic-side" class="comic-side"></aside>
+</main>
+<div id="modal-root"></div>
+<script>window.DF_MODE="film";window.DF_API="/api/s/${sid}";window.DF_THEME="${cat === 'love' ? 'love' : ''}"</script><script src="/static/comic.js"></script>
 </body></html>`
