@@ -42,10 +42,16 @@
       <section class="st-card"><h3><i class="fas fa-coins"></i> 命运等级 · 收益模型</h3>
         <div class="fate-lad">${[['👑', '黄金结局', '押注≥200 · 押中≥1', '奖池 2%（≤400）· 卡稀有度+1 · 黄金彩蛋'], ['🏆', '白金结局', '押注≥600 · 押中≥2 · 净赢≥200', '奖池 5%（≤1200）· 卡+2 · 白金彩蛋'], ['💎', '钻石结局', '押注≥1500 · 每幕全押全中 · 净赢≥800', '奖池 12%（≤3000）· 卡+3 · 钻石彩蛋']].map(([i, n, c, r]) => `<div><b>${i} ${n}</b><span>条件：${c}</span><em>奖励：${r}</em></div>`).join('')}</div>
         <p class="mut sm">奖池来源：每笔下注 2% + 悔棋税 30%（均从平台收入划转，复式记账）；分红按奖池比例派发，奖池越少发得越少 → 平台永不超发。高阶结局卡参考价 ×1.2 / ×1.5 / ×2，交易再抽 5%。</p></section>
+      <section class="st-card" id="funnel-card"><h3><i class="fas fa-filter"></i> 增长实验 · 抽象剧拉新 → 真人剧变现 <small class="mut">近 7 天 · 去重用户</small></h3><div id="funnel" class="mut sm">加载中…</div></section>
       <div id="brief-out"></div>
       <section class="st-card"><h3><i class="fas fa-list-check"></i> 生产中 / 历史</h3>
         ${M.projects.length ? M.projects.map((p) => `<div class="dk-row" data-open="${p.id}"><div><b>${esc(p.title)}</b><span>${esc(p.scale || '')} · ${p.status}</span></div><div class="bar"><i style="width:${p.est ? Math.min(100, (p.spent / p.est) * 100) : 0}%"></i></div><em>${(p.spent || 0).toLocaleString()} / ${(p.est || 0).toLocaleString()}</em></div>`).join('') : '<p class="mut">还没有项目</p>'}</section>
       <div id="prj"></div>`
+    api('/api/admin/funnel').then((f) => {
+      const top = Math.max(1, f.steps[0].u)
+      $('#funnel').innerHTML = `<div class="fnl">${f.steps.map((x, i) => `<div class="fs"><span>${esc(x.name)}</span><div class="fb"><i style="width:${Math.max(2, (x.u / top) * 100)}%"></i></div><b>${x.u}</b><em>${i ? (f.steps[i - 1].u ? Math.round((x.u / f.steps[i - 1].u) * 100) + '%' : '—') : ''}</em></div>`).join('')}</div>
+        <div class="fk"><div><b>${f.k_factor}</b><span>K 因子（邀请新人 / 抽象剧开局）</span></div><div><b>${f.referrals.bound}/${f.referrals.rewarded}</b><span>邀请绑定 / 已奖励</span></div><div><b>${f.contrarian.rounds}</b><span>独行侠命中 · 发放 ${f.contrarian.paid}</span></div></div>`
+    }).catch(() => {})
     if (S.brief) showBrief(S.brief)
     if (S.active) openProject(S.active)
   }

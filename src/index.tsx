@@ -12,6 +12,7 @@ import type { Bindings } from './gateway/llm'
 import { playerPage, consolePage, agentsPage, comicPage, filmPage, voicePage, lovePage, discoverPage, marketPage, studioPage, archPage, directorPage, seriesPage } from './pages/shell'
 import CATALOG from './catalog/data.json'
 import * as Tax from './catalog/taxonomy'
+import * as Growth from './growth/growth'
 import * as Comic from './comic/engine'
 import * as Film from './film/engine'
 import * as Love from './love/engine'
@@ -91,7 +92,7 @@ app.get('/m/:series/:clip', async (c) => {
 })
 
 // ─────────────── 上架目录 ───────────────
-app.get('/api/catalog', async (c) => {
+async function catalogItems(c: any) {
   const u = uidOf(c)
   const rows = (await c.env.DB.prepare('SELECT item_id, COUNT(*) n FROM catalog_wish GROUP BY item_id').all()).results as any[]
   const cnt = Object.fromEntries(rows.map((r) => [r.item_id, r.n]))
@@ -104,8 +105,13 @@ app.get('/api/catalog', async (c) => {
     return { id: p.id, cat: Tax.fmt(p.cat), genre: p.genre || 'romance', aud: 'all', rating: '16', title: p.title, sub: 'AI 导演生成', tags: JSON.parse(p.tags || '[]'), heat: 8000, endings: ends, nodes: d.nodes.length, forks: d.nodes.filter((n: any) => n.fork).length, status: 'live', url: '/s/' + p.id, badge: '新作', logline: p.logline, cover: p.cover, order: -1 - i } })
   const items = [...genItems, ...(CATALOG as any).items.map((it: any) => fromItem[it.id] ? { ...it, status: 'live', url: '/s/' + fromItem[it.id].id, badge: '新上线', cover: it.cover } : it)]
     .map((it: any) => ({ ...it, wish: (it.heat * 3 + (cnt[it.id] || 0)), wished: mine.includes(it.id), plays: plays[SID[it.id] || it.id] || 0 }))
-  return c.json({ cats: (CATALOG as any).cats, genres: (CATALOG as any).genres, audiences: (CATALOG as any).audiences, ratings: (CATALOG as any).ratings, items })
-})
+  return items
+}
+app.get('/api/catalog', async (c) => c.json({ cats: (CATALOG as any).cats, genres: (CATALOG as any).genres, audiences: (CATALOG as any).audiences, ratings: (CATALOG as any).ratings, items: await catalogItems(c) }))
+// ── 增长：埋点 / 邀请绑定 / 漏斗看板 ──
+app.post('/api/growth/track', async (c) => { const b = await body(c); await rateLimit(c.env as any, 'trk:' + uidOf(c, b), 120, 3600000); return c.json(await Growth.track(c.env, uidOf(c, b), String(b.event || ''), { series: b.series, src: b.src, meta: b.meta })) })
+app.post('/api/growth/ref', async (c) => { const b = await body(c); return c.json(await Growth.bindRef(c.env, uidOf(c, b), String(b.ref || ''), b.series)) })
+app.get('/api/admin/funnel', async (c) => c.json(await Growth.funnel(c.env, +(c.req.query('days') || 7))))
 app.post('/api/catalog/:id/wish', async (c) => {
   const b = await body(c), u = uidOf(c, b), id = c.req.param('id')
   if (!u) throw new GameError('NO_USER', '缺少用户')
@@ -182,7 +188,7 @@ app.post('/api/director/brief', async (c) => {
   const b = await body(c)
   const it = b.item_id ? (CATALOG as any).items.find((x: any) => x.id === b.item_id) : null
   if (!b.theme && !it) throw new GameError('BAD_INPUT', '请输入主题')
-  return c.json(await Director.direct(c.env, { theme: b.theme || `${it.title}：${it.logline}`, cat: b.cat || it?.cat || 'anime', genre: b.genre || it?.genre, scale: b.scale || 'standard', budget: +b.budget || 0, auto: !!b.auto, item_id: it?.id, title: it?.title || b.title, logline: it?.logline, tags: it?.tags }))
+  return c.json(await Director.direct(c.env, { theme: b.theme || `${it.title}：${it.logline}`, cat: b.cat || it?.cat || 'anime', genre: b.genre || it?.genre, scale: b.scale || 'standard', budget: +b.budget || 0, auto: !!b.auto, item_id: it?.id, title: it?.title || b.title, logline: it?.logline, tags: it?.tags, outline: b.outline, mech: b.mech }))
 })
 app.post('/api/director/projects/:id/greenlight', async (c) => c.json(await Director.greenlight(c.env, c.req.param('id'))))
 app.post('/api/director/projects/:id/bonus', async (c) => c.json(await Director.addBonus(c.env, c.req.param('id'))))
@@ -197,11 +203,36 @@ app.post('/api/director/jobs/:id/review', async (c) => { const b = await body(c)
 // ── 动态作品：/s/:sid 播放页 + /api/s/:sid/* 引擎 ──
 app.get('/api/s/:sid/meta', async (c) => { const E = await engineOf(c.env, c.req.param('sid')); const id = uidOf(c); return c.json({ series: E.COMIC.series, nodes: E.COMIC.nodes.length, total_endings: E.totalEndings(), my_endings: id ? await E.myEndings(c.env, id) : [], config: await E.getConfig(c.env) }) })
 app.get('/api/s/:sid/tree', async (c) => c.json((await engineOf(c.env, c.req.param('sid'))).publicTree()))
-app.post('/api/s/:sid/start', async (c) => { const b = await body(c); return c.json(await (await engineOf(c.env, c.req.param('sid'))).startRun(c.env, uidOf(c, b), b.nick)) })
+// ── 增长：开局/通关埋点 + 邀请奖励 + 押注人格 + 真人剧导流 ──
+async function lastSrc(env: any, uid: string) { const r: any = await env.DB.prepare(`SELECT src FROM funnel_events WHERE uid=? AND event='play_end' ORDER BY created_at DESC LIMIT 1`).bind(uid).first(); return r?.src || null }
+async function onStart(c: any, series: string, cat: string, res: any) {
+  const u = c.get('uid'); const f = Tax.fmt(cat)
+  await Growth.track(c.env, u, 'play_start', { series, src: f })
+  if (f === 'live') { const from = await lastSrc(c.env, u); if (from) await Growth.track(c.env, u, 'live_start', { series, src: from }) }
+  const ref = await Growth.rewardRef(c.env, u)
+  if (ref?.rewarded) { const x: any = await c.env.DB.prepare('SELECT chips FROM users WHERE id=?').bind(u).first(); res.balance = x.chips; res.ref_reward = ref.amount }
+  return res
+}
+async function onEnd(c: any, series: string, cat: string, res: any) {
+  if (!res.ended) return res
+  const u = c.get('uid'); const f = Tax.fmt(cat)
+  const run: any = await c.env.DB.prepare(`SELECT id FROM comic_runs WHERE user_id=? AND series_id=? AND status='ended' ORDER BY ended_at DESC LIMIT 1`).bind(u, series).first()
+  const agg: any = run ? await c.env.DB.prepare(`SELECT COALESCE(SUM(contrarian),0) c, COALESCE(SUM(bet_amount),0) st, SUM(CASE WHEN bet_option IS NOT NULL THEN 1 ELSE 0 END) b, SUM(CASE WHEN bet_option IS NOT NULL AND bet_option=outcome_id THEN 1 ELSE 0 END) h, COALESCE(SUM(payout-bet_amount),0) p FROM comic_rounds WHERE run_id=? AND state IN ('NEXT','SETTLE')`).bind(run.id).first() : {}
+  const twists = (res.path || []).filter((x: any) => x.twist).length
+  const ps = Growth.persona({ staked: agg.st || 0, bets: agg.b || 0, hits: agg.h || 0, pnl: agg.p || 0 }, agg.c || 0, twists)
+  const cat0 = await catalogItems(c)
+  res.persona = { ...ps, contrarian: agg.c || 0 }
+  res.cross = Growth.crossSell(cat0, ps.pick, series)
+  res.share = { ref: u, url: `/s/${series}?ref=${u}` }
+  await Growth.track(c.env, u, 'play_end', { series, src: f, meta: { ending: res.ending?.id, persona: ps.id } })
+  if (res.cross.length) await Growth.track(c.env, u, 'crosssell_view', { series, src: f })
+  return res
+}
+app.post('/api/s/:sid/start', async (c) => { const b = await body(c); const E = await engineOf(c.env, c.req.param('sid')); return c.json(await onStart(c, E.SERIES, E.COMIC.series.cat, await E.startRun(c.env, uidOf(c, b), b.nick))) })
 app.post('/api/s/:sid/rounds/:id/bet', async (c) => { const b = await body(c); return c.json(await (await engineOf(c.env, c.req.param('sid'))).bet(c.env, { roundId: c.req.param('id'), userId: uidOf(c, b), optionId: b.option_id, amount: b.amount })) })
 app.post('/api/s/:sid/rounds/:id/settle', async (c) => { const b = await body(c); return c.json(await (await engineOf(c.env, c.req.param('sid'))).settle(c.env, { roundId: c.req.param('id'), userId: uidOf(c, b) })) })
 app.post('/api/s/:sid/rounds/:id/rewind', async (c) => { const b = await body(c); return c.json(await (await engineOf(c.env, c.req.param('sid'))).rewind(c.env, { roundId: c.req.param('id'), userId: uidOf(c, b), mode: b.mode })) })
-app.post('/api/s/:sid/rounds/:id/next', async (c) => { const b = await body(c); return c.json(await (await engineOf(c.env, c.req.param('sid'))).advance(c.env, { roundId: c.req.param('id'), userId: uidOf(c, b) })) })
+app.post('/api/s/:sid/rounds/:id/next', async (c) => { const b = await body(c); const E = await engineOf(c.env, c.req.param('sid')); return c.json(await onEnd(c, E.SERIES, E.COMIC.series.cat, await E.advance(c.env, { roundId: c.req.param('id'), userId: uidOf(c, b) }))) })
 app.get('/api/s/:sid/rounds/:id/verify', async (c) => c.json(await (await engineOf(c.env, c.req.param('sid'))).verify(c.env, c.req.param('id'))))
 
 app.get('/api/studio/next', async (c) => c.json(await Studio.nextUp(c.env, (CATALOG as any).items)))
@@ -380,22 +411,22 @@ app.get('/api/comic/stats', async (c) => c.json(await Comic.comicStats(c.env)))
 // ─────────────── 影剧 Film 模式（Seedance 2.0 音画一体，5 结局）：与漫剧共用对弈引擎 ───────────────
 app.get('/api/film/meta', async (c) => { const id = uidOf(c); return c.json({ series: Film.COMIC.series, nodes: Film.COMIC.nodes.length, total_endings: Film.totalEndings(), my_endings: id ? await Film.myEndings(c.env, id) : [], config: await Film.getConfig(c.env) }) })
 app.get('/api/film/tree', (c) => c.json(Film.publicTree()))
-app.post('/api/film/start', async (c) => { const b = await body(c); return c.json(await Film.startRun(c.env, uidOf(c, b), b.nick)) })
+app.post('/api/film/start', async (c) => { const b = await body(c); return c.json(await onStart(c, Film.SERIES, 'live', await Film.startRun(c.env, uidOf(c, b), b.nick))) })
 app.post('/api/film/rounds/:id/bet', async (c) => { const b = await body(c); return c.json(await Film.bet(c.env, { roundId: c.req.param('id'), userId: uidOf(c, b), optionId: b.option_id, amount: b.amount })) })
 app.post('/api/film/rounds/:id/settle', async (c) => { const b = await body(c); return c.json(await Film.settle(c.env, { roundId: c.req.param('id'), userId: uidOf(c, b) })) })
 app.post('/api/film/rounds/:id/rewind', async (c) => { const b = await body(c); return c.json(await Film.rewind(c.env, { roundId: c.req.param('id'), userId: uidOf(c, b), mode: b.mode })) })
-app.post('/api/film/rounds/:id/next', async (c) => { const b = await body(c); return c.json(await Film.advance(c.env, { roundId: c.req.param('id'), userId: uidOf(c, b) })) })
+app.post('/api/film/rounds/:id/next', async (c) => { const b = await body(c); return c.json(await onEnd(c, Film.SERIES, 'live', await Film.advance(c.env, { roundId: c.req.param('id'), userId: uidOf(c, b) }))) })
 app.get('/api/film/rounds/:id/verify', async (c) => c.json(await Film.verify(c.env, c.req.param('id'))))
 app.post('/api/film/simulate', async (c) => { const b = await body(c); return c.json(await Film.simulateTree(c.env, b.n || 2000)) })
 
 // ─────────────── 恋爱剧《心动回廊》（Seedance 2.0 音画一体，21 结局）：与漫剧共用对弈引擎 ───────────────
 app.get('/api/love/meta', async (c) => { const id = uidOf(c); return c.json({ series: Love.COMIC.series, nodes: Love.COMIC.nodes.length, total_endings: Love.totalEndings(), my_endings: id ? await Love.myEndings(c.env, id) : [], config: await Love.getConfig(c.env) }) })
 app.get('/api/love/tree', (c) => c.json(Love.publicTree()))
-app.post('/api/love/start', async (c) => { const b = await body(c); return c.json(await Love.startRun(c.env, uidOf(c, b), b.nick)) })
+app.post('/api/love/start', async (c) => { const b = await body(c); return c.json(await onStart(c, Love.SERIES, 'anime', await Love.startRun(c.env, uidOf(c, b), b.nick))) })
 app.post('/api/love/rounds/:id/bet', async (c) => { const b = await body(c); return c.json(await Love.bet(c.env, { roundId: c.req.param('id'), userId: uidOf(c, b), optionId: b.option_id, amount: b.amount })) })
 app.post('/api/love/rounds/:id/settle', async (c) => { const b = await body(c); return c.json(await Love.settle(c.env, { roundId: c.req.param('id'), userId: uidOf(c, b) })) })
 app.post('/api/love/rounds/:id/rewind', async (c) => { const b = await body(c); return c.json(await Love.rewind(c.env, { roundId: c.req.param('id'), userId: uidOf(c, b), mode: b.mode })) })
-app.post('/api/love/rounds/:id/next', async (c) => { const b = await body(c); return c.json(await Love.advance(c.env, { roundId: c.req.param('id'), userId: uidOf(c, b) })) })
+app.post('/api/love/rounds/:id/next', async (c) => { const b = await body(c); return c.json(await onEnd(c, Love.SERIES, 'anime', await Love.advance(c.env, { roundId: c.req.param('id'), userId: uidOf(c, b) }))) })
 app.get('/api/love/rounds/:id/verify', async (c) => c.json(await Love.verify(c.env, c.req.param('id'))))
 app.post('/api/love/simulate', async (c) => { const b = await body(c); return c.json(await Love.simulateTree(c.env, b.n || 2000)) })
 

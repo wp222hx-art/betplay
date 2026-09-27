@@ -161,8 +161,8 @@ ${nav('director')}
 <script src="/static/director.js"></script>
 </body></html>`
 
-export const seriesPage = (sid: string, title: string, cat0: string) => { const cat = cat0 === 'anime' ? 'love' : cat0; return `${head(title + ' | DreamForge', '<link href="/static/comic.css" rel="stylesheet"><link href="/static/film.css" rel="stylesheet">' + (cat === 'love' ? '<link href="/static/love.css" rel="stylesheet">' : ''))}
-<body class="comic-body film-body ${cat === 'love' ? 'love-body' : ''}">
+export const seriesPage = (sid: string, title: string, cat0: string) => { const cat = cat0 === 'anime' ? 'love' : cat0; const theme = cat === 'love' ? 'love' : cat === 'abstract' ? 'abstract' : ''; return `${head(title + ' | DreamForge', '<link href="/static/comic.css" rel="stylesheet"><link href="/static/film.css" rel="stylesheet">' + (cat === 'love' ? '<link href="/static/love.css" rel="stylesheet">' : ''))}
+<body class="comic-body film-body ${cat === 'love' ? 'love-body' : cat === 'abstract' ? 'abs-body' : ''}">
 ${nav(cat)}
 <main id="comic-wrap">
   <section id="comic-stage" class="comic-stage film-stage">
@@ -174,5 +174,5 @@ ${nav(cat)}
   <aside id="comic-side" class="comic-side"></aside>
 </main>
 <div id="modal-root"></div>
-<script>window.DF_MODE="film";window.DF_API="/api/s/${sid}";window.DF_THEME="${cat === 'love' ? 'love' : ''}"</script><script src="/static/comic.js"></script>
+<script>window.DF_MODE="film";window.DF_API="/api/s/${sid}";window.DF_THEME="${theme}"</script><script src="/static/comic.js"></script>
 </body></html>` }

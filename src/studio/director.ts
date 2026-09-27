@@ -63,7 +63,7 @@ export function compile(out: any, cat: string, scaleKey: string) {
   const head = `@Image1 is the character sheet, use appearance only. ${defs}\nStyle: ${Tax.STYLE[Tax.fmt(cat)]}. Setting: ${out.setting || ''}. Dialogue language: Mandarin Chinese (Putonghua).`
   const tail = 'Faces stable and undeformed, consistent hairstyle and costume for every character, natural proportions, no morphing, no subtitles, no on-screen text, no logo, no watermark.'
   const clips: Record<string, any> = {}
-  const add = (id: string, seg: any, dur: number) => { clips[id] = { title: seg.title || id, dur, shots: `${head}\n${shotsText(seg.shots, castMap)}\n${tail}`, lines: linesOf(seg.shots, castMap) } }
+  const add = (id: string, seg: any, dur: number) => { clips[id] = { title: seg.title || id, meme: seg.meme || '', dur, shots: `${head}\n${shotsText(seg.shots, castMap)}\n${tail}`, lines: linesOf(seg.shots, castMap) } }
   add('P', out.prologue || { title: '序章' }, 12)
   const routes = (out.routes || []).slice(0, sc.routes)
   const nodes: any[] = [{ id: 'N1', depth: 1, question: out.q1 || '命运的第一个抉择', options: [] }]
@@ -88,20 +88,21 @@ export function compile(out: any, cat: string, scaleKey: string) {
   }
   if (fk) {
     add('K_1', { title: out.fork.title || '时间裂隙', shots: out.fork.shots }, 12)
-    const fe = (out.fork.endings || []).slice(0, sc.forkEnds)
-    nodes.push({ id: 'N_K', depth: 3, question: out.fork.question || '平行时间线：你要改写什么？', options: fe.map((e: any, j: number) => { add(`E_K${j + 1}`, e, 10); return { id: `E_K${j + 1}`, key: 'ABCD'[j], label: e.label, hint: e.hint || '', weight: +(1 / fe.length).toFixed(2), category: e.tone || 'love', ending_title: e.title } }) })
+    const fe0 = out.fork.endings || [], fe = [...fe0.filter((e: any) => !e.twist).slice(0, sc.forkEnds), ...fe0.filter((e: any) => e.twist).slice(0, 1)]
+    nodes.push({ id: 'N_K', depth: 3, question: out.fork.question || '平行时间线：你要改写什么？', options: fe.map((e: any, j: number) => { add(`E_K${j + 1}`, e, 10); return { id: `E_K${j + 1}`, key: 'ABCD'[j], label: e.label, hint: e.hint || '', weight: +(1 / fe.length).toFixed(2), category: e.tone || 'love', ending_title: e.title, ...(e.twist ? { twist: true, key: 'T' } : {}) } }) })
   }
   for (const t of ['gold', 'platinum', 'diamond']) if (out.bonus?.[t]) add(`BONUS_${t}`, { title: out.bonus[t].title || t, shots: out.bonus[t].shots }, 10)
   const sheetPrompt = `Character reference sheet, ${Tax.SHEET_STYLE[Tax.fmt(cat)]}, ${cast.length} characters standing side by side left to right on a clean light background, full body plus face close-up, consistent lighting, labeled by position only, no text. ` + cast.map((c: any, i: number) => `#${i + 1}: ${c.look}.`).join(' ')
   return { cast, nodes, clips, sheetPrompt }
 }
 
-export async function direct(env: Bindings, p: { theme: string; cat: string; genre?: string; scale: string; budget?: number; auto?: boolean; item_id?: string; title?: string; logline?: string; tags?: string[] }) {
+export async function direct(env: Bindings, p: { theme: string; cat: string; genre?: string; scale: string; budget?: number; auto?: boolean; item_id?: string; title?: string; logline?: string; tags?: string[]; outline?: any; mech?: any }) {
   const sc = SCALES[p.scale] || SCALES.standard
   const est = estimate(p.scale)
   if (p.budget && p.budget < est.credits) throw new GameError('BUDGET', `预算 ${p.budget} 不足，${sc.name} 预计需要 ${est.credits} 积分`)
   const prompt = `主题：${p.theme}\n类型：${Tax.brief(p.cat, p.genre)}${p.title ? `\n片名：${p.title}` : ''}${p.logline ? `\n梗概：${p.logline}` : ''}\n请输出完整剧本 JSON。`
-  const r: any = await callCapability(env, { capability: 'outline', tier: 'standard', json: true, system: SYS(sc), prompt, agent: 7, timeoutMs: 110000, fallback: () => null })
+  // 导演自带剧本（人工精修 / 外部编剧）→ 跳过 LLM，直接编译校验
+  const r: any = p.outline ? { ok: true, data: p.outline, model: 'director-manual' } : await callCapability(env, { capability: 'outline', tier: 'standard', json: true, system: SYS(sc), prompt, agent: 7, timeoutMs: 110000, fallback: () => null })
   if (!r?.ok || !r.data?.routes?.length) throw new GameError('LLM_FAILED', '编剧模型超时或输出无效，请重试')
   const c = compile(r.data, p.cat, p.scale)
   const rep = repairTree({ nodes: c.nodes, clips: c.clips })
@@ -109,7 +110,7 @@ export async function direct(env: Bindings, p: { theme: string; cat: string; gen
   const id = uid('prj_')
   const title = p.title || r.data.title || p.theme.split(/[，,。]/)[0].slice(0, 12)
   await env.DB.prepare(`INSERT INTO studio_projects (id,kind,source_item,cat,genre,title,logline,status,bible,tree,score,scale,budget,auto,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
-    .bind(id, 'series', p.item_id || null, Tax.fmt(p.cat), p.genre || Tax.guessGenre(p.theme + (p.tags || []).join(''), Tax.fmt(p.cat)), title, p.logline || p.theme, 'scripted', JSON.stringify({ cast: c.cast, sheet_prompt: c.sheetPrompt, setting: r.data.setting }), JSON.stringify(rep.tree), v.ok ? 1 : 0, p.scale, p.budget || 0, p.auto ? 1 : 0, now(), now()).run()
+    .bind(id, 'series', p.item_id || null, Tax.fmt(p.cat), p.genre || Tax.guessGenre(p.theme + (p.tags || []).join(''), Tax.fmt(p.cat)), title, p.logline || p.theme, 'scripted', JSON.stringify({ cast: c.cast, sheet_prompt: c.sheetPrompt, setting: r.data.setting, mech: p.mech || r.data.mech || null }), JSON.stringify(rep.tree), v.ok ? 1 : 0, p.scale, p.budget || 0, p.auto ? 1 : 0, now(), now()).run()
   return { id, title, model: r.model, validation: v, fixes: rep.fixes, estimate: est, cast: c.cast }
 }
 
@@ -195,10 +196,10 @@ export async function publish(env: Bindings, projectId: string) {
   const segments: any = {}
   for (const j of jobs) {
     const m = J(j.meta, {})
-    segments[j.clip_id] = { title: j.title, mood: '', image_url: m.poster || pj.cover_url, video_url: `/static/${sid}/${j.clip_id}.mp4`, last_url: m.last || m.poster, dur: m.dur || j.dur, lines: m.lines || J(j.lines, []).map((l: any, i: number) => ({ ...l, start: 1 + i * 3, end: 3.6 + i * 3 })), film: true, ambience: null, sfx: null, sfx_at: 0 }
+    segments[j.clip_id] = { title: j.title, meme: tree.clips?.[j.clip_id]?.meme || '', mood: '', image_url: m.poster || pj.cover_url, video_url: `/static/${sid}/${j.clip_id}.mp4`, last_url: m.last || m.poster, dur: m.dur || j.dur, lines: m.lines || J(j.lines, []).map((l: any, i: number) => ({ ...l, start: 1 + i * 3, end: 3.6 + i * 3 })), film: true, ambience: null, sfx: null, sfx_at: 0 }
   }
   const cast = Object.fromEntries((bible.cast || []).map((c: any, i: number) => [c.name, { color: ['#ff7eb3', '#7dd3fc', '#fbbf24', '#a78bfa'][i % 4], img: imgs[c.id] || pj.cover_url, side: c.side || (i === 0 ? 'R' : 'L'), brand: c.role }]))
-  const data = { series: { id: sid, title: pj.title, logline: pj.logline, gated: true, generated: true, cat: pj.cat }, prologue: ['P'], nodes: tree.nodes, segments, cast }
+  const data = { series: { id: sid, title: pj.title, logline: pj.logline, gated: true, generated: true, cat: Tax.fmt(pj.cat), genre: pj.genre || null, mech: bible.mech || null }, prologue: ['P'], nodes: tree.nodes, segments, cast }
   await env.DB.prepare(`INSERT INTO published_series (id,project_id,cat,genre,title,logline,tags,cover,data,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)
     ON CONFLICT(id) DO UPDATE SET data=excluded.data, cover=excluded.cover, cat=excluded.cat, genre=excluded.genre, version=version+1, updated_at=excluded.updated_at`)
     .bind(sid, projectId, Tax.fmt(pj.cat), pj.genre || null, pj.title, pj.logline, JSON.stringify([Tax.genreName(pj.genre) || Tax.fmtName(pj.cat), 'AI 生成'].filter(Boolean)), pj.cover_url, JSON.stringify(data), now(), now()).run()

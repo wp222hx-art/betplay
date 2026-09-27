@@ -30,3 +30,10 @@
 .genre-pick{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 10px}
 .genre-pick button{padding:5px 11px;border-radius:8px;border:1px solid #2a2f4a;background:#141827;color:#a9b0cc;font-size:12px;cursor:pointer}
 .genre-pick button.on{border-color:#f5c451;color:#ffe29a;background:#2a2410}
+
+.fnl{display:grid;gap:6px;margin-top:6px}
+.fs{display:grid;grid-template-columns:110px 1fr 40px 40px;gap:8px;align-items:center;font-size:12.5px}
+.fs .fb{height:10px;border-radius:6px;background:#1a1f33;overflow:hidden}.fs .fb i{display:block;height:100%;background:linear-gradient(90deg,#7cf0d4,#c4a8ff,#f5c451)}
+.fs b{text-align:right}.fs em{font-style:normal;color:#8a93b5;font-size:11px}
+.fk{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}.fk div{background:#141827;border-radius:10px;padding:8px}.fk b{display:block;font-size:18px;color:#f5c451}.fk span{font-size:11px;color:#8a93b5}
+@media(max-width:520px){.fs{grid-template-columns:86px 1fr 32px 34px}.fk{grid-template-columns:1fr}}

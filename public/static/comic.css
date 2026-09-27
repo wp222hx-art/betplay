@@ -216,3 +216,40 @@
 .ft-c{color:var(--ft)!important;text-shadow:0 0 12px var(--ft)}
 .fate-badge{display:inline-block;margin:10px auto 0;padding:6px 14px;border-radius:999px;font-weight:800;font-size:13px;color:#111;background:linear-gradient(135deg,var(--ft),var(--ft2));box-shadow:0 0 18px color-mix(in srgb,var(--ft) 60%,transparent)}
 .fate-miss{margin:10px auto 0;max-width:320px;font-size:11.5px;color:#cfc6e6;padding:6px 10px;border-radius:10px;background:rgba(255,255,255,.05);border:1px dashed rgba(255,255,255,.18)}
+/* ═══ 抽象剧主题 + 全民陪审 + 梗图 + 导流 ═══ */
+.abs-body{--gold:#ffd23f}
+.abs-body .q-card{background:linear-gradient(160deg,rgba(255,244,214,.96),rgba(255,221,236,.95));color:#2a1a05;border:2px solid #1b1b1b;box-shadow:6px 6px 0 #1b1b1b}
+.abs-body .q-card .q{color:#1b1b1b;font-weight:900}
+.abs-body .opt2{background:#fff;border:2px solid #1b1b1b;color:#1b1b1b;box-shadow:3px 3px 0 #1b1b1b}
+.abs-body .opt2 .lb span,.abs-body .opt2 .pp,.abs-body .meta2{color:#5a4a2a}
+.abs-body .opt2 .od{color:#b35a00}
+.abs-body .opt2.sel{background:#ffe600;transform:translate(-2px,-2px);box-shadow:5px 5px 0 #1b1b1b}
+.abs-body .stake2 button{border:2px solid #1b1b1b;background:#fff;color:#1b1b1b}
+.abs-body .stake2 button.on{background:#1b1b1b;color:#ffe600}
+.abs-body .go{background:#ff5da2;color:#fff;border:2px solid #1b1b1b;box-shadow:3px 3px 0 #1b1b1b}
+.abs-body .link2{color:#5a4a2a}
+.abs-body .fate-bar{background:rgba(0,0,0,.08)}.abs-body .fate-bar em,.abs-body .fate-bar b{color:#2a1a05}
+.mech-tag{display:inline-flex;gap:6px;align-items:center;font-size:11.5px;font-weight:800;padding:4px 10px;border-radius:999px;background:#1b1b1b;color:#ffe600;margin-bottom:6px}
+.jury-h{display:flex;align-items:center;gap:6px;font-size:11.5px;margin:4px 0 6px;opacity:.9;flex-wrap:wrap}
+.jury-h em{font-style:normal;margin-left:auto;font-weight:700;color:#e0701a}
+.opt2{position:relative}
+.opt2 .jury-b{position:absolute;left:0;bottom:0;height:3px;background:#7c5cff;border-radius:0 3px 3px 0;opacity:.85;transition:width .6s}
+.opt2 .jury-p{position:absolute;right:10px;bottom:5px;font-size:10px;opacity:.75;pointer-events:none}
+.opt2.minor .jury-b{background:#ff7a1a}
+.opt2.minor .jury-p{color:#ff7a1a;opacity:1;font-weight:800}
+.contra{margin:8px auto 0;max-width:320px;text-align:center;padding:8px 12px;border-radius:12px;background:linear-gradient(90deg,#ff7a1a,#ffb347);color:#2a1100;animation:pop .5s}
+.contra b{display:block;font-size:15px}.contra span{font-size:11px}
+@keyframes pop{0%{transform:scale(.6);opacity:0}70%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
+.meme-cap{display:block;margin:10px auto 0;padding:8px 14px;border-radius:999px;border:2px dashed #ffe600;background:rgba(255,230,0,.12);color:#ffe600;font-weight:800;font-size:12.5px;cursor:pointer}
+.persona{display:flex;gap:12px;align-items:center;margin:12px auto 0;max-width:360px;padding:10px 14px;border-radius:14px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);text-align:left}
+.persona>b{font-size:34px}.persona span{font-size:10.5px;letter-spacing:2px;opacity:.7}.persona h4{margin:0;font-size:17px}.persona p{margin:2px 0 0;font-size:12px;opacity:.8}
+.meme-cta{display:block;width:100%;max-width:360px;margin:12px auto 0;padding:12px;border-radius:14px;border:2px solid #1b1b1b;background:#ffe600;color:#1b1b1b;font-weight:900;font-size:15px;box-shadow:4px 4px 0 #1b1b1b;cursor:pointer}
+.meme-cta small{display:block;font-weight:600;font-size:11px;margin-top:2px}
+.xsell{margin:14px auto 0;max-width:380px;text-align:left}
+.xsell h5{margin:0 0 8px;font-size:14px}.xsell h5 small{font-weight:400;opacity:.6;font-size:11px;margin-left:4px}
+.xs-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.xs{display:block;color:inherit;text-decoration:none;font-size:11px}
+.xs img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:10px;border:1px solid rgba(255,255,255,.15)}
+.xs b{display:block;margin-top:4px;font-size:12px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.xs span{opacity:.65}
+.meme-out{width:100%;max-height:60vh;object-fit:contain;border-radius:10px;background:#fff4d6}
+.meme-act{display:flex;gap:8px;justify-content:center;margin-top:10px;flex-wrap:wrap}

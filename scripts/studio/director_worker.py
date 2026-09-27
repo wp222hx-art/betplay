@@ -118,14 +118,19 @@ def run(job):
 
 def loop():
     while True:
-        job = api('/api/director/claim', {'worker': WORKER, 'balance': None if DRY else balance()}).get('job')
+        try: job = api('/api/director/claim', {'worker': WORKER, 'balance': None if DRY else balance()}).get('job')
+        except Exception as e:  # 服务重启 / 网络抖动：不让线程退出
+            print(f'[{WORKER}] claim error {str(e)[:80]} → retry', flush=True); time.sleep(10); continue
         if not job:
             if ONCE: return
             time.sleep(15); continue
         t0 = time.time()
         try: res = run(job)
         except Exception as e: res = {'ok': False, 'spent': 0, 'meta': {'error': str(e)[:300]}}
-        r = api(f"/api/director/jobs/{job['id']}/report", res)
+        for k in range(6):
+            try: r = api(f"/api/director/jobs/{job['id']}/report", res); break
+            except Exception as e: print(f'[{WORKER}] report retry {k}: {str(e)[:80]}', flush=True); time.sleep(10)
+        else: continue
         print(f"[{WORKER}] {job['kind']:5} {job['clip_id']:6} {'ok ' if res['ok'] else 'FAIL'} spent={res.get('spent')} qc={res.get('qc', {}).get('score', '-')} {int(time.time() - t0)}s → {r['done']}/{r['total']} {r['status']}{' 🎬 上架 ' + r['published']['url'] if r.get('published') else ''}", flush=True)
 
 if __name__ == '__main__':

@@ -7,6 +7,7 @@ import { ensureUser, GameError, post } from '../core/engine'
 import { mediaTicket } from '../core/guard'
 import { mintCard } from '../market/cards'
 import { feedPool, POOL_SHARE, settleTier, runStats, nextGoal, tierOf, TIERS } from '../market/tiers'
+import { crowd, contrarianBonus, CONTRA } from '../growth/growth'
 
 type Env = { DB: D1Database }
 
@@ -137,8 +138,10 @@ async function openRound(env: Env, run: any, nodeId: string, p: { mode?: string;
   const st0 = await runStats(env as any, run.id)
   const cur = tierOf(st0, 99)
   const fate = { stats: st0, current: cur ? { id: cur.id, name: cur.name, icon: cur.icon } : null, next: nextGoal(st0, cur?.id || null), ladder: TIERS.map((t) => ({ id: t.id, name: t.name, icon: t.icon, need: t.need })) }
+  const jury = await crowd(env as any, SERIES, nodeId, options)
   return {
     round_id: rid, node_id: nodeId, depth: node.depth, question: node.question, cue: node.cue || null, mode, commit, rewind_no: p.rewindNo || 0, fate,
+    mech: COMIC.series.mech || null, jury: { voters: jury.voters, share: jury.share, minority: CONTRA.share, bonus_pct: CONTRA.bonus },
     window_sec: cfg.window_sec, lock_at: lockAt, server_time: t, min_bet: Math.ceil(cfg.min_bet * taxMul), jitter: cfg.jitter,
     options, preload: sorted.map((o) => ({ image: GATED ? null : COMIC.segments[o.id].image_url, video: GATED ? null : COMIC.segments[o.id].video_url || null, audio: COMIC.segments[o.id].track || COMIC.segments[o.id].lines?.[0]?.audio, ambience: COMIC.segments[o.id].ambience, sfx: COMIC.segments[o.id].sfx })),
     encrypted: slots.map((s, i) => ({ slot: i, iv: s.iv, ct: s.ct })),
@@ -198,6 +201,7 @@ async function settle(env: Env, p: { roundId: string; userId: string }) {
       await env.DB.prepare('UPDATE users SET frozen=frozen-?, chips=chips+? WHERE id=?').bind(r.bet_amount, payout, r.user_id).run()
       await env.DB.prepare('UPDATE comic_rounds SET payout=? WHERE id=?').bind(payout, r.id).run()
       await feedPool(env as any, SERIES, r.bet_amount * POOL_SHARE.bet, 'platform:house', r.id)
+      if (won) await contrarianBonus(env as any, { series: SERIES, roundId: r.id, userId: r.user_id, nodeId: r.node_id, option: r.bet_option, amount: r.bet_amount, options: J(r.options).options })
       await env.DB.prepare('UPDATE comic_runs SET pnl=pnl+? WHERE id=?').bind(payout - r.bet_amount, r.run_id).run()
     }
   }
@@ -222,7 +226,8 @@ async function settle(env: Env, p: { roundId: string; userId: string }) {
   ]
   return {
     round_id: s.id, outcome_id: s.outcome_id, reveal: { slot: idx, key: slots[idx]?.key }, seed: s.seed, commit: s.commit_hash,
-    bet: s.bet_option ? { option_id: s.bet_option, amount: s.bet_amount, odds: s.bet_odds, payout: s.payout, won: s.bet_option === s.outcome_id } : null,
+    bet: s.bet_option ? { option_id: s.bet_option, amount: s.bet_amount, odds: s.bet_odds, payout: s.payout, won: s.bet_option === s.outcome_id, contrarian: s.contrarian || 0 } : null,
+    jury: await crowd(env as any, SERIES, s.node_id, J(s.options).options),
     balance: u?.chips, rewind: { used, max: cfg.max_rewinds, fee: Math.ceil(cfg.min_bet * Math.pow(cfg.rewind_tax, used + 1)), modes: rewindModes }
   }
 }
