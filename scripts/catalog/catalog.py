@@ -1,6 +1,7 @@
 # 平台上架目录：恋爱 love / 影剧 film 两大类。prompt 仅用于生成封面，不写入前端数据
 P = 'Vertical 3:4 streaming-platform drama key-visual poster, ultra cinematic, high-end color grading, shallow depth of field, no text, no letters, no watermark. '
 REAL = P + 'Photorealistic live-action East Asian actors, glamorous, magnetic chemistry, sultry but tasteful (no nudity). '
+ABS = P + 'Surreal absurdist experimental art direction, bold saturated colors, whimsical and uncanny, highly stylized, witty visual metaphor. '
 ANIME = P + 'Premium Japanese anime key art, Makoto Shinkai lighting, detailed, beautiful characters. '
 C = [
  # ───── 恋爱 ─────
@@ -96,4 +97,73 @@ C = [
  dict(id='red_heels', cat='film', title='红色高跟鞋', sub='穿上它的女人，都在午夜消失', tags=['悬疑', '都市传说', '诱惑'], heat=8580, endings=14, nodes=5, forks=4, status='soon', badge='热议',
       logline='二手店里那双红色高跟鞋，每一任主人都在午夜消失。现在，它出现在了你女朋友的鞋柜里。',
       prompt=REAL + 'Dark moody apartment at midnight, a close-up of a pair of glossy blood-red stiletto heels on a marble floor with a woman\'s long bare legs stepping into them, a shattered mirror reflecting a mysterious smiling face, single red light, suspense.'),
+
+ # ───── 抽象剧（超现实 / 无厘头 / 梗文化 / 实验视觉）─────
+ dict(id='abs_cat_ceo', cat='abstract', title='喵总裁今天也在裁员', sub='公司被一只橘猫收购了', tags=['无厘头', '职场', '萌宠'], heat=9360, endings=16, nodes=6, forks=4, status='soon', badge='抽象',
+      logline='周一早会，新老板是一只橘猫。它只会说“喵”，但每一声都决定谁被裁。押对它的心情，你就能升职。',
+      prompt=ABS + 'Claymation stop-motion style, a fat orange tabby cat wearing a tiny black suit and gold tie sitting on a giant CEO leather chair at the head of a glass boardroom table, nervous clay office workers in suits bowing, dramatic spotlight, Wes Anderson symmetry, pastel palette.'),
+ dict(id='abs_monday', cat='abstract', title='第 999 次星期一', sub='闹钟响了，又是星期一', tags=['时间循环', '无厘头', '打工人'], heat=8840, endings=18, nodes=7, forks=5, status='soon', badge='新作',
+      logline='你被困在同一个星期一。第 999 次，你决定干点离谱的事——每一次押注，都会让这个世界更荒诞一点。',
+      prompt=ABS + 'Surreal glitch art, a tired office worker in pajamas standing in a bedroom where hundreds of identical alarm clocks float in the air all showing 7:00 Monday, the room duplicates infinitely like a mirror tunnel, RGB split glitches, teal and hot pink, dreamlike.'),
+ dict(id='abs_npc', cat='abstract', title='我在弹幕里当 NPC', sub='观众刷一条，我就得照做', tags=['弹幕', '游戏', '整活'], heat=8520, endings=15, nodes=6, forks=4, status='soon',
+      logline='你发现自己是一部直播剧里的 NPC，头顶飘着观众弹幕。“让他去表白！”“让他跳舞！”——押注最多的弹幕会成真。',
+      prompt=ABS + '16-bit pixel art meets real world, a young man rendered as a pixel game NPC with a floating exclamation mark above his head standing in a neon city street, giant colorful bullet-comment danmaku text shapes (abstract glyph blocks, no readable letters) streaming across the sky, vaporwave sunset.'),
+ dict(id='abs_fridge', cat='abstract', title='冰箱里住着另一个我', sub='凌晨三点，冰箱里有人在敲门', tags=['超现实', '平行宇宙', '烧脑'], heat=8130, endings=14, nodes=5, forks=4, status='soon',
+      logline='打开冰箱，里面坐着另一个你，正在吃你的布丁。TA 说：“我们换一天人生吧。”换，还是不换？',
+      prompt=ABS + 'Magritte-inspired surreal painting style, a dark kitchen at 3am, an open refrigerator glowing with soft blue light reveals a tiny cozy living room inside where an identical copy of a young woman in pajamas sits eating pudding and waving, the real woman stares holding the door, floating clouds inside the fridge.'),
+ dict(id='abs_corridor', cat='abstract', title='梦核：无尽的教学楼', sub='放学铃响了，可走廊没有尽头', tags=['梦核', '怪核', '怀旧'], heat=7960, endings=13, nodes=5, forks=4, status='soon', badge='16+',
+      logline='你在梦里回到了高中，走廊无限延伸，每一扇门后都是一段被遗忘的记忆。选错门，你会永远留在这里。',
+      prompt=ABS + 'Dreamcore liminal space aesthetic, an endless empty school corridor with lime green walls and flickering fluorescent lights, rows of identical wooden doors, soft VHS grain and haze, a lone student in a school uniform seen from behind, eerie nostalgic calm, pastel yellow and green.'),
+ dict(id='abs_vending', cat='abstract', title='前任变成了一台售货机', sub='投币，他就说一句真心话', tags=['荒诞', '恋爱', '反转'], heat=8410, endings=16, nodes=6, forks=4, status='soon', badge='抽象',
+      logline='分手第二天，前任变成了楼下的自动售货机。投一枚硬币，他吐出一瓶饮料和一句真心话。你要买到哪一句？',
+      prompt=ABS + 'Pop-surrealism 3D render, a glowing retro vending machine with a handsome anime-like man face on its screen blushing, standing alone on a rainy neon street at night, a young woman in a yellow raincoat holding a coin in front of it, drinks inside shaped like tiny hearts, candy colors, cinematic.'),
+
+ # ───── 漫剧补充（国漫 / 日漫风）─────
+ dict(id='anime_villainess', cat='anime', title='转生成恶役千金后，王子们都疯了', sub='剧本里我明明该被退婚', tags=['异世界', '乙女', '修罗场'], heat=9270, endings=20, nodes=7, forks=5, status='soon', badge='女性向',
+      logline='醒来成了乙女游戏里注定被退婚的恶役千金。可这一次，王子、骑士、魔王都开始不按剧本来了。',
+      prompt=ANIME + 'Isekai otome fantasy, a gorgeous villainess noblewoman with golden drill curls and crimson ball gown holding a folding fan with a smug smile in a sparkling palace ballroom, three handsome princes and a dark demon king around her all staring at her, chandeliers, rose petals, shoujo sparkle.'),
+ dict(id='anime_master', cat='anime', title='师尊他又在装弱', sub='全宗门只有我知道他是魔尊', tags=['修仙', '师徒', '古风'], heat=8960, endings=17, nodes=6, forks=4, status='soon', badge='国漫',
+      logline='入门第一天，病弱师尊咳着血收你为徒。当晚，你看见他一剑斩了来犯的万妖。揭穿他，还是陪他演？',
+      prompt=ANIME + 'Chinese xianxia donghua style, a breathtakingly handsome immortal master with long white hair and flowing white-and-silver hanfu standing on a floating mountain peak among clouds, a glowing sword of blue light behind him, a young female disciple in pale green robes looking up at him in awe, cranes, moonlight.'),
+ dict(id='anime_hunter', cat='anime', title='全民觉醒：只有我是 SSS 级', sub='F 级废柴的系统上线了', tags=['热血', '系统', '升级流'], heat=9120, endings=16, nodes=7, forks=4, status='soon', badge='男频',
+      logline='全城觉醒日，你测出 F 级。当晚系统提示：检测到隐藏职业。押对每一场副本，你就能从垫底逆袭成神。',
+      prompt=ANIME + 'Korean webtoon action style, a young hunter in a black hooded coat with glowing blue eyes standing in front of a massive shattered dungeon gate, a translucent blue system window hologram (abstract shapes, no readable text) floating beside him, monsters silhouettes, lightning, epic scale.'),
 ]
+
+# ═══ 专业分类体系 ═══
+# 形态 format：制作形态（决定生成管线与视觉风格）
+FORMATS = [
+ dict(id='anime', name='漫剧', icon='fa-wand-magic-sparkles', color='#ff7eb3', desc='AI 动画 · 日漫/国漫/韩漫画风 · 成本最低、产能最高'),
+ dict(id='live', name='真人剧', icon='fa-film', color='#f5c451', desc='AI 真人电影质感 · 竖屏短剧 · 沉浸感最强'),
+ dict(id='abstract', name='抽象剧', icon='fa-shapes', color='#7cf0d4', desc='超现实 · 无厘头 · 梦核 · 实验视觉 · 最具传播力'),
+]
+# 题材 genre：内容类型（对标短剧行业分类）
+GENRES = [
+ dict(id='romance', name='恋爱·甜宠', icon='fa-heart'), dict(id='urban', name='都市·豪门', icon='fa-city'),
+ dict(id='revenge', name='复仇·逆袭', icon='fa-bolt'), dict(id='suspense', name='悬疑·惊悚', icon='fa-user-secret'),
+ dict(id='costume', name='古风·仙侠', icon='fa-yin-yang'), dict(id='fantasy', name='奇幻·科幻', icon='fa-dragon'),
+ dict(id='action', name='动作·犯罪', icon='fa-crosshairs'), dict(id='survival', name='末日·生存', icon='fa-radiation'),
+ dict(id='absurd', name='无厘头·整活', icon='fa-face-grin-squint-tears'), dict(id='surreal', name='超现实·梦核', icon='fa-eye'),
+]
+AUDIENCES = [dict(id='female', name='女频'), dict(id='male', name='男频'), dict(id='all', name='全向')]
+RATINGS = [dict(id='all', name='全年龄'), dict(id='16', name='16+'), dict(id='18', name='18+')]
+# id: (format, genre, audience, rating)
+TAX = {
+ 'love_corridor': ('anime', 'romance', 'male', 'all'), 'boss_overtime': ('live', 'urban', 'female', '16'), 'contract_bride': ('live', 'urban', 'female', 'all'),
+ 'ex_wedding': ('live', 'romance', 'female', 'all'), 'mermaid_kiss': ('anime', 'fantasy', 'all', 'all'), 'bodyguard': ('live', 'urban', 'male', 'all'),
+ 'next_door': ('live', 'romance', 'male', '16'), 'vampire_duke': ('live', 'fantasy', 'female', '16'), 'movie_king': ('live', 'romance', 'female', 'all'),
+ 'room_1808': ('live', 'romance', 'female', '16'), 'ai_girlfriend': ('anime', 'fantasy', 'male', 'all'), 'fox_bride': ('anime', 'costume', 'male', 'all'),
+ 'idol_group': ('live', 'romance', 'female', 'all'), 'club_queen': ('live', 'urban', 'male', '18'), 'butler': ('live', 'romance', 'female', 'all'),
+ 'night_nurse': ('live', 'romance', 'male', '16'), 'under_dome': ('live', 'suspense', 'all', 'all'), 'revenge_heiress': ('live', 'revenge', 'female', 'all'),
+ 'last_ark': ('live', 'survival', 'all', 'all'), 'casino_night': ('live', 'action', 'male', 'all'), 'deep_sea': ('live', 'suspense', 'all', 'all'),
+ 'double_killer': ('live', 'action', 'male', 'all'), 'midnight_taxi': ('live', 'suspense', 'all', '16'), 'rebirth_1998': ('live', 'revenge', 'male', 'all'),
+ 'femme_fatale': ('live', 'suspense', 'all', '16'), 'island_7days': ('live', 'survival', 'all', 'all'), 'poison_queen': ('live', 'costume', 'female', 'all'),
+ 'villain_body': ('live', 'revenge', 'all', 'all'), 'black_gold': ('live', 'urban', 'male', 'all'), 'kill_list': ('live', 'action', 'all', 'all'),
+ 'red_heels': ('live', 'suspense', 'all', '16'), 'abs_cat_ceo': ('abstract', 'absurd', 'all', 'all'), 'abs_monday': ('abstract', 'absurd', 'all', 'all'),
+ 'abs_npc': ('abstract', 'absurd', 'all', 'all'), 'abs_fridge': ('abstract', 'surreal', 'all', 'all'), 'abs_corridor': ('abstract', 'surreal', 'all', '16'),
+ 'abs_vending': ('abstract', 'absurd', 'female', 'all'), 'anime_villainess': ('anime', 'romance', 'female', 'all'), 'anime_master': ('anime', 'costume', 'female', 'all'),
+ 'anime_hunter': ('anime', 'action', 'male', 'all'),
+}
+for c in C:
+    f, g, a, r = TAX[c['id']]
+    c.update(cat=f, genre=g, aud=a, rating=r)

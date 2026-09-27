@@ -1,3 +1,4 @@
+import * as Tax from '../catalog/taxonomy'
 // 制作平台 · 可延续生成管线
 // 选题（想看榜 / 结局热度）→ 剧本树（LLM：圣经 + 节点 + 片段分镜）→ 静态校验 → 渲染队列（Seedance 任务，外部 worker 拉取）
 // → AI 质检 → 人工审核 → 上架；已上架作品可从“最热结局”派生续集 / 时间裂隙，形成数据飞轮
@@ -100,7 +101,7 @@ const SYS = `你是互动剧总编剧。输出严格 JSON：{"bible":{"cast":[{"
 
 export async function scriptProject(env: Bindings, p: { title: string; logline: string; cat: string; tags?: string[]; parent?: string; source_item?: string; kind?: string }) {
   const id = uid('prj_')
-  const prompt = `作品：《${p.title}》（${p.cat === 'love' ? '恋爱博弈' : '影剧'}；标签：${(p.tags || []).join('、')}）\n一句话：${p.logline}${p.parent ? `\n这是续集，承接原作结局：${p.parent}` : ''}\n请生成完整剧本树 JSON。`
+  const prompt = `作品：《${p.title}》（${Tax.brief(p.cat)}；标签：${(p.tags || []).join('、')}）\n一句话：${p.logline}${p.parent ? `\n这是续集，承接原作结局：${p.parent}` : ''}\n请生成完整剧本树 JSON。`
   const r: any = await callCapability(env, { capability: 'outline', tier: 'standard', json: true, system: SYS, prompt, agent: 7, ref: id, timeoutMs: 90000, fallback: () => null })
   let tree = r?.ok && r.data?.nodes ? r.data : templateTree(p.title, p.logline, [])
   const source = r?.ok && r.data?.nodes ? r.model : 'template'
@@ -108,7 +109,7 @@ export async function scriptProject(env: Bindings, p: { title: string; logline: 
   const rep = repairTree(tree); tree = rep.tree
   const v = { ...validateTree(tree), fixes: rep.fixes }
   await env.DB.prepare(`INSERT INTO studio_projects (id,kind,parent,source_item,cat,title,logline,status,bible,tree,score,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`)
-    .bind(id, p.kind || 'series', p.parent || null, p.source_item || null, p.cat, p.title, p.logline, 'scripted', JSON.stringify(tree.bible || {}), JSON.stringify({ nodes: tree.nodes, clips: tree.clips }), v.ok ? 1 : 0, now(), now()).run()
+    .bind(id, p.kind || 'series', p.parent || null, p.source_item || null, Tax.fmt(p.cat), p.title, p.logline, 'scripted', JSON.stringify(tree.bible || {}), JSON.stringify({ nodes: tree.nodes, clips: tree.clips }), v.ok ? 1 : 0, now(), now()).run()
   return { id, source, validation: v, fixes: rep.fixes }
 }
 

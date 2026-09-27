@@ -11,14 +11,15 @@ const head = (title: string, extra = '') => `<!DOCTYPE html>
 ${extra}
 </head>`
 
-// 内容分类统一：只保留「恋爱」「影剧」两大类；工具页（声线/后台/Agent）收进“工作台”
+// 内容分类：三大形态（漫剧 / 真人剧 / 抽象剧）× 十大题材；工具页收进“工作台”
+const FMT = [['anime', 'fa-wand-magic-sparkles', '漫剧'], ['live', 'fa-film', '真人剧'], ['abstract', 'fa-shapes', '抽象剧']]
+const act = (a: string) => (a === 'love' ? 'anime' : a === 'film' ? 'live' : a)
 const nav = (active: string) => `
 <nav id="top-nav" class="top-nav">
   <a href="/" class="brand"><i class="fas fa-chess-knight"></i> DreamForge<span>· Cash 剧场</span></a>
   <div class="nav-links">
     <a href="/" class="${active === 'discover' ? 'on' : ''}"><i class="fas fa-compass"></i><b>发现</b></a>
-    <a href="/?cat=love" class="${active === 'love' ? 'on' : ''}"><i class="fas fa-heart"></i><b>恋爱</b></a>
-    <a href="/?cat=film" class="${active === 'film' ? 'on' : ''}"><i class="fas fa-film"></i><b>影剧</b></a>
+    ${FMT.map(([k, ic, n]) => `<a href="/?cat=${k}" class="${act(active) === k ? 'on' : ''}"><i class="fas ${ic}"></i><b>${n}</b></a>`).join('')}
     <a href="/market" class="${active === 'market' ? 'on' : ''}"><i class="fas fa-gem"></i><b>结局卡</b></a>
     <details class="nav-more ${['voice', 'console', 'agents', 'studio', 'arch', 'director'].includes(active) ? 'on' : ''}"><summary><i class="fas fa-toolbox"></i><b>工作台</b></summary>
       <div class="more-menu"><a href="/director"><i class="fas fa-video"></i> 导演台 · 一键生成</a><a href="/studio"><i class="fas fa-clapperboard"></i> 制作平台</a><a href="/arch"><i class="fas fa-sitemap"></i> 技术架构</a><a href="/voice"><i class="fas fa-microphone-lines"></i> 声线工作室</a><a href="/console"><i class="fas fa-gauge-high"></i> 运营后台</a><a href="/agents"><i class="fas fa-robot"></i> 7-Agent</a></div>
@@ -27,9 +28,7 @@ const nav = (active: string) => `
 </nav>
 <nav id="tab-bar" class="tab-bar">
   <a href="/" class="${active === 'discover' ? 'on' : ''}"><i class="fas fa-compass"></i><span>发现</span></a>
-  <a href="/?cat=love" class="${active === 'love' ? 'on' : ''}"><i class="fas fa-heart"></i><span>恋爱</span></a>
-  <a href="/?cat=film" class="${active === 'film' ? 'on' : ''}"><i class="fas fa-film"></i><span>影剧</span></a>
-  <a href="/market" class="${active === 'market' ? 'on' : ''}"><i class="fas fa-gem"></i><span>结局卡</span></a>
+  ${FMT.map(([k, ic, n]) => `<a href="/?cat=${k}" class="${act(active) === k ? 'on' : ''}"><i class="fas ${ic}"></i><span>${n}</span></a>`).join('')}
   <a href="/?tab=mine" class="${active === 'mine' ? 'on' : ''}"><i class="fas fa-bookmark"></i><span>我的</span></a>
 </nav>`
 
@@ -125,7 +124,7 @@ ${nav('love')}
 <script>window.DF_MODE="film";window.DF_API="/api/love";window.DF_THEME="love"</script><script src="/static/comic.js"></script>
 </body></html>`
 
-export const discoverPage = () => `${head('DreamForge · 对弈式互动剧 | 恋爱 · 影剧', '<link href="/static/discover.css" rel="stylesheet">')}
+export const discoverPage = () => `${head('DreamForge · 对弈式互动剧 | 漫剧 · 真人剧 · 抽象剧', '<link href="/static/discover.css" rel="stylesheet">')}
 <body class="discover-body">
 ${nav('discover')}
 <main id="discover" class="discover"></main>
@@ -162,7 +161,7 @@ ${nav('director')}
 <script src="/static/director.js"></script>
 </body></html>`
 
-export const seriesPage = (sid: string, title: string, cat: string) => `${head(title + ' | DreamForge', '<link href="/static/comic.css" rel="stylesheet"><link href="/static/film.css" rel="stylesheet">' + (cat === 'love' ? '<link href="/static/love.css" rel="stylesheet">' : ''))}
+export const seriesPage = (sid: string, title: string, cat0: string) => { const cat = cat0 === 'anime' ? 'love' : cat0; return `${head(title + ' | DreamForge', '<link href="/static/comic.css" rel="stylesheet"><link href="/static/film.css" rel="stylesheet">' + (cat === 'love' ? '<link href="/static/love.css" rel="stylesheet">' : ''))}
 <body class="comic-body film-body ${cat === 'love' ? 'love-body' : ''}">
 ${nav(cat)}
 <main id="comic-wrap">
@@ -176,4 +175,4 @@ ${nav(cat)}
 </main>
 <div id="modal-root"></div>
 <script>window.DF_MODE="film";window.DF_API="/api/s/${sid}";window.DF_THEME="${cat === 'love' ? 'love' : ''}"</script><script src="/static/comic.js"></script>
-</body></html>`
+</body></html>` }

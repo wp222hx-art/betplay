@@ -26,3 +26,7 @@
 .fate-lad{display:grid;gap:8px}.fate-lad div{background:#161625;border-radius:12px;padding:10px 12px;border-left:3px solid #f5c451}.fate-lad div:nth-child(2){border-color:#e5e7eb}.fate-lad div:nth-child(3){border-color:#7dd3fc}
 .fate-lad b{display:block;font-size:14px}.fate-lad span,.fate-lad em{display:block;font-size:12px;color:var(--mut);font-style:normal}.fate-lad em{color:#d8d0ee}
 @media(min-width:760px){.fate-lad{grid-template-columns:repeat(3,1fr)}}
+
+.genre-pick{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 10px}
+.genre-pick button{padding:5px 11px;border-radius:8px;border:1px solid #2a2f4a;background:#141827;color:#a9b0cc;font-size:12px;cursor:pointer}
+.genre-pick button.on{border-color:#f5c451;color:#ffe29a;background:#2a2410}

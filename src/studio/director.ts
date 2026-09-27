@@ -1,3 +1,4 @@
+import * as Tax from '../catalog/taxonomy'
 // 后台指挥：一句主题 → 可生产剧本（自动植入博弈抉择 / 隐藏支 / 时间裂隙）→ 预算 → 资产+片段任务 → 自动质检审核 → 自动上架
 // 视频生成由外部 worker（沙箱里的 gsk CLI：Seedance 2.0 音画一体）执行；本模块只做编排、积分核算与发布。
 import { uid } from '../core/crypto'
@@ -27,10 +28,6 @@ export function estimate(scale: string) {
   return { scale: s.name, clips: clips12 + clips10, bonus: 3, endings: endClips + s.forkEnds, nodes: 1 + s.routes + (s.forkEnds ? 1 : 0), credits: clips12 * PRICE.clip(12) + clips10 * PRICE.clip(10) + PRICE.sheet + PRICE.cover }
 }
 
-const STYLE = {
-  love: 'luminous high-end Japanese romance anime feature film, cinematic cel-shaded animation, soft pastel palette, glowing light, bloom, vertical framing',
-  film: 'photorealistic live-action East Asian cinematic drama, high-end color grading, shallow depth of field, moody practical lighting, vertical framing'
-}
 
 const SYS = (s: typeof SCALES[string]) => `你是互动博弈剧总编剧 + 分镜导演。输出严格 JSON，不要多余文字：
 {"title":"爆款中文片名(≤10字)","cast":[{"id":"英文名","name":"中文名","look":"英文外貌服装描述(发型/发色/服装/配饰，便于AI保持一致)","role":"一句中文人设","side":"L或R"}],
@@ -58,12 +55,12 @@ function linesOf(shots: any[], castMap: Record<string, any>) {
 }
 
 /** 把 LLM 大纲转成引擎树 + 每段完整 Seedance 提示词 */
-export function compile(out: any, cat: 'love' | 'film', scaleKey: string) {
+export function compile(out: any, cat: string, scaleKey: string) {
   const sc = SCALES[scaleKey] || SCALES.standard
   const cast = (out.cast || []).slice(0, 4).map((c: any, i: number) => ({ id: String(c.id || 'C' + i).replace(/[^A-Za-z]/g, '') || 'C' + i, name: c.name || c.id, look: c.look || '', role: c.role || '', side: c.side === 'R' ? 'R' : 'L' }))
   const castMap: Record<string, any> = Object.fromEntries(cast.flatMap((c: any) => [[c.id, c], [c.name, c]]))
   const defs = cast.map((c: any, i: number) => `Define the character #${i + 1} from left in @Image1 (${c.look}) as ${c.id}.`).join(' ')
-  const head = `@Image1 is the character sheet, use appearance only. ${defs}\nStyle: ${STYLE[cat]}. Setting: ${out.setting || ''}. Dialogue language: Mandarin Chinese (Putonghua).`
+  const head = `@Image1 is the character sheet, use appearance only. ${defs}\nStyle: ${Tax.STYLE[Tax.fmt(cat)]}. Setting: ${out.setting || ''}. Dialogue language: Mandarin Chinese (Putonghua).`
   const tail = 'Faces stable and undeformed, consistent hairstyle and costume for every character, natural proportions, no morphing, no subtitles, no on-screen text, no logo, no watermark.'
   const clips: Record<string, any> = {}
   const add = (id: string, seg: any, dur: number) => { clips[id] = { title: seg.title || id, dur, shots: `${head}\n${shotsText(seg.shots, castMap)}\n${tail}`, lines: linesOf(seg.shots, castMap) } }
@@ -95,15 +92,15 @@ export function compile(out: any, cat: 'love' | 'film', scaleKey: string) {
     nodes.push({ id: 'N_K', depth: 3, question: out.fork.question || '平行时间线：你要改写什么？', options: fe.map((e: any, j: number) => { add(`E_K${j + 1}`, e, 10); return { id: `E_K${j + 1}`, key: 'ABCD'[j], label: e.label, hint: e.hint || '', weight: +(1 / fe.length).toFixed(2), category: e.tone || 'love', ending_title: e.title } }) })
   }
   for (const t of ['gold', 'platinum', 'diamond']) if (out.bonus?.[t]) add(`BONUS_${t}`, { title: out.bonus[t].title || t, shots: out.bonus[t].shots }, 10)
-  const sheetPrompt = `Character reference sheet, ${cat === 'love' ? 'premium Japanese anime style' : 'photorealistic cinematic portrait photography'}, ${cast.length} characters standing side by side left to right on a clean light background, full body plus face close-up, consistent lighting, labeled by position only, no text. ` + cast.map((c: any, i: number) => `#${i + 1}: ${c.look}.`).join(' ')
+  const sheetPrompt = `Character reference sheet, ${Tax.SHEET_STYLE[Tax.fmt(cat)]}, ${cast.length} characters standing side by side left to right on a clean light background, full body plus face close-up, consistent lighting, labeled by position only, no text. ` + cast.map((c: any, i: number) => `#${i + 1}: ${c.look}.`).join(' ')
   return { cast, nodes, clips, sheetPrompt }
 }
 
-export async function direct(env: Bindings, p: { theme: string; cat: 'love' | 'film'; scale: string; budget?: number; auto?: boolean; item_id?: string; title?: string; logline?: string; tags?: string[] }) {
+export async function direct(env: Bindings, p: { theme: string; cat: string; genre?: string; scale: string; budget?: number; auto?: boolean; item_id?: string; title?: string; logline?: string; tags?: string[] }) {
   const sc = SCALES[p.scale] || SCALES.standard
   const est = estimate(p.scale)
   if (p.budget && p.budget < est.credits) throw new GameError('BUDGET', `预算 ${p.budget} 不足，${sc.name} 预计需要 ${est.credits} 积分`)
-  const prompt = `主题：${p.theme}\n类型：${p.cat === 'love' ? '恋爱博弈（玩家押注“她/他的心”）' : '影剧（悬疑/动作/豪门等，玩家押注命运）'}${p.title ? `\n片名：${p.title}` : ''}${p.logline ? `\n梗概：${p.logline}` : ''}\n请输出完整剧本 JSON。`
+  const prompt = `主题：${p.theme}\n类型：${Tax.brief(p.cat, p.genre)}${p.title ? `\n片名：${p.title}` : ''}${p.logline ? `\n梗概：${p.logline}` : ''}\n请输出完整剧本 JSON。`
   const r: any = await callCapability(env, { capability: 'outline', tier: 'standard', json: true, system: SYS(sc), prompt, agent: 7, timeoutMs: 110000, fallback: () => null })
   if (!r?.ok || !r.data?.routes?.length) throw new GameError('LLM_FAILED', '编剧模型超时或输出无效，请重试')
   const c = compile(r.data, p.cat, p.scale)
@@ -111,8 +108,8 @@ export async function direct(env: Bindings, p: { theme: string; cat: 'love' | 'f
   const v = validateTree(rep.tree)
   const id = uid('prj_')
   const title = p.title || r.data.title || p.theme.split(/[，,。]/)[0].slice(0, 12)
-  await env.DB.prepare(`INSERT INTO studio_projects (id,kind,source_item,cat,title,logline,status,bible,tree,score,scale,budget,auto,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
-    .bind(id, 'series', p.item_id || null, p.cat, title, p.logline || p.theme, 'scripted', JSON.stringify({ cast: c.cast, sheet_prompt: c.sheetPrompt, setting: r.data.setting }), JSON.stringify(rep.tree), v.ok ? 1 : 0, p.scale, p.budget || 0, p.auto ? 1 : 0, now(), now()).run()
+  await env.DB.prepare(`INSERT INTO studio_projects (id,kind,source_item,cat,genre,title,logline,status,bible,tree,score,scale,budget,auto,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+    .bind(id, 'series', p.item_id || null, Tax.fmt(p.cat), p.genre || Tax.guessGenre(p.theme + (p.tags || []).join(''), Tax.fmt(p.cat)), title, p.logline || p.theme, 'scripted', JSON.stringify({ cast: c.cast, sheet_prompt: c.sheetPrompt, setting: r.data.setting }), JSON.stringify(rep.tree), v.ok ? 1 : 0, p.scale, p.budget || 0, p.auto ? 1 : 0, now(), now()).run()
   return { id, title, model: r.model, validation: v, fixes: rep.fixes, estimate: est, cast: c.cast }
 }
 
@@ -129,7 +126,7 @@ export async function greenlight(env: Bindings, projectId: string) {
     st.push(env.DB.prepare(`INSERT OR IGNORE INTO render_jobs (id,project_id,clip_id,kind,title,prompt,lines,dur,credits,status,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`)
       .bind(uid('job_'), projectId, clip, kind, title, prompt, lines ? JSON.stringify(lines) : null, dur, credits, 'queued', now(), now()))
   ins('_sheet', 'sheet', '角色设定图', bible.sheet_prompt || '', 0, PRICE.sheet)
-  ins('_cover', 'cover', '上架封面', `Vertical 3:4 streaming drama key-visual poster for "${pj.title}": ${pj.logline}. ${pj.cat === 'love' ? 'Premium anime key art, romantic tension' : 'Photorealistic East Asian actors, cinematic, sultry but tasteful'}, no text, no watermark.`, 0, PRICE.cover)
+  ins('_cover', 'cover', '上架封面', `Vertical 3:4 streaming drama key-visual poster for "${pj.title}": ${pj.logline}. ${Tax.COVER_STYLE[Tax.fmt(pj.cat)]}, no text, no watermark.`, 0, PRICE.cover)
   for (const [cid, c] of Object.entries<any>(tree.clips)) ins(cid, 'clip', c.title || cid, c.shots || '', c.dur || 10, PRICE.clip(c.dur || 10), c.lines)
   await env.DB.batch(st)
   await env.DB.prepare(`UPDATE studio_projects SET status='rendering', updated_at=? WHERE id=?`).bind(now(), projectId).run()
@@ -202,9 +199,9 @@ export async function publish(env: Bindings, projectId: string) {
   }
   const cast = Object.fromEntries((bible.cast || []).map((c: any, i: number) => [c.name, { color: ['#ff7eb3', '#7dd3fc', '#fbbf24', '#a78bfa'][i % 4], img: imgs[c.id] || pj.cover_url, side: c.side || (i === 0 ? 'R' : 'L'), brand: c.role }]))
   const data = { series: { id: sid, title: pj.title, logline: pj.logline, gated: true, generated: true, cat: pj.cat }, prologue: ['P'], nodes: tree.nodes, segments, cast }
-  await env.DB.prepare(`INSERT INTO published_series (id,project_id,cat,title,logline,tags,cover,data,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)
-    ON CONFLICT(id) DO UPDATE SET data=excluded.data, cover=excluded.cover, version=version+1, updated_at=excluded.updated_at`)
-    .bind(sid, projectId, pj.cat, pj.title, pj.logline, JSON.stringify([pj.cat === 'love' ? '恋爱' : '影剧', 'AI 生成']), pj.cover_url, JSON.stringify(data), now(), now()).run()
+  await env.DB.prepare(`INSERT INTO published_series (id,project_id,cat,genre,title,logline,tags,cover,data,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)
+    ON CONFLICT(id) DO UPDATE SET data=excluded.data, cover=excluded.cover, cat=excluded.cat, genre=excluded.genre, version=version+1, updated_at=excluded.updated_at`)
+    .bind(sid, projectId, Tax.fmt(pj.cat), pj.genre || null, pj.title, pj.logline, JSON.stringify([Tax.genreName(pj.genre) || Tax.fmtName(pj.cat), 'AI 生成'].filter(Boolean)), pj.cover_url, JSON.stringify(data), now(), now()).run()
   await env.DB.prepare(`UPDATE studio_projects SET status='published', series_id=?, updated_at=? WHERE id=?`).bind(sid, now(), projectId).run()
   return { series_id: sid, url: `/s/${sid}`, clips: jobs.length }
 }

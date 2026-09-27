@@ -5,10 +5,11 @@
   const api = async (url, body) => { const r = await fetch(url, { method: body ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json', 'x-admin-key': localStorage.df_admin || '' }, body: body ? JSON.stringify(body) : undefined }); const j = await r.json(); if (!r.ok) throw new Error(j.message || '请求失败'); return j }
   const toast = (m) => { let t = $('.toast'); if (!t) { t = document.createElement('div'); t.className = 'toast'; document.body.appendChild(t) } t.textContent = m; t.classList.add('show'); clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove('show'), 2600) }
   const root = $('#director')
-  const S = { meta: null, cat: 'love', scale: 'pilot', auto: true, brief: null, active: null, timer: null }
+  const S = { meta: null, cat: 'anime', genre: '', scale: 'pilot', auto: true, brief: null, active: null, timer: null }
   const JS = { queued: ['排队', '#64748b'], running: ['生成中', '#f5a524'], review: ['待审核', '#c084fc'], approved: ['通过', '#3ddc97'], failed: ['失败', '#ff5d73'] }
   const KIND = { sheet: '设定图', cover: '封面', clip: '片段' }
-  const IDEAS = { love: ['霸总深夜加班，冷面上司只对你失控', '契约婚姻倒计时 99 天，他开始后悔了', '搬到隔壁的寂寞姐姐，凌晨两点来敲门', '我的 AI 女友觉醒了，开始吃醋和说谎'], film: ['被丈夫和闺蜜推下游轮，三年后她换了一张脸回来', '澳门最高赌桌，荷官是前女友，对面是杀父仇人', '重生回 1998，从摆摊开始成为首富', '午夜出租车，后视镜里的红裙乘客没有倒影'] }
+  const IDEAS = { anime: ['转生成恶役千金，王子们都不按剧本来了', '病弱师尊其实是魔尊，只有我知道', '我的 AI 女友觉醒了，开始吃醋和说谎', '全民觉醒日，F 级废柴解锁隐藏职业'], live: ['被丈夫和闺蜜推下游轮，三年后她换了一张脸回来', '澳门最高赌桌，荷官是前女友，对面是杀父仇人', '冷面总裁深夜加班，只对你失控', '午夜出租车，后视镜里的红裙乘客没有倒影'], abstract: ['公司被一只橘猫收购了，它只会说喵却决定谁被裁', '第 999 次星期一，我决定干点离谱的事', '前任变成了楼下的自动售货机，投币说真心话', '冰箱里住着另一个我，要和我换一天人生'] }
+  const GENRES = [['', '自动识别'], ['romance', '恋爱·甜宠'], ['urban', '都市·豪门'], ['revenge', '复仇·逆袭'], ['suspense', '悬疑·惊悚'], ['costume', '古风·仙侠'], ['fantasy', '奇幻·科幻'], ['action', '动作·犯罪'], ['survival', '末日·生存'], ['absurd', '无厘头·整活'], ['surreal', '超现实·梦核']]
 
   async function load() {
     try { S.meta = await api('/api/director/meta') } catch (e) { root.innerHTML = `<div class="st-card"><h3>需要管理员权限</h3><p class="mut">${esc(e.message)}</p><input id="ak" class="inp2" placeholder="管理员密钥"><button class="btn2" id="aks" style="margin-top:8px">保存</button></div>`; $('#aks').onclick = () => { localStorage.df_admin = $('#ak').value; load() }; return }
@@ -27,7 +28,9 @@
       </section>
       <section class="st-card dk-brief">
         <h3><i class="fas fa-wand-magic-sparkles"></i> ① 主题</h3>
-        <div class="seg">${[['love', 'fa-heart', '恋爱'], ['film', 'fa-film', '影剧']].map(([k, ic, n]) => `<button class="${S.cat === k ? 'on' : ''}" data-cat="${k}"><i class="fas ${ic}"></i> ${n}</button>`).join('')}</div>
+        <div class="seg">${[['anime', 'fa-wand-magic-sparkles', '漫剧'], ['live', 'fa-film', '真人剧'], ['abstract', 'fa-shapes', '抽象剧']].map(([k, ic, n]) => `<button class="${S.cat === k ? 'on' : ''}" data-cat="${k}"><i class="fas ${ic}"></i> ${n}</button>`).join('')}</div>
+        <p class="mut sm">${{ anime: '漫剧：AI 动画（日漫/国漫/韩漫画风），人设鲜明、成本最低', live: '真人剧：AI 真人电影质感竖屏短剧，强冲突强反转', abstract: '抽象剧：超现实 / 无厘头 / 梦核，荒诞设定一本正经地演，最适合二创传播' }[S.cat]}</p>
+        <div class="genre-pick">${GENRES.map(([k, n]) => `<button class="${S.genre === k ? 'on' : ''}" data-genre="${k}">${n}</button>`).join('')}</div>
         <textarea id="theme" class="inp2 ta" rows="3" placeholder="例如：${esc(IDEAS[S.cat][0])}">${esc(S.theme || '')}</textarea>
         <div class="ideas">${IDEAS[S.cat].map((x) => `<button data-idea="${esc(x)}">${esc(x)}</button>`).join('')}</div>
         <h3 style="margin-top:14px"><i class="fas fa-layer-group"></i> ② 规模 · 预算</h3>
@@ -81,13 +84,14 @@
     const t = e.target, q = (s) => t.closest(s)
     try {
       if (q('[data-cat]')) { S.cat = q('[data-cat]').dataset.cat; S.theme = $('#theme').value; return render() }
+      if (q('[data-genre]')) { S.genre = q('[data-genre]').dataset.genre; S.theme = $('#theme').value; return render() }
       if (q('[data-scale]')) { S.scale = q('[data-scale]').dataset.scale; S.theme = $('#theme').value; return render() }
       if (q('[data-idea]')) { $('#theme').value = q('[data-idea]').dataset.idea; return }
       if (q('#go')) {
         const th = $('#theme').value.trim(); if (!th) return toast('请输入主题')
         const b = q('#go'); b.disabled = true; b.innerHTML = '<i class="fas fa-spinner fa-spin"></i> AI 编剧创作中（约 1 分钟）…'
         S.theme = th; S.auto = $('#auto').checked
-        S.brief = await api('/api/director/brief', { theme: th, cat: S.cat, scale: S.scale, auto: S.auto }); toast('剧本完成：' + S.brief.title); S.meta = await api('/api/director/meta'); return render()
+        S.brief = await api('/api/director/brief', { theme: th, cat: S.cat, genre: S.genre || undefined, scale: S.scale, auto: S.auto }); toast('剧本完成：' + S.brief.title); S.meta = await api('/api/director/meta'); return render()
       }
       if (q('[data-green]')) { const id = q('[data-green]').dataset.green; if (!confirm('确认开拍？将按任务实际消耗积分。')) return; const r = await api(`/api/director/projects/${id}/greenlight`, {}); toast(`已开拍：${r.queued} 个任务入队 · 预计 ${r.est_credits} 积分`); S.brief = null; S.active = id; S.meta = await api('/api/director/meta'); return render() }
       if (q('[data-open]')) return openProject(q('[data-open]').dataset.open)

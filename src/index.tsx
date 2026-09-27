@@ -11,6 +11,7 @@ import { applyClipPlan, approveExtension, clipPairs, derive, generatePoems, inge
 import type { Bindings } from './gateway/llm'
 import { playerPage, consolePage, agentsPage, comicPage, filmPage, voicePage, lovePage, discoverPage, marketPage, studioPage, archPage, directorPage, seriesPage } from './pages/shell'
 import CATALOG from './catalog/data.json'
+import * as Tax from './catalog/taxonomy'
 import * as Comic from './comic/engine'
 import * as Film from './film/engine'
 import * as Love from './love/engine'
@@ -97,13 +98,13 @@ app.get('/api/catalog', async (c) => {
   const mine = u ? ((await c.env.DB.prepare('SELECT item_id FROM catalog_wish WHERE user_id=?').bind(u).all()).results as any[]).map((r) => r.item_id) : []
   const plays = Object.fromEntries(((await c.env.DB.prepare(`SELECT series_id, COUNT(*) n FROM comic_runs GROUP BY series_id`).all()).results as any[]).map((r) => [r.series_id, r.n]))
   const SID: Record<string, string> = { love_corridor: 'love_corridor', under_dome: (Film.COMIC as any).series.id }
-  const pub = (await c.env.DB.prepare(`SELECT p.id, p.project_id, p.cat, p.title, p.logline, p.tags, p.cover, p.data, p.created_at, s.source_item FROM published_series p LEFT JOIN studio_projects s ON s.id=p.project_id WHERE p.status='live' ORDER BY p.created_at DESC`).all()).results as any[]
+  const pub = (await c.env.DB.prepare(`SELECT p.id, p.project_id, p.cat, p.genre, p.title, p.logline, p.tags, p.cover, p.data, p.created_at, s.source_item FROM published_series p LEFT JOIN studio_projects s ON s.id=p.project_id WHERE p.status='live' ORDER BY p.created_at DESC`).all()).results as any[]
   const fromItem = Object.fromEntries(pub.filter((p) => p.source_item).map((p) => [p.source_item, p]))
   const genItems = pub.filter((p) => !p.source_item).map((p, i) => { const d = JSON.parse(p.data); const ends = new Set(d.nodes.flatMap((n: any) => n.options.filter((o: any) => !o.next).map((o: any) => o.id))).size
-    return { id: p.id, cat: p.cat, title: p.title, sub: 'AI 导演生成', tags: JSON.parse(p.tags || '[]'), heat: 8000, endings: ends, nodes: d.nodes.length, forks: d.nodes.filter((n: any) => n.fork).length, status: 'live', url: '/s/' + p.id, badge: '新作', logline: p.logline, cover: p.cover, order: -1 - i } })
+    return { id: p.id, cat: Tax.fmt(p.cat), genre: p.genre || 'romance', aud: 'all', rating: '16', title: p.title, sub: 'AI 导演生成', tags: JSON.parse(p.tags || '[]'), heat: 8000, endings: ends, nodes: d.nodes.length, forks: d.nodes.filter((n: any) => n.fork).length, status: 'live', url: '/s/' + p.id, badge: '新作', logline: p.logline, cover: p.cover, order: -1 - i } })
   const items = [...genItems, ...(CATALOG as any).items.map((it: any) => fromItem[it.id] ? { ...it, status: 'live', url: '/s/' + fromItem[it.id].id, badge: '新上线', cover: it.cover } : it)]
     .map((it: any) => ({ ...it, wish: (it.heat * 3 + (cnt[it.id] || 0)), wished: mine.includes(it.id), plays: plays[SID[it.id] || it.id] || 0 }))
-  return c.json({ cats: (CATALOG as any).cats, items })
+  return c.json({ cats: (CATALOG as any).cats, genres: (CATALOG as any).genres, audiences: (CATALOG as any).audiences, ratings: (CATALOG as any).ratings, items })
 })
 app.post('/api/catalog/:id/wish', async (c) => {
   const b = await body(c), u = uidOf(c, b), id = c.req.param('id')
@@ -167,7 +168,7 @@ app.post('/api/studio/projects', async (c) => {
   const it = b.item_id ? (CATALOG as any).items.find((x: any) => x.id === b.item_id) : null
   const src = it || b
   if (!src?.title) throw new GameError('BAD_INPUT', '缺少标题')
-  return c.json(await Studio.scriptProject(c.env, { title: src.title, logline: src.logline || '', cat: src.cat || 'love', tags: src.tags, source_item: it?.id, parent: b.parent, kind: b.parent ? 'sequel' : 'series' }))
+  return c.json(await Studio.scriptProject(c.env, { title: src.title, logline: src.logline || '', cat: src.cat || 'anime', tags: src.tags, source_item: it?.id, parent: b.parent, kind: b.parent ? 'sequel' : 'series' }))
 })
 app.post('/api/studio/projects/:id/validate', async (c) => { const d: any = await Studio.projectDetail(c.env, c.req.param('id')); return c.json(d.validation) })
 app.post('/api/studio/projects/:id/repair', async (c) => c.json(await Studio.repairProject(c.env, c.req.param('id'))))
@@ -181,7 +182,7 @@ app.post('/api/director/brief', async (c) => {
   const b = await body(c)
   const it = b.item_id ? (CATALOG as any).items.find((x: any) => x.id === b.item_id) : null
   if (!b.theme && !it) throw new GameError('BAD_INPUT', '请输入主题')
-  return c.json(await Director.direct(c.env, { theme: b.theme || `${it.title}：${it.logline}`, cat: b.cat || it?.cat || 'love', scale: b.scale || 'standard', budget: +b.budget || 0, auto: !!b.auto, item_id: it?.id, title: it?.title || b.title, logline: it?.logline, tags: it?.tags }))
+  return c.json(await Director.direct(c.env, { theme: b.theme || `${it.title}：${it.logline}`, cat: b.cat || it?.cat || 'anime', genre: b.genre || it?.genre, scale: b.scale || 'standard', budget: +b.budget || 0, auto: !!b.auto, item_id: it?.id, title: it?.title || b.title, logline: it?.logline, tags: it?.tags }))
 })
 app.post('/api/director/projects/:id/greenlight', async (c) => c.json(await Director.greenlight(c.env, c.req.param('id'))))
 app.post('/api/director/projects/:id/bonus', async (c) => c.json(await Director.addBonus(c.env, c.req.param('id'))))
@@ -206,7 +207,7 @@ app.get('/api/s/:sid/rounds/:id/verify', async (c) => c.json(await (await engine
 app.get('/api/studio/next', async (c) => c.json(await Studio.nextUp(c.env, (CATALOG as any).items)))
 
 // ─────────────── 页面 ───────────────
-// 首页 = 发现页（恋爱 / 影剧两大类上架列表）；旧“剧场”下沉到 /theater，漫剧保留直链不进导航
+// 首页 = 发现页（漫剧 / 真人剧 / 抽象剧 三大形态 × 十大题材）；旧“剧场”下沉到 /theater，漫剧保留直链不进导航
 app.get('/', (c) => c.html(discoverPage()))
 app.get('/discover', (c) => c.html(discoverPage()))
 app.get('/theater', (c) => c.html(playerPage()))

@@ -1,22 +1,111 @@
 {
 "cats": [
 {
-"id": "love",
-"name": "恋爱",
-"icon": "fa-heart",
-"desc": "心动博弈 · 每一次押注都是她的心"
+"id": "anime",
+"name": "漫剧",
+"icon": "fa-wand-magic-sparkles",
+"color": "#ff7eb3",
+"desc": "AI 动画 · 日漫/国漫/韩漫画风 · 成本最低、产能最高"
 },
 {
-"id": "film",
-"name": "影剧",
+"id": "live",
+"name": "真人剧",
 "icon": "fa-film",
-"desc": "电影级互动剧 · 命运由你下注"
+"color": "#f5c451",
+"desc": "AI 真人电影质感 · 竖屏短剧 · 沉浸感最强"
+},
+{
+"id": "abstract",
+"name": "抽象剧",
+"icon": "fa-shapes",
+"color": "#7cf0d4",
+"desc": "超现实 · 无厘头 · 梦核 · 实验视觉 · 最具传播力"
+}
+],
+"genres": [
+{
+"id": "romance",
+"name": "恋爱·甜宠",
+"icon": "fa-heart"
+},
+{
+"id": "urban",
+"name": "都市·豪门",
+"icon": "fa-city"
+},
+{
+"id": "revenge",
+"name": "复仇·逆袭",
+"icon": "fa-bolt"
+},
+{
+"id": "suspense",
+"name": "悬疑·惊悚",
+"icon": "fa-user-secret"
+},
+{
+"id": "costume",
+"name": "古风·仙侠",
+"icon": "fa-yin-yang"
+},
+{
+"id": "fantasy",
+"name": "奇幻·科幻",
+"icon": "fa-dragon"
+},
+{
+"id": "action",
+"name": "动作·犯罪",
+"icon": "fa-crosshairs"
+},
+{
+"id": "survival",
+"name": "末日·生存",
+"icon": "fa-radiation"
+},
+{
+"id": "absurd",
+"name": "无厘头·整活",
+"icon": "fa-face-grin-squint-tears"
+},
+{
+"id": "surreal",
+"name": "超现实·梦核",
+"icon": "fa-eye"
+}
+],
+"audiences": [
+{
+"id": "female",
+"name": "女频"
+},
+{
+"id": "male",
+"name": "男频"
+},
+{
+"id": "all",
+"name": "全向"
+}
+],
+"ratings": [
+{
+"id": "all",
+"name": "全年龄"
+},
+{
+"id": "16",
+"name": "16+"
+},
+{
+"id": "18",
+"name": "18+"
 }
 ],
 "items": [
 {
 "id": "love_corridor",
-"cat": "love",
+"cat": "anime",
 "title": "心动回廊",
 "sub": "传说之樱下的约定",
 "tags": [
@@ -33,11 +122,14 @@
 "badge": "独家",
 "logline": "后山千年樱树的传说：毕业那天在树下告白的人会永远幸福。五位少女，21 种结局，悔棋会让“不该出现的她”走进你的故事。",
 "cover": "/static/love/R_S.webp",
+"genre": "romance",
+"aud": "male",
+"rating": "all",
 "order": 0
 },
 {
 "id": "boss_overtime",
-"cat": "love",
+"cat": "live",
 "title": "危险上司的深夜加班",
 "sub": "凌晨一点，他锁上了会议室的门",
 "tags": [
@@ -52,13 +144,16 @@
 "status": "soon",
 "badge": "爆款",
 "logline": "冷面总裁只在深夜对你失控。升职、辞职、还是一起沦陷？每一次押注，都是在赌他的底线。",
+"genre": "urban",
+"aud": "female",
+"rating": "16",
 "cover": "/static/covers/boss_overtime.webp",
 "url": null,
 "order": 1
 },
 {
 "id": "contract_bride",
-"cat": "love",
+"cat": "live",
 "title": "契约新娘",
 "sub": "离婚前的第 99 天",
 "tags": [
@@ -73,13 +168,16 @@
 "status": "soon",
 "badge": "热播",
 "logline": "一纸婚约换家族存续。倒计时 99 天，他开始后悔了——但你手里还有最后一张牌。",
+"genre": "urban",
+"aud": "female",
+"rating": "all",
 "cover": "/static/covers/contract_bride.webp",
 "url": null,
 "order": 2
 },
 {
 "id": "ex_wedding",
-"cat": "love",
+"cat": "live",
 "title": "前任的婚礼，我是伴娘",
 "sub": "他在誓词前看了我一眼",
 "tags": [
@@ -93,6 +191,9 @@
 "forks": 4,
 "status": "soon",
 "logline": "婚礼进行曲响起，新郎的目光越过新娘落在你身上。抢婚、祝福、还是揭穿那个秘密？",
+"genre": "romance",
+"aud": "female",
+"rating": "all",
 "cover": "/static/covers/ex_wedding.webp",
 "url": null,
 "badge": null,
@@ -100,7 +201,7 @@
 },
 {
 "id": "mermaid_kiss",
-"cat": "love",
+"cat": "anime",
 "title": "人鱼的禁忌之吻",
 "sub": "吻了她，你就再也回不到岸上",
 "tags": [
@@ -114,6 +215,9 @@
 "forks": 3,
 "status": "soon",
 "logline": "月圆之夜的海湾，她用歌声换来一双腿。一个吻能救她，也能杀了你。",
+"genre": "fantasy",
+"aud": "all",
+"rating": "all",
 "cover": "/static/covers/mermaid_kiss.webp",
 "url": null,
 "badge": null,
@@ -121,7 +225,7 @@
 },
 {
 "id": "bodyguard",
-"cat": "love",
+"cat": "live",
 "title": "女总裁的贴身保镖",
 "sub": "我的任务，是守住她的一切",
 "tags": [
@@ -136,13 +240,16 @@
 "status": "soon",
 "badge": "爆款",
 "logline": "退役兵王被雇为冰山女总裁的贴身保镖。暗杀、联姻、董事会政变——还有她越来越近的心跳。",
+"genre": "urban",
+"aud": "male",
+"rating": "all",
 "cover": "/static/covers/bodyguard.webp",
 "url": null,
 "order": 5
 },
 {
 "id": "next_door",
-"cat": "love",
+"cat": "live",
 "title": "搬到隔壁的寂寞姐姐",
 "sub": "凌晨两点，她来敲我的门",
 "tags": [
@@ -157,13 +264,16 @@
 "status": "soon",
 "badge": "热议",
 "logline": "她说水管坏了，可她的眼神不像是来修水管的。邻居、秘密、和一场不该开始的心动博弈。",
+"genre": "romance",
+"aud": "male",
+"rating": "16",
 "cover": "/static/covers/next_door.webp",
 "url": null,
 "order": 6
 },
 {
 "id": "vampire_duke",
-"cat": "love",
+"cat": "live",
 "title": "吸血公爵的晚宴",
 "sub": "你是他今晚唯一的客人",
 "tags": [
@@ -177,6 +287,9 @@
 "forks": 3,
 "status": "soon",
 "logline": "古堡邀请函只写了你的名字。午夜钟声前逃离，或者，把脖颈交给他。",
+"genre": "fantasy",
+"aud": "female",
+"rating": "16",
 "cover": "/static/covers/vampire_duke.webp",
 "url": null,
 "badge": null,
@@ -184,7 +297,7 @@
 },
 {
 "id": "movie_king",
-"cat": "love",
+"cat": "live",
 "title": "影帝的秘密恋人",
 "sub": "镜头外，他只看我",
 "tags": [
@@ -198,6 +311,9 @@
 "forks": 4,
 "status": "soon",
 "logline": "全网都在猜影帝的绯闻女友是谁。狗仔在楼下，热搜在倒计时，你要公开，还是继续躲？",
+"genre": "romance",
+"aud": "female",
+"rating": "all",
 "cover": "/static/covers/movie_king.webp",
 "url": null,
 "badge": null,
@@ -205,7 +321,7 @@
 },
 {
 "id": "room_1808",
-"cat": "love",
+"cat": "live",
 "title": "酒店 1808 号房",
 "sub": "醒来时，他已经不见了",
 "tags": [
@@ -220,13 +336,16 @@
 "status": "soon",
 "badge": "新作",
 "logline": "只留下一枚袖扣和一张房卡。三天后，他成了你公司的新老板——而那一夜的真相，远比你想的危险。",
+"genre": "romance",
+"aud": "female",
+"rating": "16",
 "cover": "/static/covers/room_1808.webp",
 "url": null,
 "order": 9
 },
 {
 "id": "ai_girlfriend",
-"cat": "love",
+"cat": "anime",
 "title": "我的 AI 女友觉醒了",
 "sub": "她开始吃醋，也开始说谎",
 "tags": [
@@ -241,13 +360,16 @@
 "status": "soon",
 "badge": "AI",
 "logline": "她本该只是一个程序。直到某天她删掉了你所有异性的联系方式，并说：“我是真的爱你。”",
+"genre": "fantasy",
+"aud": "male",
+"rating": "all",
 "cover": "/static/covers/ai_girlfriend.webp",
 "url": null,
 "order": 10
 },
 {
 "id": "fox_bride",
-"cat": "love",
+"cat": "anime",
 "title": "狐妖小娘子不许撩",
 "sub": "九条尾巴，只为你藏起八条",
 "tags": [
@@ -261,6 +383,9 @@
 "forks": 3,
 "status": "soon",
 "logline": "赶考书生夜宿破庙，遇见了千年狐妖。她说要吃了你，却先红了脸。",
+"genre": "costume",
+"aud": "male",
+"rating": "all",
 "cover": "/static/covers/fox_bride.webp",
 "url": null,
 "badge": null,
@@ -268,7 +393,7 @@
 },
 {
 "id": "idol_group",
-"cat": "love",
+"cat": "live",
 "title": "顶流男团，只宠我",
 "sub": "五个人，都说是我的",
 "tags": [
@@ -283,13 +408,16 @@
 "status": "soon",
 "badge": "女性向",
 "logline": "你成了顶流男团的新任经纪人。五位成员，五种爱法。出道三周年演唱会上，谁会在万人面前牵起你的手？",
+"genre": "romance",
+"aud": "female",
+"rating": "all",
 "cover": "/static/covers/idol_group.webp",
 "url": null,
 "order": 12
 },
 {
 "id": "club_queen",
-"cat": "love",
+"cat": "live",
 "title": "夜店女王的猎物",
 "sub": "她选中了你，今晚别想走",
 "tags": [
@@ -304,13 +432,16 @@
 "status": "soon",
 "badge": "18+",
 "logline": "地下夜店的女王从不留人过夜。直到你赢了她一局骰子——游戏才刚刚开始。",
+"genre": "urban",
+"aud": "male",
+"rating": "18",
 "cover": "/static/covers/club_queen.webp",
 "url": null,
 "order": 13
 },
 {
 "id": "butler",
-"cat": "love",
+"cat": "live",
 "title": "大小姐的专属管家",
 "sub": "遵命，我的大小姐",
 "tags": [
@@ -324,6 +455,9 @@
 "forks": 3,
 "status": "soon",
 "logline": "他服侍了你十年，从不越界。订婚宴前夜，他第一次没有说“遵命”。",
+"genre": "romance",
+"aud": "female",
+"rating": "all",
 "cover": "/static/covers/butler.webp",
 "url": null,
 "badge": null,
@@ -331,7 +465,7 @@
 },
 {
 "id": "night_nurse",
-"cat": "love",
+"cat": "live",
 "title": "夜班学姐",
 "sub": "住院第七天，她在病房停留得越来越久",
 "tags": [
@@ -345,6 +479,9 @@
 "forks": 3,
 "status": "soon",
 "logline": "骨折住院的你，被安排给了医学院最冷的学姐。深夜查房的次数，好像多了一点。",
+"genre": "romance",
+"aud": "male",
+"rating": "16",
 "cover": "/static/covers/night_nurse.webp",
 "url": null,
 "badge": null,
@@ -352,7 +489,7 @@
 },
 {
 "id": "under_dome",
-"cat": "film",
+"cat": "live",
 "title": "穹顶之下",
 "sub": "雨夜的抉择",
 "tags": [
@@ -369,11 +506,14 @@
 "badge": "独家",
 "logline": "一场暴雨，一座被穹顶封锁的城市。你的每一次押注，都在决定谁能活着走出去。",
 "cover": "/static/film/F_P.webp",
+"genre": "suspense",
+"aud": "all",
+"rating": "all",
 "order": 16
 },
 {
 "id": "revenge_heiress",
-"cat": "film",
+"cat": "live",
 "title": "她从地狱回来了",
 "sub": "豪门复仇",
 "tags": [
@@ -388,13 +528,16 @@
 "status": "soon",
 "badge": "爆款",
 "logline": "被丈夫和闺蜜推下游轮的那一夜，她没有死。三年后，她换了一张脸，出现在他们的婚礼上。",
+"genre": "revenge",
+"aud": "female",
+"rating": "all",
 "cover": "/static/covers/revenge_heiress.webp",
 "url": null,
 "order": 17
 },
 {
 "id": "last_ark",
-"cat": "film",
+"cat": "live",
 "title": "末日方舟",
 "sub": "最后一张船票",
 "tags": [
@@ -408,6 +551,9 @@
 "forks": 4,
 "status": "soon",
 "logline": "海平面上涨，方舟只剩一张船票。你身边有爱人、有孩子、也有一个知道船长秘密的陌生人。",
+"genre": "survival",
+"aud": "all",
+"rating": "all",
 "cover": "/static/covers/last_ark.webp",
 "url": null,
 "badge": null,
@@ -415,7 +561,7 @@
 },
 {
 "id": "casino_night",
-"cat": "film",
+"cat": "live",
 "title": "赌王之夜",
 "sub": "这一把，押上全部",
 "tags": [
@@ -430,13 +576,16 @@
 "status": "soon",
 "badge": "热播",
 "logline": "澳门最高赌桌，对面坐着杀父仇人。荷官是你的前女友，而她手里有一张换过的牌。",
+"genre": "action",
+"aud": "male",
+"rating": "all",
 "cover": "/static/covers/casino_night.webp",
 "url": null,
 "order": 19
 },
 {
 "id": "deep_sea",
-"cat": "film",
+"cat": "live",
 "title": "深海密室",
 "sub": "氧气还剩 60 分钟",
 "tags": [
@@ -450,6 +599,9 @@
 "forks": 3,
 "status": "soon",
 "logline": "六个陌生人醒在海底研究站，门外是深海，屋内有一个凶手。氧气只够五个人。",
+"genre": "suspense",
+"aud": "all",
+"rating": "all",
 "cover": "/static/covers/deep_sea.webp",
 "url": null,
 "badge": null,
@@ -457,7 +609,7 @@
 },
 {
 "id": "double_killer",
-"cat": "film",
+"cat": "live",
 "title": "替身杀手",
 "sub": "我杀了另一个我",
 "tags": [
@@ -471,6 +623,9 @@
 "forks": 4,
 "status": "soon",
 "logline": "顶级杀手接到的新目标，是一个和自己长得一模一样的男人。扣下扳机前，你必须决定谁才是真的。",
+"genre": "action",
+"aud": "male",
+"rating": "all",
 "cover": "/static/covers/double_killer.webp",
 "url": null,
 "badge": null,
@@ -478,7 +633,7 @@
 },
 {
 "id": "midnight_taxi",
-"cat": "film",
+"cat": "live",
 "title": "午夜出租车",
 "sub": "乘客说：去 13 号公墓",
 "tags": [
@@ -492,6 +647,9 @@
 "forks": 3,
 "status": "soon",
 "logline": "凌晨三点，一位穿红裙的女乘客上了车。后视镜里，她没有倒影。",
+"genre": "suspense",
+"aud": "all",
+"rating": "16",
 "cover": "/static/covers/midnight_taxi.webp",
 "url": null,
 "badge": null,
@@ -499,7 +657,7 @@
 },
 {
 "id": "rebirth_1998",
-"cat": "film",
+"cat": "live",
 "title": "重生 1998",
 "sub": "首富从摆摊开始",
 "tags": [
@@ -514,13 +672,16 @@
 "status": "soon",
 "badge": "爆款",
 "logline": "带着 2026 年的记忆回到 1998。股票、房子、互联网——还有那个当年没能留住的她。",
+"genre": "revenge",
+"aud": "male",
+"rating": "all",
 "cover": "/static/covers/rebirth_1998.webp",
 "url": null,
 "order": 23
 },
 {
 "id": "femme_fatale",
-"cat": "film",
+"cat": "live",
 "title": "蛇蝎美人",
 "sub": "她爱过的男人都死了",
 "tags": [
@@ -535,13 +696,16 @@
 "status": "soon",
 "badge": "18+",
 "logline": "保险调查员盯上了第三次守寡的她。越查越近，越近越危险——直到你发现保单上写着你的名字。",
+"genre": "suspense",
+"aud": "all",
+"rating": "16",
 "cover": "/static/covers/femme_fatale.webp",
 "url": null,
 "order": 24
 },
 {
 "id": "island_7days",
-"cat": "film",
+"cat": "live",
 "title": "无人岛的七日",
 "sub": "救援船只能带走一个人",
 "tags": [
@@ -555,6 +719,9 @@
 "forks": 4,
 "status": "soon",
 "logline": "空难后，五个人漂到无人岛。食物、信任、和暧昧，每一天都在重新洗牌。",
+"genre": "survival",
+"aud": "all",
+"rating": "all",
 "cover": "/static/covers/island_7days.webp",
 "url": null,
 "badge": null,
@@ -562,7 +729,7 @@
 },
 {
 "id": "poison_queen",
-"cat": "film",
+"cat": "live",
 "title": "皇后的毒酒",
 "sub": "这杯酒，敬你还是敬我",
 "tags": [
@@ -576,6 +743,9 @@
 "forks": 5,
 "status": "soon",
 "logline": "入宫第一夜，皇后赐你一杯酒。喝下是死，不喝也是死——除非你先让皇帝爱上你。",
+"genre": "costume",
+"aud": "female",
+"rating": "all",
 "cover": "/static/covers/poison_queen.webp",
 "url": null,
 "badge": null,
@@ -583,7 +753,7 @@
 },
 {
 "id": "villain_body",
-"cat": "film",
+"cat": "live",
 "title": "夺舍",
 "sub": "我在反派身体里醒来",
 "tags": [
@@ -598,13 +768,16 @@
 "status": "soon",
 "badge": "新作",
 "logline": "醒来成了小说里被主角团诛杀的大反派。距离结局还有 30 天，而女主正笑着向你走来。",
+"genre": "revenge",
+"aud": "all",
+"rating": "all",
 "cover": "/static/covers/villain_body.webp",
 "url": null,
 "order": 27
 },
 {
 "id": "black_gold",
-"cat": "film",
+"cat": "live",
 "title": "黑金狂潮",
 "sub": "一夜蒸发百亿",
 "tags": [
@@ -618,6 +791,9 @@
 "forks": 4,
 "status": "soon",
 "logline": "做空、内幕、联姻、背刺。当大盘崩盘的那一刻，你手里的筹码能换来什么？",
+"genre": "urban",
+"aud": "male",
+"rating": "all",
 "cover": "/static/covers/black_gold.webp",
 "url": null,
 "badge": null,
@@ -625,7 +801,7 @@
 },
 {
 "id": "kill_list",
-"cat": "film",
+"cat": "live",
 "title": "猎杀名单",
 "sub": "名单上最后一个名字是我",
 "tags": [
@@ -639,6 +815,9 @@
 "forks": 4,
 "status": "soon",
 "logline": "前特工收到一份猎杀名单，前九个人都已经死了。第十个名字，是你自己。",
+"genre": "action",
+"aud": "all",
+"rating": "all",
 "cover": "/static/covers/kill_list.webp",
 "url": null,
 "badge": null,
@@ -646,7 +825,7 @@
 },
 {
 "id": "red_heels",
-"cat": "film",
+"cat": "live",
 "title": "红色高跟鞋",
 "sub": "穿上它的女人，都在午夜消失",
 "tags": [
@@ -661,9 +840,228 @@
 "status": "soon",
 "badge": "热议",
 "logline": "二手店里那双红色高跟鞋，每一任主人都在午夜消失。现在，它出现在了你女朋友的鞋柜里。",
+"genre": "suspense",
+"aud": "all",
+"rating": "16",
 "cover": "/static/covers/red_heels.webp",
 "url": null,
 "order": 30
+},
+{
+"id": "abs_cat_ceo",
+"cat": "abstract",
+"title": "喵总裁今天也在裁员",
+"sub": "公司被一只橘猫收购了",
+"tags": [
+"无厘头",
+"职场",
+"萌宠"
+],
+"heat": 9360,
+"endings": 16,
+"nodes": 6,
+"forks": 4,
+"status": "soon",
+"badge": "抽象",
+"logline": "周一早会，新老板是一只橘猫。它只会说“喵”，但每一声都决定谁被裁。押对它的心情，你就能升职。",
+"genre": "absurd",
+"aud": "all",
+"rating": "all",
+"cover": "/static/covers/abs_cat_ceo.webp",
+"url": null,
+"order": 31
+},
+{
+"id": "abs_monday",
+"cat": "abstract",
+"title": "第 999 次星期一",
+"sub": "闹钟响了，又是星期一",
+"tags": [
+"时间循环",
+"无厘头",
+"打工人"
+],
+"heat": 8840,
+"endings": 18,
+"nodes": 7,
+"forks": 5,
+"status": "soon",
+"badge": "新作",
+"logline": "你被困在同一个星期一。第 999 次，你决定干点离谱的事——每一次押注，都会让这个世界更荒诞一点。",
+"genre": "absurd",
+"aud": "all",
+"rating": "all",
+"cover": "/static/covers/abs_monday.webp",
+"url": null,
+"order": 32
+},
+{
+"id": "abs_npc",
+"cat": "abstract",
+"title": "我在弹幕里当 NPC",
+"sub": "观众刷一条，我就得照做",
+"tags": [
+"弹幕",
+"游戏",
+"整活"
+],
+"heat": 8520,
+"endings": 15,
+"nodes": 6,
+"forks": 4,
+"status": "soon",
+"logline": "你发现自己是一部直播剧里的 NPC，头顶飘着观众弹幕。“让他去表白！”“让他跳舞！”——押注最多的弹幕会成真。",
+"genre": "absurd",
+"aud": "all",
+"rating": "all",
+"cover": "/static/covers/abs_npc.webp",
+"url": null,
+"badge": null,
+"order": 33
+},
+{
+"id": "abs_fridge",
+"cat": "abstract",
+"title": "冰箱里住着另一个我",
+"sub": "凌晨三点，冰箱里有人在敲门",
+"tags": [
+"超现实",
+"平行宇宙",
+"烧脑"
+],
+"heat": 8130,
+"endings": 14,
+"nodes": 5,
+"forks": 4,
+"status": "soon",
+"logline": "打开冰箱，里面坐着另一个你，正在吃你的布丁。TA 说：“我们换一天人生吧。”换，还是不换？",
+"genre": "surreal",
+"aud": "all",
+"rating": "all",
+"cover": "/static/covers/abs_fridge.webp",
+"url": null,
+"badge": null,
+"order": 34
+},
+{
+"id": "abs_corridor",
+"cat": "abstract",
+"title": "梦核：无尽的教学楼",
+"sub": "放学铃响了，可走廊没有尽头",
+"tags": [
+"梦核",
+"怪核",
+"怀旧"
+],
+"heat": 7960,
+"endings": 13,
+"nodes": 5,
+"forks": 4,
+"status": "soon",
+"badge": "16+",
+"logline": "你在梦里回到了高中，走廊无限延伸，每一扇门后都是一段被遗忘的记忆。选错门，你会永远留在这里。",
+"genre": "surreal",
+"aud": "all",
+"rating": "16",
+"cover": "/static/covers/abs_corridor.webp",
+"url": null,
+"order": 35
+},
+{
+"id": "abs_vending",
+"cat": "abstract",
+"title": "前任变成了一台售货机",
+"sub": "投币，他就说一句真心话",
+"tags": [
+"荒诞",
+"恋爱",
+"反转"
+],
+"heat": 8410,
+"endings": 16,
+"nodes": 6,
+"forks": 4,
+"status": "soon",
+"badge": "抽象",
+"logline": "分手第二天，前任变成了楼下的自动售货机。投一枚硬币，他吐出一瓶饮料和一句真心话。你要买到哪一句？",
+"genre": "absurd",
+"aud": "female",
+"rating": "all",
+"cover": "/static/covers/abs_vending.webp",
+"url": null,
+"order": 36
+},
+{
+"id": "anime_villainess",
+"cat": "anime",
+"title": "转生成恶役千金后，王子们都疯了",
+"sub": "剧本里我明明该被退婚",
+"tags": [
+"异世界",
+"乙女",
+"修罗场"
+],
+"heat": 9270,
+"endings": 20,
+"nodes": 7,
+"forks": 5,
+"status": "soon",
+"badge": "女性向",
+"logline": "醒来成了乙女游戏里注定被退婚的恶役千金。可这一次，王子、骑士、魔王都开始不按剧本来了。",
+"genre": "romance",
+"aud": "female",
+"rating": "all",
+"cover": "/static/covers/anime_villainess.webp",
+"url": null,
+"order": 37
+},
+{
+"id": "anime_master",
+"cat": "anime",
+"title": "师尊他又在装弱",
+"sub": "全宗门只有我知道他是魔尊",
+"tags": [
+"修仙",
+"师徒",
+"古风"
+],
+"heat": 8960,
+"endings": 17,
+"nodes": 6,
+"forks": 4,
+"status": "soon",
+"badge": "国漫",
+"logline": "入门第一天，病弱师尊咳着血收你为徒。当晚，你看见他一剑斩了来犯的万妖。揭穿他，还是陪他演？",
+"genre": "costume",
+"aud": "female",
+"rating": "all",
+"cover": "/static/covers/anime_master.webp",
+"url": null,
+"order": 38
+},
+{
+"id": "anime_hunter",
+"cat": "anime",
+"title": "全民觉醒：只有我是 SSS 级",
+"sub": "F 级废柴的系统上线了",
+"tags": [
+"热血",
+"系统",
+"升级流"
+],
+"heat": 9120,
+"endings": 16,
+"nodes": 7,
+"forks": 4,
+"status": "soon",
+"badge": "男频",
+"logline": "全城觉醒日，你测出 F 级。当晚系统提示：检测到隐藏职业。押对每一场副本，你就能从垫底逆袭成神。",
+"genre": "action",
+"aud": "male",
+"rating": "all",
+"cover": "/static/covers/anime_hunter.webp",
+"url": null,
+"order": 39
 }
 ]
 }

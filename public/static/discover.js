@@ -1,33 +1,39 @@
-// 发现页：恋爱 / 影剧 两大类上架列表（轮播 · 分类 · 标签 · 货架 · 榜单 · 瀑布 · 详情抽屉 · 想看）
+// 发现页：三大形态（漫剧 / 真人剧 / 抽象剧）× 十大题材 × 受众 · 分级（轮播 · 分类 · 标签 · 货架 · 榜单 · 瀑布 · 详情抽屉 · 想看）
 ;(() => {
   const $ = (s, r = document) => r.querySelector(s)
   const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
   const uid = localStorage.df_uid || (localStorage.df_uid = 'u_' + Math.random().toString(36).slice(2, 10))
   const api = async (url, body) => { const r = await fetch(url, { method: body ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json',  }, body: body ? JSON.stringify({ user_id: uid, ...body }) : undefined }); const j = await r.json(); if (!r.ok) throw new Error(j.message || '请求失败'); return j }
   const qs = new URLSearchParams(location.search)
-  const S = { cats: [], items: [], cat: qs.get('cat') || 'all', tab: qs.get('tab') || '', tag: '', sort: 'heat', adult: localStorage.df_adult === '1', mine: {} }
+  const OLD = { love: 'anime', film: 'live' }
+  const S = { cats: [], genres: [], items: [], cat: OLD[qs.get('cat')] || qs.get('cat') || 'all', genre: qs.get('genre') || '', aud: qs.get('aud') || '', tab: qs.get('tab') || '', tag: '', sort: 'heat', adult: localStorage.df_adult === '1', mine: {} }
   const K = (n) => (n >= 10000 ? (n / 10000).toFixed(1) + '万' : n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n))
   const root = $('#discover')
   const toast = (m) => { let t = $('.toast'); if (!t) { t = document.createElement('div'); t.className = 'toast'; document.body.appendChild(t) } t.textContent = m; t.classList.add('show'); clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove('show'), 1800) }
-  const isAdult = (it) => it.badge === '18+' || it.tags.includes('成人向')
+  const isAdult = (it) => it.rating === '18' || it.badge === '18+' || it.tags.includes('成人向')
   const catName = (id) => S.cats.find((c) => c.id === id)?.name || ''
+  const catOf = (id) => S.cats.find((c) => c.id === id) || {}
+  const genreName = (id) => S.genres.find((g) => g.id === id)?.name || ''
+  const AUD = { female: '女频', male: '男频', all: '全向' }
+  const inPool = (x) => (S.cat === 'all' || x.cat === S.cat) && (!S.genre || x.genre === S.genre) && (!S.aud || x.aud === S.aud || x.aud === 'all')
+  const syncUrl = () => { const u = new URLSearchParams(); if (S.cat !== 'all') u.set('cat', S.cat); if (S.genre) u.set('genre', S.genre); if (S.aud) u.set('aud', S.aud); history.replaceState(null, '', u.toString() ? '/?' + u : '/') }
 
   // ─── 卡片 ───
   const card = (it, size = '') => `
-    <article class="dc ${size} ${it.status} ${isAdult(it) && !S.adult ? 'veil' : ''}" data-id="${it.id}" style="--cc:${it.cat === 'love' ? '#ff7eb3' : '#f5c451'}">
+    <article class="dc ${size} ${it.status} ${isAdult(it) && !S.adult ? 'veil' : ''}" data-id="${it.id}" style="--cc:${catOf(it.cat).color || '#f5c451'}">
       <div class="pic"><img loading="lazy" src="${it.cover}" alt="${esc(it.title)}">
         ${it.badge ? `<i class="bd ${it.badge === '18+' ? 'r18' : ''}">${esc(it.badge)}</i>` : ''}
         ${it.status === 'live' ? '<i class="lv"><b></b>可玩</i>' : '<i class="sn">即将上线</i>'}
         ${isAdult(it) && !S.adult ? '<div class="veil-t"><i class="fas fa-eye-slash"></i><span>成人向 · 点击确认</span></div>' : ''}
         <div class="meta"><span><i class="fas fa-fire"></i> ${K(it.wish)}</span><span>${it.endings} 结局</span></div>
         <button class="wbtn ${it.wished ? 'on' : ''}" data-w="${it.id}" aria-label="${it.status === 'live' ? '开玩' : '想看'}">${it.status === 'live' ? '<i class="fas fa-play"></i>' : `<i class="${it.wished ? 'fas' : 'far'} fa-heart"></i>`}</button>
-      </div>
-      <div class="tx"><h4>${esc(it.title)}</h4><p>${esc(it.sub)}</p>
+      <i class="fm fm-${it.cat}"><i class="fas ${catOf(it.cat).icon}"></i>${esc(catName(it.cat))}</i></div>
+      <div class="tx"><h4>${esc(it.title)}</h4><p>${esc(genreName(it.genre))} · ${esc(it.sub)}</p>
         <div class="tg">${it.tags.slice(0, 3).map((t) => `<em>${esc(t)}</em>`).join('')}</div></div>
     </article>`
 
   function filtered() {
-    let a = S.items.filter((x) => (S.cat === 'all' || x.cat === S.cat) && (!S.tag || x.tags.includes(S.tag)))
+    let a = S.items.filter((x) => inPool(x) && (!S.tag || x.tags.includes(S.tag)))
     const by = { heat: (x, y) => y.wish - x.wish, new: (x, y) => (y.badge === '新作') - (x.badge === '新作') || y.order - x.order, end: (x, y) => y.endings - x.endings }[S.sort]
     return [...a].sort((x, y) => (y.status === 'live') - (x.status === 'live') || by(x, y))
   }
@@ -38,11 +44,16 @@
       const h = a.getAttribute('href'); a.classList.toggle('on', S.tab === 'mine' ? h.includes('tab=mine') : h === (S.cat === 'all' ? '/' : `/?cat=${S.cat}`))
     })
     if (S.tab === 'mine') return renderMine()
-    const pool = S.items.filter((x) => S.cat === 'all' || x.cat === S.cat)
-    const hero = [...pool.filter((x) => x.status === 'live'), ...pool.filter((x) => x.status !== 'live' && ['爆款', '热播', '独家'].includes(x.badge)).sort((a, b) => b.wish - a.wish)].slice(0, 6)
+    const pool = S.items.filter(inPool)
+    const fpool = S.items.filter((x) => (S.cat === 'all' || x.cat === S.cat) && (!S.aud || x.aud === S.aud || x.aud === 'all'))
+    const gl = S.genres.map((g) => ({ ...g, n: fpool.filter((x) => x.genre === g.id).length })).filter((g) => g.n)
+    const hero0 = [...pool.filter((x) => x.status === 'live'), ...pool.filter((x) => x.status !== 'live' && ['爆款', '热播', '独家'].includes(x.badge)).sort((a, b) => b.wish - a.wish)]
+    const hero = [...new Set([...hero0, ...[...pool].sort((a, b) => b.wish - a.wish)])].slice(0, 6)
     const tags = [...new Map(pool.flatMap((x) => x.tags).map((t) => [t, (pool.filter((x) => x.tags.includes(t)).length)])).entries()].sort((a, b) => b[1] - a[1]).slice(0, 14).map((x) => x[0])
     const rank = [...pool].sort((a, b) => b.wish - a.wish).slice(0, 10)
-    const shelves = S.cat === 'all' ? S.cats.map((c) => ({ c, list: S.items.filter((x) => x.cat === c.id).sort((a, b) => (b.status === 'live') - (a.status === 'live') || b.wish - a.wish) })) : []
+    const srt = (a, b) => (b.status === 'live') - (a.status === 'live') || b.wish - a.wish
+    const shelves = S.genre ? [] : S.cat === 'all' ? S.cats.map((c) => ({ c: { ...c, key: 'cat', val: c.id }, list: pool.filter((x) => x.cat === c.id).sort(srt) })).filter((x) => x.list.length)
+      : gl.map((g) => ({ c: { ...g, desc: `${catName(S.cat)} · ${g.n} 部`, key: 'genre', val: g.id }, list: pool.filter((x) => x.genre === g.id).sort(srt) })).filter((x) => x.list.length)
     const temptation = pool.filter((x) => isAdult(x) || x.tags.some((t) => ['禁忌', '诱惑', '危险恋人', '一夜'].includes(t)))
     const all = filtered()
     root.innerHTML = `
@@ -61,17 +72,21 @@
         ${[{ id: 'all', name: '全部', icon: 'fa-compass' }, ...S.cats].map((c) => `<button class="${S.cat === c.id ? 'on' : ''}" data-cat="${c.id}"><i class="fas ${c.icon}"></i> ${c.name}<small>${c.id === 'all' ? S.items.length : S.items.filter((x) => x.cat === c.id).length}</small></button>`).join('')}
       </section>
       ${S.cat !== 'all' ? `<p class="cat-desc">${esc(S.cats.find((c) => c.id === S.cat)?.desc)}</p>` : ''}
+      <section class="facets" id="facets">
+        <div class="genres">${[{ id: '', name: '全部题材', icon: 'fa-layer-group', n: fpool.length }, ...gl].map((g) => `<button class="${S.genre === g.id ? 'on' : ''}" data-genre="${g.id}"><i class="fas ${g.icon}"></i>${esc(g.name)}<small>${g.n}</small></button>`).join('')}</div>
+        <div class="aud">${[['', '全部'], ['female', '女频'], ['male', '男频']].map(([k, n]) => `<button class="${S.aud === k ? 'on' : ''}" data-aud="${k}">${n}</button>`).join('')}</div>
+      </section>
       <section class="mech" id="mech">
         <div><i class="fas fa-lock"></i><b>押注锁定</b><span>结果在你下注前已加密封存</span></div>
         <div><i class="fas fa-code-branch"></i><b>二选一 / 新变数</b><span>悔棋改写概率与赔率</span></div>
         <div class="hot"><i class="fas fa-clock-rotate-left"></i><b>时间裂隙</b><span>悔棋撕开平行时间线，解锁全新剧情</span></div>
       </section>
       ${shelves.map(({ c, list }) => `
-        <section class="shelf" id="shelf-${c.id}"><header><h3><i class="fas ${c.icon}"></i> ${c.name}<small>${esc(c.desc)}</small></h3><button data-cat="${c.id}">更多 <i class="fas fa-angle-right"></i></button></header>
+        <section class="shelf" id="shelf-${c.val}"><header><h3><i class="fas ${c.icon}"></i> ${c.name}<small>${esc(c.desc)}</small></h3><button data-${c.key}="${c.val}">更多 <i class="fas fa-angle-right"></i></button></header>
           <div class="row">${list.slice(0, 10).map((x) => card(x, 'sm')).join('')}</div></section>`).join('')}
       ${temptation.length ? `<section class="shelf dark" id="shelf-night"><header><h3><i class="fas fa-moon"></i> 深夜禁区<small>危险、诱惑、欲罢不能</small></h3></header><div class="row">${temptation.map((x) => card(x, 'sm')).join('')}</div></section>` : ''}
       <section class="rank" id="rank"><header><h3><i class="fas fa-trophy"></i> 想看榜 TOP 10</h3></header>
-        <ol>${rank.map((x, i) => `<li data-id="${x.id}" class="${isAdult(x) && !S.adult ? 'veil' : ''}"><b class="n n${i + 1}">${i + 1}</b><img src="${x.cover}" alt=""><div><h4>${esc(x.title)}${x.status === 'live' ? '<i class="lvs">可玩</i>' : ''}</h4><p>${esc(x.logline)}</p><span>${catName(x.cat)} · ${x.tags.slice(0, 2).join(' · ')} · <i class="fas fa-fire"></i> ${K(x.wish)}</span></div></li>`).join('')}</ol></section>
+        <ol>${rank.map((x, i) => `<li data-id="${x.id}" class="${isAdult(x) && !S.adult ? 'veil' : ''}"><b class="n n${i + 1}">${i + 1}</b><img src="${x.cover}" alt=""><div><h4>${esc(x.title)}${x.status === 'live' ? '<i class="lvs">可玩</i>' : ''}</h4><p>${esc(x.logline)}</p><span>${catName(x.cat)} · ${genreName(x.genre)} · <i class="fas fa-fire"></i> ${K(x.wish)}</span></div></li>`).join('')}</ol></section>
       <section class="grid-sec" id="all"><header><h3><i class="fas fa-layer-group"></i> 全部作品 <small>${all.length} 部</small></h3>
         <div class="sort">${[['heat', '最热'], ['new', '最新'], ['end', '结局最多']].map(([k, n]) => `<button class="${S.sort === k ? 'on' : ''}" data-sort="${k}">${n}</button>`).join('')}</div></header>
         <div class="tags">${['', ...tags].map((t) => `<button class="${S.tag === t ? 'on' : ''}" data-tag="${esc(t)}">${t ? '#' + esc(t) : '全部标签'}</button>`).join('')}</div>
@@ -83,7 +98,7 @@
   function renderMine() {
     const list = S.items.filter((x) => x.wished)
     root.innerHTML = `<section class="grid-sec mine"><header><h3><i class="fas fa-bookmark"></i> 我的想看 <small>${list.length} 部</small></h3></header>
-      ${list.length ? `<div class="grid">${list.map((x) => card(x)).join('')}</div>` : `<div class="empty-big"><i class="far fa-heart"></i><p>还没有想看的作品</p><a href="/" class="cta">去发现</a></div>`}
+      ${`<a class="mk-link" href="/market"><i class="fas fa-gem"></i><div><b>我的结局卡 · 交易市场</b><span>收藏、出售、重看完整路径</span></div><i class="fas fa-angle-right"></i></a>` + (list.length ? `<div class="grid">${list.map((x) => card(x)).join('')}</div>` : `<div class="empty-big"><i class="far fa-heart"></i><p>还没有想看的作品</p><a href="/" class="cta">去发现</a></div>`)}
       ${Object.keys(S.mine).length ? `<h3 class="sub-h"><i class="fas fa-book"></i> 结局收集</h3><div class="prog">${Object.entries(S.mine).map(([id, m]) => { const it = S.items.find((x) => x.id === id); return `<a href="${it.url}" class="pg"><img src="${it.cover}"><div><b>${esc(it.title)}</b><div class="bar"><i style="width:${(m.got / m.total) * 100}%"></i></div><span>已解锁 ${m.got}/${m.total} 结局</span></div></a>` }).join('')}</div>` : ''}</section>`
   }
 
@@ -111,7 +126,8 @@
         <div class="sh-top"><img src="${it.cover}" alt=""><div class="sh-g"></div><button class="x" data-close><i class="fas fa-xmark"></i></button>
           <div class="sh-t">${it.badge ? `<i class="bd ${it.badge === '18+' ? 'r18' : ''}">${esc(it.badge)}</i>` : ''}<h2>${esc(it.title)}</h2><p>${esc(it.sub)}</p></div></div>
         <div class="sh-body">
-          <div class="sh-tags">${[catName(it.cat), ...it.tags].map((t) => `<em>${esc(t)}</em>`).join('')}</div>
+          <div class="sh-tax"><b style="--cc:${catOf(it.cat).color}"><i class="fas ${catOf(it.cat).icon}"></i> ${esc(catName(it.cat))}</b><span>${esc(genreName(it.genre))}</span><span>${AUD[it.aud] || '全向'}</span><span class="rt rt-${it.rating}">${it.rating === 'all' ? '全年龄' : (it.rating || '16') + '+'}</span></div>
+          <div class="sh-tags">${it.tags.map((t) => `<em>#${esc(t)}</em>`).join('')}</div>
           <p class="lg">${esc(it.logline)}</p>
           <div class="sh-stats"><div><b>${it.endings}</b><span>结局</span></div><div><b>${it.nodes}</b><span>抉择点</span></div><div><b>${it.forks}</b><span>时间裂隙</span></div><div><b>${K(it.wish)}</b><span>想看</span></div></div>
           ${m ? `<div class="sh-prog"><span>我的结局收集</span><div class="bar"><i style="width:${(m.got / m.total) * 100}%"></i></div><b>${m.got}/${m.total}</b></div>` : ''}
@@ -151,7 +167,9 @@
     const w = t.closest('[data-w]'); if (w) { e.preventDefault(); e.stopPropagation(); return wish(w.dataset.w) }
     if (t.closest('[data-close]')) return closeSheet()
     const sh = t.closest('[data-share]'); if (sh) { const it = S.items.find((x) => x.id === sh.dataset.share); const txt = `《${it.title}》${it.sub} —— ${it.endings} 种结局，你押谁？ ${location.origin}${it.url || '/'}`; navigator.share ? navigator.share({ title: it.title, text: txt }).catch(() => {}) : navigator.clipboard?.writeText(txt).then(() => toast('分享文案已复制')); return }
-    const c = t.closest('[data-cat]'); if (c) { S.cat = c.dataset.cat; S.tag = ''; S.tab = ''; history.replaceState(null, '', S.cat === 'all' ? '/' : `/?cat=${S.cat}`); render(); scrollTo({ top: 0, behavior: 'smooth' }); return }
+    const c = t.closest('[data-cat]'); if (c) { S.cat = c.dataset.cat; S.genre = ''; S.tag = ''; S.tab = ''; syncUrl(); render(); scrollTo({ top: 0, behavior: 'smooth' }); return }
+    const gn = t.closest('[data-genre]'); if (gn) { S.genre = gn.dataset.genre; S.tag = ''; syncUrl(); render(); $('#facets').scrollIntoView({ behavior: 'smooth', block: 'start' }); return }
+    const au = t.closest('[data-aud]'); if (au) { S.aud = au.dataset.aud; syncUrl(); render(); $('#facets').scrollIntoView({ block: 'start' }); return }
     const tg = t.closest('[data-tag]'); if (tg) { S.tag = tg.dataset.tag; render(); $('#all').scrollIntoView({ behavior: 'smooth' }); return }
     const so = t.closest('[data-sort]'); if (so) { S.sort = so.dataset.sort; render(); $('#all').scrollIntoView(); return }
     const op = t.closest('[data-open]'); if (op) return openSheet(op.dataset.open)
@@ -161,12 +179,12 @@
   // 顶栏/底栏的分类链接在本页内切换，不刷新
   document.querySelectorAll('.nav-links a, .tab-bar a').forEach((a) => a.addEventListener('click', (e) => {
     const u = new URL(a.href); if (u.pathname !== '/') return
-    e.preventDefault(); S.cat = u.searchParams.get('cat') || 'all'; S.tab = u.searchParams.get('tab') || ''; S.tag = ''; history.replaceState(null, '', u.search || '/'); render(); scrollTo({ top: 0 })
+    e.preventDefault(); S.cat = u.searchParams.get('cat') || 'all'; S.genre = ''; S.tab = u.searchParams.get('tab') || ''; S.tag = ''; history.replaceState(null, '', u.search || '/'); render(); scrollTo({ top: 0 })
   }))
 
   ;(async () => {
     root.innerHTML = '<div class="skel">' + '<i></i>'.repeat(8) + '</div>'
-    const d = await api('/api/catalog'); S.cats = d.cats; S.items = d.items
+    const d = await api('/api/catalog'); S.cats = d.cats; S.genres = d.genres || []; S.items = d.items
     render()
     // 可玩作品的结局收集进度
     const meta = { love_corridor: '/api/love/meta', under_dome: '/api/film/meta' }

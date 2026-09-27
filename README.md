@@ -163,3 +163,15 @@ npx wrangler d1 migrations apply webapp-production                              
 - 10 万局模拟：平台净利 6.74% 流水；黄金 14% / 白金 0.68% / 钻石 0.35% 触达率，奖池可持续
 - 前端：决策卡命运进度条、结局 fate-fx 揭晓动画 → 专属彩蛋片段 → 徽章 / “差一点就是…”提示
 - 测试：`python3 tests/ui_fate.py`（手机视口，已验证白金结局 + 彩蛋播放 + UR 卡）
+
+## 🗂️ 专业分类体系（形态 × 题材 × 受众 × 分级）
+| 维度 | 取值 | 作用 |
+|---|---|---|
+| **形态 format**（一级导航） | 🎨 漫剧 `anime` · 🎬 真人剧 `live` · 🔷 抽象剧 `abstract` | 决定生成管线：Seedance 画风、角色设定图、封面提示词（`src/catalog/taxonomy.ts`） |
+| **题材 genre**（二级筛选） | 恋爱·甜宠 / 都市·豪门 / 复仇·逆袭 / 悬疑·惊悚 / 古风·仙侠 / 奇幻·科幻 / 动作·犯罪 / 末日·生存 / 无厘头·整活 / 超现实·梦核 | 决定编剧类型；导演台未指定时按主题关键词自动识别 |
+| **受众 audience** | 女频 / 男频 / 全向 | 分发与推荐 |
+| **分级 rating** | 全年龄 / 16+ / 18+ | 18+ 走年龄确认遮罩 |
+- 目录 41 部：漫剧 8 · 真人剧 27 · 抽象剧 6（新增 6 部抽象剧 + 3 部漫剧，AI 封面）
+- URL：`/?cat=anime|live|abstract&genre=suspense&aud=female`；旧链接 `?cat=love|film` 自动映射到 漫剧|真人剧
+- 数据：`migrations/0008_taxonomy.sql`（studio_projects / published_series 增加 genre，cat 迁移为新形态）
+- 测试：`python3 tests/ui_taxonomy.py`
