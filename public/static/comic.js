@@ -234,12 +234,12 @@
     const regular = S.tree.nodes.reduce((a, n) => a + n.options.filter((o) => !o.twist).length, 0)
     const twist = S.tree.nodes.reduce((a, n) => a + n.options.filter((o) => o.twist).length, 0)
     frame(`<div class="spacer"></div><div class="cover">
-      <div class="sub" style="letter-spacing:4px;color:var(--gold)">${ABS ? '抽象剧 · 喵语翻译局 · 押错一声喵就被裁' : LOVE ? '恋爱博弈剧 · 电影级动画 · 原声对白' : FILM ? '对弈式影剧 · Seedance 2.0 电影级音画一体 · 原声对白' : '对弈式漫剧 · GPT Image 2 分镜 · 全程配音'}</div>
+      <div class="sub" style="letter-spacing:4px;color:var(--gold)">${ABS ? (m.series.mech ? `抽象剧 · ${esc(m.series.mech.name)} · 押错一次就出局` : '抽象剧 · 荒诞博弈 · 原声对白') : m.series.generated && LOVE ? '漫剧 · AI 电影级动画 · 原声对白' : LOVE ? '恋爱博弈剧 · 电影级动画 · 原声对白' : FILM ? '对弈式影剧 · Seedance 2.0 电影级音画一体 · 原声对白' : '对弈式漫剧 · GPT Image 2 分镜 · 全程配音'}</div>
       <h1>${esc(m.series.title)}</h1>
       <div class="lg">${m.series.generated ? `${esc(m.series.logline)}<br><b style="color:var(--gold)">${m.total_endings} 种结局</b> · 每一次押注都在你下注前锁定 · 悔棋会改写命运` : LOVE ? `后山那棵千年樱花树有个传说：<b style="color:#ffc2dc">毕业那天在树下告白的人，会永远幸福。</b><br>三年高中，五位少女，每一次心动都在你押注前锁定——你押的是她的心。悔棋？可以。但命运会<b style="color:#d9c6ff">变成二选一</b>，或让<b style="color:#d9c6ff">一个本不该出现的她</b>走进你的故事。` : `${FILM ? '9 段电影级片段，3 次抉择，<b style="color:var(--gold)">5 种结局</b>。' : ''}一夜之间，新港的命运系于一枚“星核”。每个抉择都在你下注之前锁定——你押的是人心。悔棋？可以。但故事会<b style="color:#d9c6ff">变成二选一</b>，或<b style="color:#d9c6ff">多出一个你没见过的选项</b>。`}</div>
       ${LOVE || m.series.generated ? `<div class="heroines">${Object.entries(S.tree.cast || {}).filter(([k, v]) => k !== '悠真' && v.img).map(([k, v]) => `<div class="hr" style="--c:${v.color}" title="${esc(v.brand)}"><img src="${v.img}"><b>${esc(k)}</b></div>`).join('')}</div>` : ''}
       <div class="stats3"><div><b>${m.nodes}</b><span>抉择点</span></div><div><b>${regular}</b><span>${LOVE ? '心动分支' : '常规分支'}</span></div><div><b>${twist}</b><span>${LOVE ? '隐藏邂逅' : '悔棋隐藏支'}</span></div><div><b>${m.my_endings.length}/${m.total_endings}</b><span>我的结局</span></div></div>
-      <button class="start2" id="st"><i class="fas ${ABS ? 'fa-cat' : LOVE ? 'fa-heart' : 'fa-book-open'}"></i> ${ABS ? '周一，打卡上班' : LOVE ? '推开校门' : '开始这一夜'}</button>
+      <button class="start2" id="st"><i class="fas ${ABS ? 'fa-cat' : LOVE ? 'fa-heart' : 'fa-book-open'}"></i> ${ABS ? '周一，打卡上班' : m.series.generated ? '开始这一夜' : LOVE ? '推开校门' : '开始这一夜'}</button>
       <div class="toggle"><label><input type="checkbox" id="tv" ${S.voice ? 'checked' : ''}> 配音</label><label><input type="checkbox" id="ta" ${S.auto ? 'checked' : ''}> 自动翻页</label><label><input type="checkbox" id="tb" ${S.bgm ? 'checked' : ''}> 环境音效</label></div></div>`)
     $('#tv').onchange = (e) => { S.voice = e.target.checked; localStorage.df_voice = S.voice ? '1' : '0' }
     $('#ta').onchange = (e) => { S.auto = e.target.checked; localStorage.df_auto = S.auto ? '1' : '0' }

@@ -69,10 +69,10 @@ def qc(url, lines):
 
 def crop_cast(sheet_png, n, sid):
     """设定图按人数等分裁头像 → R2 公开图"""
-    im = Image.open(sheet_png).convert('RGB'); W, H = im.size; out = {}
-    for i in range(n):
-        x0 = int(W * i / n); w = int(W / n); box = (x0 + int(w * 0.12), int(H * 0.04), x0 + int(w * 0.88), int(H * 0.04) + int(w * 0.76))
-        p = f'{TMP}/{sid}_c{i}.webp'; im.crop(box).resize((256, 256)).save(p, 'WEBP', quality=85)
+    from crop_cast import crop as _crop  # 圆形特写检测 → 列投影兜底
+    out = {}; faces, _how = _crop(sheet_png, n)
+    for i, face in enumerate(faces):
+        p = f'{TMP}/{sid}_c{i}.webp'; face.save(p, 'WEBP', quality=85)
         if r2put(f'{sid}/img/c{i}.webp', p, 'image/webp'): out[i] = f'/gimg/{sid}/c{i}.webp'
     return out
 

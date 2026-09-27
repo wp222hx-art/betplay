@@ -198,7 +198,7 @@ export async function publish(env: Bindings, projectId: string) {
     const m = J(j.meta, {})
     segments[j.clip_id] = { title: j.title, meme: tree.clips?.[j.clip_id]?.meme || '', mood: '', image_url: m.poster || pj.cover_url, video_url: `/static/${sid}/${j.clip_id}.mp4`, last_url: m.last || m.poster, dur: m.dur || j.dur, lines: m.lines || J(j.lines, []).map((l: any, i: number) => ({ ...l, start: 1 + i * 3, end: 3.6 + i * 3 })), film: true, ambience: null, sfx: null, sfx_at: 0 }
   }
-  const cast = Object.fromEntries((bible.cast || []).map((c: any, i: number) => [c.name, { color: ['#ff7eb3', '#7dd3fc', '#fbbf24', '#a78bfa'][i % 4], img: imgs[c.id] || pj.cover_url, side: c.side || (i === 0 ? 'R' : 'L'), brand: c.role }]))
+  const cast = Object.fromEntries((bible.cast || []).map((c: any, i: number) => [c.name, { color: ['#ff7eb3', '#7dd3fc', '#fbbf24', '#a78bfa'][i % 4], img: imgs[c.id] ? imgs[c.id] + '?v=' + (now() % 1e8) : pj.cover_url, side: c.side || (i === 0 ? 'R' : 'L'), brand: c.role }]))
   const data = { series: { id: sid, title: pj.title, logline: pj.logline, gated: true, generated: true, cat: Tax.fmt(pj.cat), genre: pj.genre || null, mech: bible.mech || null }, prologue: ['P'], nodes: tree.nodes, segments, cast }
   await env.DB.prepare(`INSERT INTO published_series (id,project_id,cat,genre,title,logline,tags,cover,data,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)
     ON CONFLICT(id) DO UPDATE SET data=excluded.data, cover=excluded.cover, cat=excluded.cat, genre=excluded.genre, version=version+1, updated_at=excluded.updated_at`)

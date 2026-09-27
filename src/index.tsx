@@ -248,7 +248,7 @@ app.get('/arch', (c) => c.html(archPage()))
 app.get('/director', (c) => c.html(directorPage()))
 app.get('/s/:sid', async (c) => { const r: any = await c.env.DB.prepare(`SELECT title, cat FROM published_series WHERE id=? AND status='live'`).bind(c.req.param('sid')).first(); if (!r) return c.notFound(); return c.html(seriesPage(c.req.param('sid'), r.title, r.cat)) })
 // 生成作品的公开海报/末帧/角色图（R2：<sid>/img/<name>.webp）
-app.get('/gimg/:sid/:name', async (c) => { const o = await (c.env as any).MEDIA?.get(`${c.req.param('sid')}/img/${c.req.param('name')}`); if (!o) return c.notFound(); return new Response(o.body, { headers: { 'Content-Type': o.httpMetadata?.contentType || 'image/webp', 'Cache-Control': 'public, max-age=86400' } }) })
+app.get('/gimg/:sid/:name', async (c) => { const o = await (c.env as any).MEDIA?.get(`${c.req.param('sid')}/img/${c.req.param('name')}`); if (!o) return c.notFound(); return new Response(o.body, { headers: { 'Content-Type': o.httpMetadata?.contentType || 'image/webp', 'Cache-Control': 'public, max-age=600' } }) })
 app.get('/play/:series', (c) => c.html(playerPage()))
 app.get('/console', (c) => c.html(consolePage()))
 app.get('/agents', (c) => c.html(agentsPage()))
