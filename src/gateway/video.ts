@@ -9,7 +9,7 @@ export const VIDEO_MODELS = [
   { id: 'veo-3.1', vendor: 'Google', quality: 9.5, consistency: 8.5, cost_per_sec: 0.40, queue_sec: 120, camera: 8, max_sec: 8, audio: true, fal: 'fal-ai/veo3' },
   { id: 'hailuo-h3', vendor: 'MiniMax', quality: 8.6, consistency: 8.2, cost_per_sec: 0.06, queue_sec: 60, camera: 8, max_sec: 10, audio: false, fal: 'fal-ai/minimax/hailuo-02/standard/text-to-video' },
   { id: 'wan-2.7', vendor: 'Alibaba', quality: 8.0, consistency: 7.8, cost_per_sec: 0.03, queue_sec: 45, camera: 7, max_sec: 5, audio: false, fal: 'fal-ai/wan-t2v' },
-  { id: 'motion-still', vendor: 'DreamForge 内置', quality: 5.5, consistency: 10, cost_per_sec: 0, queue_sec: 0, camera: 6, max_sec: 60, audio: false, fal: '' }
+  { id: 'motion-still', vendor: 'MoMocash 内置', quality: 5.5, consistency: 10, cost_per_sec: 0, queue_sec: 0, camera: 6, max_sec: 60, audio: false, fal: '' }
 ]
 
 const WEIGHTS: Record<string, Record<string, number>> = {

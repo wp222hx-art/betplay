@@ -91,7 +91,7 @@
         <div class="sort">${[['heat', '最热'], ['new', '最新'], ['end', '结局最多']].map(([k, n]) => `<button class="${S.sort === k ? 'on' : ''}" data-sort="${k}">${n}</button>`).join('')}</div></header>
         <div class="tags">${['', ...tags].map((t) => `<button class="${S.tag === t ? 'on' : ''}" data-tag="${esc(t)}">${t ? '#' + esc(t) : '全部标签'}</button>`).join('')}</div>
         <div class="grid">${all.map((x) => card(x)).join('') || '<p class="empty">这个标签下暂无作品</p>'}</div></section>
-      <footer class="dfoot">DreamForge · 对弈式互动剧 · 娱乐币不可提现 · 封面为概念展示</footer>`
+      <footer class="dfoot">MoMocash剧场 · 对弈式互动剧 · 娱乐币不可提现 · 封面为概念展示</footer>`
     startHero()
   }
 

@@ -1,4 +1,4 @@
-# DreamForge · Cash 剧场｜对弈式交互剧平台（7-Agent 协作版 MVP）
+# MoMocash剧场｜对弈式交互剧平台（7-Agent 协作版 MVP）
 
 > 结果先锁定，再开盘；剧情先生长，再揭晓。
 
@@ -144,6 +144,13 @@ npx wrangler pages secret put AUTH_SECRET && npx wrangler pages secret put ADMIN
 npx wrangler d1 migrations apply webapp-production                                 # 含 0005_platform
 ```
 测试：`tests/ui_market.py`（通关得卡→卡详情→完整路径）· `tests/ui_mobile.py` · `tests/ui_rift.py`
+
+## 🐰 品牌 · MoMocash剧场
+- **Logo**：粉色兔耳团子「MoMo」，眯眼 + ω 嘴 + 腮红，抱着爱心金币（cash = 押注筹码）；纯矢量手绘，任意尺寸清晰。
+- **文件**（`public/static/brand/`）：`momo.svg`（图形标）· `momo-logo.svg/png`（横版组合标）· `favicon-32.png` · `apple-touch-icon.png` · `icon-192/512.png`（PWA）· `og.png`（1200×630 分享卡）；`/static/manifest.webmanifest`。
+- **字标**：`MoMo`（粉色渐变）+ `cash`（金币黄）+「剧场」胶囊标签；字体 Fredoka + 站酷快乐体（Google Fonts）。
+- **色板**：主粉 `#ff5c9f` / 亮粉 `#ff8cc0` / 浅粉 `#ffd3e5` / 金币 `#ffc53d` / 夜色底 `#170d17`；全局 `--gold` 变量已改为粉色，播放页保留各剧独立主题色。
+- 品牌验收：`python3 tests/ui_brand.py`（4 页 × 桌面/手机，校验 logo 加载、无旧品牌名、无 JS 报错）。
 
 ## 🚀 上架中心（/publish）· 统一提交上线入口
 - **入口**：顶部导航「工作台 → 上架中心 · 提交上线」，或导演台项目卡片里的「去上架中心」按钮。

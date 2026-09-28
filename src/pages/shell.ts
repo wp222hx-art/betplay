@@ -4,8 +4,9 @@ const head = (title: string, extra = '') => `<!DOCTYPE html>
 <title>${title}</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700;900&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E%E2%99%9E%3C/text%3E%3C/svg%3E">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=ZCOOL+KuaiLe&family=Noto+Serif+SC:wght@500;700;900&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="/static/brand/momo.svg"><link rel="icon" type="image/png" sizes="32x32" href="/static/brand/favicon-32.png"><link rel="apple-touch-icon" href="/static/brand/apple-touch-icon.png"><link rel="manifest" href="/static/manifest.webmanifest"><meta name="theme-color" content="#ff5c9f">
+<meta property="og:site_name" content="MoMocash剧场"><meta property="og:title" content="${title}"><meta property="og:description" content="MoMocash剧场 · 边看边猜剧情的互动剧：漫剧 · 真人剧 · 抽象剧"><meta property="og:image" content="/static/brand/og.png"><meta name="twitter:card" content="summary_large_image">
 <link href="/static/style.css" rel="stylesheet">
 <script src="/static/auth.js"></script>
 ${extra}
@@ -16,7 +17,7 @@ const FMT = [['anime', 'fa-wand-magic-sparkles', '漫剧'], ['live', 'fa-film', 
 const act = (a: string) => (a === 'love' ? 'anime' : a === 'film' ? 'live' : a)
 const nav = (active: string) => `
 <nav id="top-nav" class="top-nav">
-  <a href="/" class="brand"><i class="fas fa-chess-knight"></i> DreamForge<span>· Cash 剧场</span></a>
+  <a href="/" class="brand" aria-label="MoMocash剧场 首页"><img src="/static/brand/momo.svg" alt="" width="38" height="38"><b>MoMo<i>cash</i></b><span>剧场</span></a>
   <div class="nav-links">
     <a href="/" class="${active === 'discover' ? 'on' : ''}"><i class="fas fa-compass"></i><b>发现</b></a>
     ${FMT.map(([k, ic, n]) => `<a href="/?cat=${k}" class="${act(active) === k ? 'on' : ''}"><i class="fas ${ic}"></i><b>${n}</b></a>`).join('')}
@@ -32,7 +33,7 @@ const nav = (active: string) => `
   <a href="/?tab=mine" class="${active === 'mine' ? 'on' : ''}"><i class="fas fa-bookmark"></i><span>我的</span></a>
 </nav>`
 
-export const playerPage = () => `${head('DreamForge · Cash 剧场 | 对弈式交互剧', '<link href="/static/player.css" rel="stylesheet">')}
+export const playerPage = () => `${head('MoMocash剧场 | 对弈式交互剧', '<link href="/static/player.css" rel="stylesheet">')}
 <body class="player-body">
 ${nav('play')}
 <main id="stage-wrap">
@@ -58,7 +59,7 @@ ${nav('console')}
 <script src="/static/console.js"></script>
 </body></html>`
 
-export const agentsPage = () => `${head('7-Agent 指挥中心 · DreamForge')}
+export const agentsPage = () => `${head('7-Agent 指挥中心 · MoMocash剧场')}
 <body class="console-body">
 ${nav('agents')}
 <main id="agents-main" class="agents-main"></main>
@@ -66,7 +67,7 @@ ${nav('agents')}
 <script src="/static/agents.js"></script>
 </body></html>`
 
-export const comicPage = () => `${head('穹顶之下 · 对弈式漫剧 | DreamForge', '<link href="/static/comic.css" rel="stylesheet">')}
+export const comicPage = () => `${head('穹顶之下 · 对弈式漫剧 | MoMocash剧场', '<link href="/static/comic.css" rel="stylesheet">')}
 <body class="comic-body">
 ${nav('comic')}
 <main id="comic-wrap">
@@ -80,7 +81,7 @@ ${nav('comic')}
 <script src="/static/comic.js"></script>
 </body></html>`
 
-export const filmPage = () => `${head('穹顶之下 · 影剧版 | DreamForge', '<link href="/static/comic.css" rel="stylesheet"><link href="/static/film.css" rel="stylesheet">')}
+export const filmPage = () => `${head('穹顶之下 · 影剧版 | MoMocash剧场', '<link href="/static/comic.css" rel="stylesheet"><link href="/static/film.css" rel="stylesheet">')}
 <body class="comic-body film-body">
 ${nav('film')}
 <main id="comic-wrap">
@@ -95,7 +96,7 @@ ${nav('film')}
 <script>window.DF_MODE="film"</script><script src="/static/comic.js"></script>
 </body></html>`
 
-export const voicePage = () => `${head('角色声线工作室 · DreamForge', '<link href="/static/voice.css" rel="stylesheet">')}
+export const voicePage = () => `${head('角色声线工作室 · MoMocash剧场', '<link href="/static/voice.css" rel="stylesheet">')}
 <body class="voice-body">
 ${nav('voice')}
 <main id="voice-main" class="voice-main">
@@ -108,7 +109,7 @@ ${nav('voice')}
 <script src="/static/voice.js"></script>
 </body></html>`
 
-export const lovePage = () => `${head('心动回廊 ～传说之樱下的约定～ | DreamForge', '<link href="/static/comic.css" rel="stylesheet"><link href="/static/film.css" rel="stylesheet"><link href="/static/love.css" rel="stylesheet">')}
+export const lovePage = () => `${head('心动回廊 ～传说之樱下的约定～ | MoMocash剧场', '<link href="/static/comic.css" rel="stylesheet"><link href="/static/film.css" rel="stylesheet"><link href="/static/love.css" rel="stylesheet">')}
 <body class="comic-body film-body love-body">
 ${nav('love')}
 <main id="comic-wrap">
@@ -124,7 +125,7 @@ ${nav('love')}
 <script>window.DF_MODE="film";window.DF_API="/api/love";window.DF_THEME="love"</script><script src="/static/comic.js"></script>
 </body></html>`
 
-export const discoverPage = () => `${head('DreamForge · 对弈式互动剧 | 漫剧 · 真人剧 · 抽象剧', '<link href="/static/discover.css" rel="stylesheet">')}
+export const discoverPage = () => `${head('MoMocash剧场 · 对弈式互动剧 | 漫剧 · 真人剧 · 抽象剧', '<link href="/static/discover.css" rel="stylesheet">')}
 <body class="discover-body">
 ${nav('discover')}
 <main id="discover" class="discover"></main>
@@ -132,7 +133,7 @@ ${nav('discover')}
 <script src="/static/discover.js"></script>
 </body></html>`
 
-export const marketPage = () => `${head('结局卡交易所 · DreamForge', '<link href="/static/market.css" rel="stylesheet">')}
+export const marketPage = () => `${head('结局卡交易所 · MoMocash剧场', '<link href="/static/market.css" rel="stylesheet">')}
 <body class="market-body">
 ${nav('market')}
 <main id="market" class="market"></main>
@@ -140,35 +141,35 @@ ${nav('market')}
 <script src="/static/market.js"></script>
 </body></html>`
 
-export const studioPage = () => `${head('制作平台 · DreamForge Studio', '<link href="/static/studio.css" rel="stylesheet">')}
+export const studioPage = () => `${head('制作平台 · MoMocash Studio', '<link href="/static/studio.css" rel="stylesheet">')}
 <body class="studio-body">
 ${nav('studio')}
 <main id="studio" class="studio"></main>
 <script src="/static/studio.js"></script>
 </body></html>`
 
-export const archPage = () => `${head('技术架构 · DreamForge', '<link href="/static/studio.css" rel="stylesheet">')}
+export const archPage = () => `${head('技术架构 · MoMocash剧场', '<link href="/static/studio.css" rel="stylesheet">')}
 <body class="studio-body">
 ${nav('arch')}
 <main id="arch" class="arch"></main>
 <script src="/static/arch.js"></script>
 </body></html>`
 
-export const directorPage = () => `${head('导演台 · 主题一键生成互动剧 | DreamForge', '<link href="/static/studio.css" rel="stylesheet"><link href="/static/director.css" rel="stylesheet">')}
+export const directorPage = () => `${head('导演台 · 主题一键生成互动剧 | MoMocash剧场', '<link href="/static/studio.css" rel="stylesheet"><link href="/static/director.css" rel="stylesheet">')}
 <body class="studio-body">
 ${nav('director')}
 <main id="director" class="studio"></main>
 <script src="/static/director.js"></script>
 </body></html>`
 
-export const publishPage = () => `${head('上架中心 · 提交上线 | DreamForge', '<link href="/static/studio.css" rel="stylesheet"><link href="/static/director.css" rel="stylesheet"><link href="/static/publish.css" rel="stylesheet">')}
+export const publishPage = () => `${head('上架中心 · 提交上线 | MoMocash剧场', '<link href="/static/studio.css" rel="stylesheet"><link href="/static/director.css" rel="stylesheet"><link href="/static/publish.css" rel="stylesheet">')}
 <body class="studio-body">
 ${nav('publish')}
 <main id="publish" class="studio"></main>
 <script src="/static/publish.js"></script>
 </body></html>`
 
-export const seriesPage = (sid: string, title: string, cat0: string) => { const cat = cat0 === 'anime' ? 'love' : cat0; const theme = cat === 'love' ? 'love' : cat === 'abstract' ? 'abstract' : ''; return `${head(title + ' | DreamForge', '<link href="/static/comic.css" rel="stylesheet"><link href="/static/film.css" rel="stylesheet">' + (cat === 'love' ? '<link href="/static/love.css" rel="stylesheet">' : ''))}
+export const seriesPage = (sid: string, title: string, cat0: string) => { const cat = cat0 === 'anime' ? 'love' : cat0; const theme = cat === 'love' ? 'love' : cat === 'abstract' ? 'abstract' : ''; return `${head(title + ' | MoMocash剧场', '<link href="/static/comic.css" rel="stylesheet"><link href="/static/film.css" rel="stylesheet">' + (cat === 'love' ? '<link href="/static/love.css" rel="stylesheet">' : ''))}
 <body class="comic-body film-body ${cat === 'love' ? 'love-body' : cat === 'abstract' ? 'abs-body' : ''}">
 ${nav(cat)}
 <main id="comic-wrap">

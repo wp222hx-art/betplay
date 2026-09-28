@@ -164,7 +164,7 @@ export async function derive(env: Bindings, seriesId: string, p: { anchor?: stri
   const anchorNode: any = reg.nodes.find((n: any) => n.node_id === anchor)
   const tree = (await env.DB.prepare('SELECT id,kind,title,question,layer FROM nodes WHERE series_id=? ORDER BY ord').bind(seriesId).all()).results
   const n = p.n || 3
-  const prompt = `你是 DreamForge 剧情延展 Agent（编剧 Agent + 博弈师 Agent + 评审模型）。
+  const prompt = `你是 MoMocash剧场 剧情延展 Agent（编剧 Agent + 博弈师 Agent + 评审模型）。
 世界观圣经（不可违背）：${series.world_bible}
 当前剧情树：${JSON.stringify(tree)}
 锚点 Cash 节点：${anchor}「${anchorNode?.question}」，全网决策分布：${JSON.stringify(anchorNode?.shares)}

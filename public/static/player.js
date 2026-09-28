@@ -387,7 +387,7 @@
     const wins = S.log.filter((l) => l.bet?.won).length
     const best = S.log.filter((l) => l.bet?.won).sort((a, b) => b.bet.odds - a.bet.odds)[0]
     const txt = `我在《${S.series.title}》押中 ${wins} 次${best ? `，最高赔率 ×${best.bet.odds}` : ''}！路径：${S.path.map((p) => p.label).join(' → ')}。你敢押吗？`
-    openModal(`<h2><i class="fas fa-share-nodes"></i> 战报卡</h2><div class="share-card"><div class="sub" style="letter-spacing:4px;color:var(--gold)">DreamForge · Cash 剧场</div>
+    openModal(`<h2><i class="fas fa-share-nodes"></i> 战报卡</h2><div class="share-card"><div class="sub" style="letter-spacing:2px;color:var(--gold);display:flex;align-items:center;justify-content:center;gap:6px"><img src="/static/brand/momo.svg" alt="" width="26" height="26">MoMocash剧场</div>
       <div class="serif" style="font-size:30px;font-weight:900;margin:6px 0">${esc(S.series.title)}</div>
       <div style="font-size:40px;font-weight:900;color:var(--gold)">${wins} 连中</div><div class="sub">${best ? `最高赔率 ×${best.bet.odds}` : '下一局就是你的'}</div>
       <div class="path" style="margin-top:12px">${S.path.map((p) => `<span>${esc(p.label)}</span>`).join('')}</div>

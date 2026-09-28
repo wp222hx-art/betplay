@@ -472,7 +472,9 @@
     }
     const url = location.origin + (r.share?.url || location.pathname)
     g.fillStyle = '#1b1b1b'; g.font = '800 30px sans-serif'; g.fillText('你能翻译对喵总的每一声喵吗？', W / 2, y + 50)
-    g.font = '500 22px sans-serif'; g.fillStyle = '#555'; g.fillText('DreamForge · 抽象剧 · 扫码 / 打开链接开局，你我各得 +200', W / 2, y + 92)
+    const logo = await loadImg('/static/brand/momo.svg')
+    if (logo) g.drawImage(logo, W / 2 - 250, y + 66, 38, 38)
+    g.font = '700 22px sans-serif'; g.fillStyle = '#ff4f93'; g.fillText('MoMocash剧场 · 抽象剧 · 打开链接开局，你我各得 +200', W / 2 + 22, y + 92)
     g.font = '600 20px monospace'; g.fillStyle = '#b36b00'; g.fillText(url.replace(/^https?:\/\//, ''), W / 2, y + 130)
     const png = cv.toDataURL('image/png')
     track('meme_make', { meta: { n: list.length, at: 'ending' } })

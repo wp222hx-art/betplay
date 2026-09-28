@@ -45,7 +45,7 @@ export const AGENTS = [
 ]
 
 export const BLUEPRINT = {
-  name: 'DreamForge · Cash 剧场',
+  name: 'MoMocash剧场',
   motto: '结果先锁定，再开盘；剧情先生长，再揭晓。',
   terminals: [
     { name: '对弈式漫剧《穹顶之下》', path: '/comic', owner: 5 },
