@@ -318,7 +318,10 @@ export async function progress(env: Bindings, projectId: string) {
   if (status === 'rendering' && s.n && s.ok === s.n) status = 'review'
   if (status !== pj.status) await env.DB.prepare('UPDATE studio_projects SET status=?, updated_at=? WHERE id=?').bind(status, now(), projectId).run()
   let published = null
-  if (status === 'review' && pj.auto) published = await publish(env, projectId)
+  if (status === 'review' && pj.auto) {
+    published = await publish(env, projectId)
+    await env.DB.prepare('INSERT INTO publish_log (series_id,project_id,action,version,actor,note,created_at) VALUES (?,?,?,?,?,?,?)').bind(published.series_id, projectId, 'publish', null, 'auto', '全自动：AI 质检通过自动上架', now()).run()
+  }
   return { project: projectId, total: s.n, done: s.done || 0, approved: s.ok || 0, failed: s.bad || 0, spent: s.spent || 0, status: published ? 'published' : status, published }
 }
 

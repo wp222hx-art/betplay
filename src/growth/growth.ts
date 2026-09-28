@@ -68,17 +68,17 @@ export async function rewardRef(env: Env, uid: string) {
 }
 
 /** 押注人格：由本局押注行为推断，给出真人剧推荐理由 */
-export function persona(st: { staked: number; bets: number; hits: number; pnl: number }, contrarian: number, twists: number) {
+export function persona(st: { staked: number; bets: number; hits: number; pnl: number }, contrarian: number, twists: number, fmt = 'abstract') {
   if (contrarian > 0) return { id: 'maverick', name: '独行侠', icon: '🦊', desc: '你总和大多数人反着押，还押中了', pick: ['suspense', 'revenge'] }
   if (twists > 0) return { id: 'twist', name: '反转猎人', icon: '🌀', desc: '你总能嗅到隐藏结局', pick: ['suspense', 'action'] }
   if (st.staked >= 600) return { id: 'whale', name: '梭哈玩家', icon: '🐳', desc: '大心脏，下注从不手软', pick: ['action', 'urban'] }
-  if (st.bets && st.hits === st.bets) return { id: 'oracle', name: '喵语预言家', icon: '🔮', desc: '每一声喵你都翻译对了', pick: ['suspense', 'romance'] }
+  if (st.bets && st.hits === st.bets) return fmt === 'abstract' ? { id: 'oracle', name: '喵语预言家', icon: '🔮', desc: '每一声喵你都翻译对了', pick: ['suspense', 'romance'] } : { id: 'oracle', name: '剧情预言家', icon: '🔮', desc: '每一步剧情你都猜中了', pick: ['suspense', 'romance'] }
   return { id: 'chill', name: '快乐吃瓜人', icon: '🍉', desc: '比起输赢，你更爱看热闹', pick: ['romance', 'urban'] }
 }
 
 /** 跨剧导流：按人格题材偏好推荐真人剧（可玩优先） */
 export function crossSell(catalog: any[], pick: string[], exclude: string, n = 3) {
-  const live = catalog.filter((x) => x.cat === 'live' && x.id !== exclude)
+  const live = catalog.filter((x) => x.cat === 'live' && x.id !== exclude && x.url !== '/s/' + exclude)  // 概念卡上架后 id≠series_id，按播放地址一并排除
   const score = (x: any) => (x.status === 'live' ? 1000 : 0) + (pick.includes(x.genre) ? 500 - pick.indexOf(x.genre) * 100 : 0) + (x.heat || 0) / 100
   return [...live].sort((a, b) => score(b) - score(a)).slice(0, n).map((x) => ({ id: x.id, title: x.title, sub: x.sub, cover: x.cover, url: x.url, status: x.status, genre: x.genre, endings: x.endings }))
 }

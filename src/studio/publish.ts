@@ -119,7 +119,7 @@ export async function board(env: Env) {
   const prj = (await env.DB.prepare(`SELECT p.id, p.title, p.cat, p.genre, p.status, p.scale, p.spent, p.series_id, p.cover_url, p.source_item, p.logline, p.updated_at,
       SUM(j.kind='clip') clips, SUM(j.kind='clip' AND j.status='approved' AND j.result_url NOT LIKE 'dry://%') ready, SUM(j.kind='clip' AND j.status='failed') failed,
       SUM(j.kind='clip' AND j.status IN ('queued','running','review')) pending, SUM(j.result_url LIKE 'dry://%') dry
-    FROM studio_projects p JOIN render_jobs j ON j.project_id=p.id GROUP BY p.id ORDER BY p.updated_at DESC LIMIT 40`).all()).results as any[]
+    FROM studio_projects p JOIN render_jobs j ON j.project_id=p.id WHERE p.status!='archived' GROUP BY p.id ORDER BY p.updated_at DESC LIMIT 40`).all()).results as any[]
   const pub = (await env.DB.prepare(`SELECT p.id, p.project_id, p.cat, p.genre, p.title, p.logline, p.cover, p.status, p.version, p.aud, p.rating, p.badge, p.tags, p.source_item, p.created_at, p.updated_at,
       (SELECT COUNT(*) FROM comic_runs r WHERE r.series_id=p.id) plays FROM published_series p ORDER BY p.updated_at DESC`).all()).results as any[]
   const logs = (await env.DB.prepare('SELECT * FROM publish_log ORDER BY created_at DESC LIMIT 30').all()).results

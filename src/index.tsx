@@ -228,7 +228,7 @@ async function onEnd(c: any, series: string, cat: string, res: any) {
   const run: any = await c.env.DB.prepare(`SELECT id FROM comic_runs WHERE user_id=? AND series_id=? AND status='ended' ORDER BY ended_at DESC LIMIT 1`).bind(u, series).first()
   const agg: any = run ? await c.env.DB.prepare(`SELECT COALESCE(SUM(contrarian),0) c, COALESCE(SUM(bet_amount),0) st, SUM(CASE WHEN bet_option IS NOT NULL THEN 1 ELSE 0 END) b, SUM(CASE WHEN bet_option IS NOT NULL AND bet_option=outcome_id THEN 1 ELSE 0 END) h, COALESCE(SUM(payout-bet_amount),0) p FROM comic_rounds WHERE run_id=? AND state IN ('NEXT','SETTLE')`).bind(run.id).first() : {}
   const twists = (res.path || []).filter((x: any) => x.twist).length
-  const ps = Growth.persona({ staked: agg.st || 0, bets: agg.b || 0, hits: agg.h || 0, pnl: agg.p || 0 }, agg.c || 0, twists)
+  const ps = Growth.persona({ staked: agg.st || 0, bets: agg.b || 0, hits: agg.h || 0, pnl: agg.p || 0 }, agg.c || 0, twists, f)
   const cat0 = await catalogItems(c)
   res.persona = { ...ps, contrarian: agg.c || 0 }
   res.cross = Growth.crossSell(cat0, ps.pick, series)

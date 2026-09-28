@@ -145,6 +145,13 @@ npx wrangler d1 migrations apply webapp-production                              
 ```
 测试：`tests/ui_market.py`（通关得卡→卡详情→完整路径）· `tests/ui_mobile.py` · `tests/ui_rift.py`
 
+### 📺 已上架：《她从地狱回来了》（真人剧 · 试播集）
+- 播放：`/s/gen_87c53a9f`；已关联发现页概念卡 `revenge_heiress`（真人剧热度第一），卡片由“即将上线”变为可玩。
+- 规模：3 抉择点 / 4 结局 / 11 段（含黄金·白金·钻石彩蛋）；原创面孔设定图，13 个任务 **0 次审核拒绝**；实际消耗约 10,210 积分。
+- 质检：本地字幕检测发现 R_2 / E_11 / E_21 被模型烧录了中文字幕 → `scripts/studio/desub.py` 定位字幕带 + delogo 修补后替换 R2 媒体与海报帧。
+- worker 新增本地烧录字幕检测（远程 AI 质检 `media-analyze` 当前上传失败，结果不可用），超过 20% 帧命中即判不通过。
+- 回归：`python3 tests/ui_series_play.py <BASE> gen_87c53a9f`（发现页卡片 → 开局 → 2 次竞猜 → 结局）。
+
 ## 🐰 品牌 · MoMocash剧场
 - **Logo**：粉色兔耳团子「MoMo」，眯眼 + ω 嘴 + 腮红，抱着爱心金币（cash = 押注筹码）；纯矢量手绘，任意尺寸清晰。
 - **文件**（`public/static/brand/`）：`momo.svg`（图形标）· `momo-logo.svg/png`（横版组合标）· `favicon-32.png` · `apple-touch-icon.png` · `icon-192/512.png`（PWA）· `og.png`（1200×630 分享卡）；`/static/manifest.webmanifest`。

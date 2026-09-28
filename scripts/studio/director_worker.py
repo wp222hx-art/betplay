@@ -67,6 +67,23 @@ def qc(url, lines):
         m = re.search(r'\{[^{}]*"pass"[^{}]*\}', r.stdout.replace('\\"', '"')); return json.loads(m.group(0)) if m else {'pass': True, 'note': 'qc unparsed'}
     except Exception as e: return {'pass': True, 'note': 'qc skipped'}
 
+def burned_subs(mp4):
+    """本地检测烧录字幕：抽 2fps，统计画面下 1/3 出现“白字+强横向边缘”文字带的帧数（远程 AI 质检不可用时的兜底）"""
+    try:
+        import numpy as np, glob
+        pat = f'{TMP}/_sub_{os.getpid()}_{threading.get_ident()}_%03d.png'
+        sh('ffmpeg', '-loglevel', 'error', '-y', '-i', mp4, '-vf', 'fps=2,scale=288:-1', pat)
+        fs = sorted(glob.glob(pat.replace('%03d', '*'))); hits = 0
+        for f in fs:
+            a = np.asarray(Image.open(f).convert('L')).astype(int); h = a.shape[0]; band = a[int(h * .62):int(h * .9)]
+            rows = (band > 225).sum(1); edge = (np.abs(np.diff(band, axis=1)) > 90).sum(1); run = best = 0
+            for r, e in zip(rows, edge):
+                run = run + 1 if (0.03 < r / band.shape[1] < 0.35 and e > 12) else 0; best = max(best, run)
+            hits += 5 <= best <= 40
+            os.remove(f)
+        return hits, len(fs)
+    except Exception: return 0, 0
+
 def crop_cast(sheet_png, n, sid):
     """设定图按人数等分裁头像 → R2 公开图"""
     from crop_cast import crop as _crop  # 圆形特写检测 → 列投影兜底
@@ -120,6 +137,9 @@ def run(job):
     url = upload(raw)
     lines = transcribe_align(mp4, job.get('lines') or [], dur, f'{sid}_{cid}')
     q = qc(url, lines) if url else {'pass': True}
+    hits, n = burned_subs(mp4)
+    if n and hits / n > 0.2: q = {**q, 'pass': False, 'burned_text': True, 'note': f'本地检测到烧录字幕 {hits}/{n} 帧'}
+    elif 'unparsed' in str(q.get('note', '')): q = {**q, 'note': f'远程质检不可用；本地字幕检测 {hits}/{n} 帧通过'}
     return {'ok': ok, 'url': url, 'spent': spent, 'qc': q, 'meta': {'dur': dur, 'lines': lines, 'poster': f'/gimg/{sid}/{cid}_poster.webp', 'last': f'/gimg/{sid}/{cid}_last.webp'}}
 
 def loop():
