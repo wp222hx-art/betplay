@@ -145,6 +145,17 @@ npx wrangler d1 migrations apply webapp-production                              
 ```
 测试：`tests/ui_market.py`（通关得卡→卡详情→完整路径）· `tests/ui_mobile.py` · `tests/ui_rift.py`
 
+## 🚀 上架中心（/publish）· 统一提交上线入口
+- **入口**：顶部导航「工作台 → 上架中心 · 提交上线」，或导演台项目卡片里的「去上架中心」按钮。
+- **流程**：待上架列表（导演台成片项目）→ 点开自动**预检** → 填写片名 / 简介 / 题材 / 受众 / 分级 / 角标 / 标签 / 关联目录概念卡 → **提交上线**（再次提交 = 版本 +1）→ 已上架可「试玩 / 下架 / 更新版本」，已下架可「恢复」。
+- **预检项**（✗ 阻断，⚠ 提示）：真实成片（dry 空跑占位一律拦截）/ 无进行中片段 / 序章 / 首个抉择点 ≥2 选项 / 可达结局 ≥3 / 剧情树结构 / 封面 / R2 序章视频存在；⚠ 精简版裁剪、肖像版权拒绝、时间裂隙、彩蛋 3 档、角色立绘。
+- **精简版上架**：失败分支自动从剧情树裁掉（节点剩 <2 选项则整节点移除，常规权重重新归一），只要主干可玩即可先上线，补拍后「更新版本」。
+- **失败片段重拍**：内容审核拒绝（content_moderation_rejected）→ LLM 改写提示词（去暴力/赌博措辞，保留角色定义、镜头结构、中文台词）→ 自动重排队，最多 2 轮；肖像/版权拒绝（content_moderation_copyright）= 设定图撞脸真人，改写无效，预检提示重做设定图。设定图提示词已加入“原创面孔、不得像任何真人明星”约束。
+- **计费修正**：Seedance 失败任务不扣费（实测余额不变），worker 失败回报 spent=0；「赌桌风云」历史虚记 12,580 积分已写冲销分录（credit_ledger kind=adjust）。
+- **审计**：publish_log 记录 publish / update / takedown / restore / meta，含预检快照。
+- **API**（ADMIN_KEY）：`GET /api/admin/publish/board`、`GET /api/admin/publish/:pid/preflight`、`POST /api/admin/publish/:pid/submit`、`POST /api/admin/series/:sid/takedown|restore|meta`、`POST /api/director/projects/:id/retry`
+- ⚠ 本地未配置 ADMIN_KEY 时管理面开放（开发便利）；**生产必须设置 ADMIN_KEY secret**，否则任何人可上下架。
+
 ## 🎬 AI 导演台 · 全自动生成流水线（/director）
 
 ### 两段式编剧 v2（2026-09-27 检验后重构）

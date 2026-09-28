@@ -78,7 +78,8 @@
       <div class="bar big"><i style="width:${n ? (ok / n) * 100 : 0}%"></i></div>
       ${pub ? `<a class="btn2 big" href="/s/${d.series_id}" style="margin:12px 0"><i class="fas fa-play"></i> 已上架 · 立即试玩</a>` : ''}
       ${!n ? `<button class="btn2 big" data-green="${d.id}"><i class="fas fa-clapperboard"></i> 开拍</button>` : ''}
-      ${n && !pub && d.status === 'review' ? `<button class="btn2 big" data-pub="${d.id}"><i class="fas fa-rocket"></i> 全部通过 · 上架</button>` : ''}
+      ${n && !pub && ok > 0 ? `<a class="btn2 big" href="/publish" style="margin:12px 0"><i class="fas fa-rocket"></i> 去上架中心 · 预检并提交上线${ok < n ? `（当前 ${ok}/${n} 段可用，可先上精简版）` : ''}</a>` : ''}
+      ${jobs.some((j) => j.status === 'failed') ? `<button class="btn2 ghost" data-retry="${d.id}" style="width:100%;margin-bottom:10px"><i class="fas fa-rotate"></i> 失败片段重拍（${jobs.filter((j) => j.status === 'failed').length} 段 · 审核拒绝自动改写提示词）</button>` : ''}
       ${pub && !jobs.some((j) => j.clip_id.startsWith('BONUS_')) ? `<button class="btn2 ghost" data-bonus="${d.id}" style="width:100%;margin-bottom:10px"><i class="fas fa-gem"></i> 续生成：黄金 / 白金 / 钻石 彩蛋片段（≈ ${3 * S.meta.price.clip10} 积分）</button>` : ''}
       ${n && !pub ? `<button class="btn2 ghost sm" data-pause="${d.id}">${d.status === 'paused' ? '▶ 继续' : '⏸ 暂停'}</button>` : ''}
       <div class="jobs">${jobs.map((j) => { const [t, c] = JS[j.status] || [j.status, '#666']; return `<div class="jb2" style="--c:${c}"><i>${KIND[j.kind] || ''}</i><b>${esc(j.clip_id)}</b><span>${esc(j.title)}${j.dur ? ' · ' + j.dur + 's' : ''}</span><em>${t}</em><small>${j.spent || j.credits}</small>${j.status === 'review' ? `<button class="btn2 sm" data-ok="${j.id}">✓</button><button class="btn2 sm ghost" data-no="${j.id}">↻</button>` : ''}${j.result_url && j.result_url.startsWith('http') ? `<a href="${j.result_url}" target="_blank" class="lnk"><i class="fas fa-up-right-from-square"></i></a>` : ''}</div>` }).join('')}</div>
@@ -106,6 +107,7 @@
       if (q('[data-no]')) { await api(`/api/director/jobs/${q('[data-no]').dataset.no}/review`, { approve: false }); toast('已驳回，重新排队生成'); return openProject(S.active) }
       if (q('[data-pub]')) { const r = await api(`/api/director/projects/${q('[data-pub]').dataset.pub}/publish`, {}); toast('已上架 ' + r.url); return openProject(S.active) }
       if (q('[data-bonus]')) { const b = q('[data-bonus]'); b.disabled = true; b.innerHTML = '<i class="fas fa-spinner fa-spin"></i> AI 编写彩蛋分镜…'; const r = await api(`/api/director/projects/${b.dataset.bonus}/bonus`, {}); toast(`已入队 ${r.queued} 个彩蛋片段 · ${r.est_credits} 积分`); return openProject(S.active) }
+      if (q('[data-retry]')) { const b = q('[data-retry]'); b.disabled = true; b.innerHTML = '<i class="fas fa-spinner fa-spin"></i> AI 改写提示词中…'; const r = await api(`/api/director/projects/${b.dataset.retry}/retry`, {}); toast(`已重新排队 ${r.requeued} 段（改写 ${r.softened} 段）`); return openProject(S.active) }
       if (q('[data-pause]')) { await api(`/api/director/projects/${q('[data-pause]').dataset.pause}/pause`, {}); return openProject(S.active) }
     } catch (er) { toast(er.message); const b = $('#go'); if (b) { b.disabled = false; b.innerHTML = '<i class="fas fa-pen-nib"></i> AI 编剧 · 生成剧本与博弈抉择' } }
   })

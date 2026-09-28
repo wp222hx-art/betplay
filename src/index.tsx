@@ -9,7 +9,7 @@ import { modelHealth, predictiveQueue, rankVideoModels, submitVideo, buildVideoP
 import { branches, overview, scriptTree } from './agents/console'
 import { applyClipPlan, approveExtension, clipPairs, derive, generatePoems, ingestSignals, regulate } from './agents/deriver'
 import type { Bindings } from './gateway/llm'
-import { playerPage, consolePage, agentsPage, comicPage, filmPage, voicePage, lovePage, discoverPage, marketPage, studioPage, archPage, directorPage, seriesPage } from './pages/shell'
+import { playerPage, consolePage, agentsPage, comicPage, filmPage, voicePage, lovePage, discoverPage, marketPage, studioPage, archPage, directorPage, seriesPage, publishPage } from './pages/shell'
 import CATALOG from './catalog/data.json'
 import * as Tax from './catalog/taxonomy'
 import * as Growth from './growth/growth'
@@ -21,6 +21,7 @@ import { authUid, checkTicket, ipKey, issueDevice, rateLimit, riskEvent } from '
 import * as Market from './market/cards'
 import * as Studio from './studio/pipeline'
 import * as Director from './studio/director'
+import * as Publish from './studio/publish'
 import * as Tiers from './market/tiers'
 import { createEngine } from './comic/factory'
 
@@ -99,11 +100,11 @@ async function catalogItems(c: any) {
   const mine = u ? ((await c.env.DB.prepare('SELECT item_id FROM catalog_wish WHERE user_id=?').bind(u).all()).results as any[]).map((r) => r.item_id) : []
   const plays = Object.fromEntries(((await c.env.DB.prepare(`SELECT series_id, COUNT(*) n FROM comic_runs GROUP BY series_id`).all()).results as any[]).map((r) => [r.series_id, r.n]))
   const SID: Record<string, string> = { love_corridor: 'love_corridor', under_dome: (Film.COMIC as any).series.id }
-  const pub = (await c.env.DB.prepare(`SELECT p.id, p.project_id, p.cat, p.genre, p.title, p.logline, p.tags, p.cover, p.data, p.created_at, s.source_item FROM published_series p LEFT JOIN studio_projects s ON s.id=p.project_id WHERE p.status='live' ORDER BY p.created_at DESC`).all()).results as any[]
+  const pub = (await c.env.DB.prepare(`SELECT p.id, p.project_id, p.cat, p.genre, p.title, p.logline, p.tags, p.cover, p.data, p.created_at, p.aud, p.rating, p.badge, COALESCE(p.source_item, s.source_item) source_item FROM published_series p LEFT JOIN studio_projects s ON s.id=p.project_id WHERE p.status='live' ORDER BY p.created_at DESC`).all()).results as any[]
   const fromItem = Object.fromEntries(pub.filter((p) => p.source_item).map((p) => [p.source_item, p]))
   const genItems = pub.filter((p) => !p.source_item).map((p, i) => { const d = JSON.parse(p.data); const ends = new Set(d.nodes.flatMap((n: any) => n.options.filter((o: any) => !o.next).map((o: any) => o.id))).size
-    return { id: p.id, cat: Tax.fmt(p.cat), genre: p.genre || 'romance', aud: 'all', rating: '16', title: p.title, sub: 'AI 导演生成', tags: JSON.parse(p.tags || '[]'), heat: 8000, endings: ends, nodes: d.nodes.length, forks: d.nodes.filter((n: any) => n.fork).length, status: 'live', url: '/s/' + p.id, badge: '新作', logline: p.logline, cover: p.cover, order: -1 - i } })
-  const items = [...genItems, ...(CATALOG as any).items.map((it: any) => fromItem[it.id] ? { ...it, status: 'live', url: '/s/' + fromItem[it.id].id, badge: '新上线', cover: it.cover } : it)]
+    return { id: p.id, cat: Tax.fmt(p.cat), genre: p.genre || 'romance', aud: p.aud || 'all', rating: p.rating || '16', title: p.title, sub: 'AI 导演生成', tags: JSON.parse(p.tags || '[]'), heat: 8000, endings: ends, nodes: d.nodes.length, forks: d.nodes.filter((n: any) => n.fork).length, status: 'live', url: '/s/' + p.id, badge: p.badge || '新作', logline: p.logline, cover: p.cover, order: -1 - i } })
+  const items = [...genItems, ...(CATALOG as any).items.map((it: any) => fromItem[it.id] ? (() => { const p = fromItem[it.id], d = JSON.parse(p.data); return { ...it, status: 'live', url: '/s/' + p.id, badge: p.badge || '新上线', cover: it.cover || p.cover, endings: new Set(d.nodes.flatMap((n: any) => n.options.filter((o: any) => !o.next).map((o: any) => o.id))).size, nodes: d.nodes.length, forks: d.nodes.filter((n: any) => n.fork).length } })() : it)]
     .map((it: any) => ({ ...it, wish: (it.heat * 3 + (cnt[it.id] || 0)), wished: mine.includes(it.id), plays: plays[SID[it.id] || it.id] || 0 }))
   return items
 }
@@ -196,6 +197,14 @@ app.post('/api/admin/pool/seed', async (c) => { const b = await body(c); await T
 app.get('/api/fate/:series', async (c) => c.json(await Tiers.tierBoard(c.env as any, c.req.param('series'))))
 app.post('/api/director/projects/:id/publish', async (c) => c.json(await Director.publish(c.env, c.req.param('id'))))
 app.post('/api/director/projects/:id/pause', async (c) => { await c.env.DB.prepare(`UPDATE studio_projects SET status=CASE status WHEN 'rendering' THEN 'paused' WHEN 'paused' THEN 'rendering' ELSE status END WHERE id=?`).bind(c.req.param('id')).run(); return c.json(await Director.progress(c.env, c.req.param('id'))) })
+app.post('/api/director/projects/:id/retry', async (c) => c.json(await Director.retryFailed(c.env, c.req.param('id'))))
+// ── 上架中心：预检 → 提交上线 / 更新版本 → 下架 / 恢复 → 元数据 → 审计 ──
+app.get('/api/admin/publish/board', async (c) => c.json(await Publish.board(c.env as any)))
+app.get('/api/admin/publish/:pid/preflight', async (c) => c.json(await Publish.preflight(c.env as any, c.req.param('pid'))))
+app.post('/api/admin/publish/:pid/submit', async (c) => { const b = await body(c); return c.json(await Publish.submit(c.env as any, c.req.param('pid'), b)) })
+app.post('/api/admin/series/:sid/takedown', async (c) => { const b = await body(c); return c.json(await Publish.setLive(c.env as any, c.req.param('sid'), false, b.note || '')) })
+app.post('/api/admin/series/:sid/restore', async (c) => { const b = await body(c); return c.json(await Publish.setLive(c.env as any, c.req.param('sid'), true, b.note || '')) })
+app.post('/api/admin/series/:sid/meta', async (c) => c.json(await Publish.updateMeta(c.env as any, c.req.param('sid'), await body(c))))
 app.post('/api/director/claim', async (c) => { const b = await body(c); return c.json({ job: await Director.claim(c.env, b.worker || 'worker', b.balance) }) })
 app.post('/api/director/jobs/:id/report', async (c) => { const b = await body(c); return c.json(await Director.report(c.env, { id: c.req.param('id'), ok: !!b.ok, url: b.url, spent: b.spent, meta: b.meta, qc: b.qc })) })
 app.post('/api/director/jobs/:id/review', async (c) => { const b = await body(c); return c.json(await Director.review(c.env, c.req.param('id'), !!b.approve)) })
@@ -247,6 +256,7 @@ app.get('/market', (c) => c.html(marketPage()))
 app.get('/studio', (c) => c.html(studioPage()))
 app.get('/arch', (c) => c.html(archPage()))
 app.get('/director', (c) => c.html(directorPage()))
+app.get('/publish', (c) => c.html(publishPage()))
 app.get('/s/:sid', async (c) => { const r: any = await c.env.DB.prepare(`SELECT title, cat FROM published_series WHERE id=? AND status='live'`).bind(c.req.param('sid')).first(); if (!r) return c.notFound(); return c.html(seriesPage(c.req.param('sid'), r.title, r.cat)) })
 // 生成作品的公开海报/末帧/角色图（R2：<sid>/img/<name>.webp）
 app.get('/gimg/:sid/:name', async (c) => { const o = await (c.env as any).MEDIA?.get(`${c.req.param('sid')}/img/${c.req.param('name')}`); if (!o) return c.notFound(); return new Response(o.body, { headers: { 'Content-Type': o.httpMetadata?.contentType || 'image/webp', 'Cache-Control': 'public, max-age=600' } }) })

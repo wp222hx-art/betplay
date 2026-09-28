@@ -180,7 +180,7 @@ export function compile(out: any, cat: string, scaleKey: string) {
     nodes.push({ id: 'N_K', depth: 3, question: out.fork.question || '平行时间线：你要改写什么？', options: fe.map((e: any, j: number) => { add(`E_K${j + 1}`, e, 10); return { id: `E_K${j + 1}`, key: 'ABCD'[j], label: e.label, hint: e.hint || '', weight: +(1 / fe.length).toFixed(2), category: e.tone || 'love', ending_title: e.title, ...(e.twist || e.tone === 'twist' ? { twist: true, key: 'T' } : {}) } }) })
   }
   for (const t of ['gold', 'platinum', 'diamond']) if (out.bonus?.[t]) add(`BONUS_${t}`, { title: out.bonus[t].title || t, shots: out.bonus[t].shots }, 10)
-  const sheetPrompt = `Character reference sheet, ${Tax.SHEET_STYLE[Tax.fmt(cat)]}, ${cast.length} characters standing side by side left to right on a clean light background, full body plus face close-up, consistent lighting, labeled by position only, no text. ` + cast.map((c: any, i: number) => `#${i + 1}: ${c.look}.`).join(' ')
+  const sheetPrompt = `Character reference sheet, ${Tax.SHEET_STYLE[Tax.fmt(cat)]}, ${cast.length} characters standing side by side left to right on a clean light background, full body plus face close-up, consistent lighting, labeled by position only, no text. All characters are ORIGINAL fictional people with unique faces — must NOT resemble any real actor, celebrity or public figure. ` + cast.map((c: any, i: number) => `#${i + 1}: ${c.look}.`).join(' ')
   return { cast, nodes, clips, sheetPrompt }
 }
 
@@ -263,15 +263,45 @@ export async function report(env: Bindings, p: { id: string; ok: boolean; url?: 
   const pj: any = await env.DB.prepare('SELECT * FROM studio_projects WHERE id=?').bind(j.project_id).first()
   const spent = Math.round(p.spent ?? (p.ok ? j.credits : 0))
   const pass = p.ok && (p.qc?.pass !== false)
-  const status = !p.ok ? (j.attempts >= 2 ? 'failed' : 'queued') : j.kind !== 'clip' || (pj.auto && pass) ? 'approved' : 'review'
+  // 内容审核拒绝：同一提示词重试必然再被拒 → LLM 改写成合规版本、重置次数重新排队（最多自愈 2 轮）
+  const moderated = !p.ok && /moderation|safety|sensitive|rejected/i.test(String(p.meta?.error || ''))
+  let softened: string | null = null
+  // copyright = 参考图（设定图）撞脸真人，改写文字无效 → 直接判失败，由预检提示“重做设定图”
+  if (moderated && !/copyright/i.test(String(p.meta?.error || '')) && j.kind === 'clip' && (j.softened || 0) < 2) softened = await softenPrompt(env, j.prompt, j.softened || 0)
+  const status = softened ? 'queued' : !p.ok ? (moderated || j.attempts >= 2 ? 'failed' : 'queued') : j.kind !== 'clip' || (pj.auto && pass) ? 'approved' : 'review'
   await env.DB.batch([
     env.DB.prepare(`UPDATE render_jobs SET status=?, result_url=?, meta=?, qc=?, spent=spent+?, worker=CASE WHEN ?='queued' THEN NULL ELSE worker END, updated_at=? WHERE id=?`).bind(status, p.url || null, JSON.stringify(p.meta || {}), JSON.stringify(p.qc || {}), spent, status, now(), p.id),
     env.DB.prepare('UPDATE studio_projects SET spent=spent+?, updated_at=? WHERE id=?').bind(spent, now(), j.project_id),
     env.DB.prepare('INSERT INTO credit_ledger (project_id,job_id,kind,credits,note,created_at) VALUES (?,?,?,?,?,?)').bind(j.project_id, p.id, j.kind, spent, `${j.clip_id} ${p.ok ? 'ok' : 'fail'}`, now())
   ])
+  if (softened) await env.DB.prepare('UPDATE render_jobs SET prompt=?, softened=softened+1, attempts=0 WHERE id=?').bind(softened, p.id).run()
   if (p.ok && j.kind === 'sheet') await env.DB.prepare('UPDATE studio_projects SET sheet_url=?, cast_imgs=? WHERE id=?').bind(p.url, JSON.stringify(p.meta?.cast || {}), j.project_id).run()
   if (p.ok && j.kind === 'cover') await env.DB.prepare('UPDATE studio_projects SET cover_url=? WHERE id=?').bind(p.meta?.public_url || p.url, j.project_id).run()
   return progress(env, j.project_id)
+}
+
+/** 审核自愈：保留角色定义 / 镜头结构 / 中文台词，把暴力、赌博、血腥、威胁等易触发审核的表达改写为含蓄的电影化表达 */
+const SOFT_SYS = `You rewrite prompts for an AI video model whose safety filter rejected them. Output ONLY the rewritten prompt text, no explanation.
+Keep EXACTLY: the first "@Image1 ..." character-definition lines, the Style/Setting line (but replace words like casino/gambling/poker/bet/chips with "private card salon", "cards", "tokens"), the "Shot N:" structure, every Mandarin line inside {...} (you may soften only threatening words inside {...}), and the final quality line.
+Rewrite: violence (grab, slam, lunge, rip, knife, gun, blood, kill, fight, threat, hit) → tense but non-violent acting (leans in, taps the table, steady glare, stands up slowly); no weapons, no injury, no minors, no sexual content, no real brands. Keep it cinematic and dramatic.`
+export async function softenPrompt(env: Bindings, prompt: string, round = 0) {
+  const r: any = await callCapability(env, { capability: 'storyboard', tier: 'standard', system: SOFT_SYS + (round ? '\nThis is the SECOND rejection: be much more conservative, calm body language only, avoid any conflict verbs.' : ''), prompt, agent: 7, timeoutMs: 60000, fallback: () => null })
+  const t = String(r?.ok ? r.data : '').trim()
+  return t.includes('@Image1') && /Shot 1:/.test(t) ? t : null
+}
+
+/** 失败片段一键重拍：审核类失败先改写提示词，其余直接重排队（上架中心 / 导演台调用） */
+export async function retryFailed(env: Bindings, projectId: string) {
+  const jobs = (await env.DB.prepare(`SELECT id, prompt, softened, meta FROM render_jobs WHERE project_id=? AND status='failed'`).bind(projectId).all()).results as any[]
+  const out: any[] = []
+  await Promise.all(jobs.map(async (j) => {
+    const err = String(J(j.meta, {})?.error || ''), mod = /moderation|safety|rejected|video failed/i.test(err) && !/copyright/i.test(err)
+    const np = mod ? await softenPrompt(env, j.prompt, j.softened || 0) : null
+    await env.DB.prepare(`UPDATE render_jobs SET status='queued', worker=NULL, attempts=0, prompt=COALESCE(?, prompt), softened=softened+?, updated_at=? WHERE id=?`).bind(np, np ? 1 : 0, now(), j.id).run()
+    out.push({ id: j.id, softened: !!np })
+  }))
+  await env.DB.prepare(`UPDATE studio_projects SET status='rendering', updated_at=? WHERE id=? AND status!='published'`).bind(now(), projectId).run()
+  return { requeued: out.length, softened: out.filter((x) => x.softened).length }
 }
 
 export async function review(env: Bindings, jobId: string, approve: boolean) {
@@ -293,11 +323,14 @@ export async function progress(env: Bindings, projectId: string) {
 }
 
 /** 上架：把审核通过的片段组装成引擎 DATA，写入 published_series；发现页与 /s/:id 播放器即时可玩 */
-export async function publish(env: Bindings, projectId: string) {
+export async function publish(env: Bindings, projectId: string, opt: { tree?: any; onlyApproved?: boolean } = {}) {
   const pj: any = await env.DB.prepare('SELECT * FROM studio_projects WHERE id=?').bind(projectId).first()
-  const jobs = (await env.DB.prepare(`SELECT * FROM render_jobs WHERE project_id=? AND kind='clip'`).bind(projectId).all()).results as any[]
-  if (jobs.some((j) => j.status !== 'approved')) throw new GameError('NOT_READY', '还有片段未审核通过')
-  const tree = J(pj.tree, {}), bible = J(pj.bible, {}), imgs = J(pj.cast_imgs, {})
+  let jobs = (await env.DB.prepare(`SELECT * FROM render_jobs WHERE project_id=? AND kind='clip'`).bind(projectId).all()).results as any[]
+  // 上架中心走 onlyApproved + 裁剪后的树（精简版）；自动上架仍要求全部通过
+  if (opt.onlyApproved) jobs = jobs.filter((j) => j.status === 'approved' && !String(j.result_url || '').startsWith('dry://'))
+  else if (jobs.some((j) => j.status !== 'approved')) throw new GameError('NOT_READY', '还有片段未审核通过')
+  if (jobs.some((j) => String(j.result_url || '').startsWith('dry://'))) throw new GameError('DRY_MEDIA', '存在空跑(dry)占位片段，不能上架')
+  const tree = opt.tree || J(pj.tree, {}), bible = J(pj.bible, {}), imgs = J(pj.cast_imgs, {})
   const sid = pj.series_id || 'gen_' + projectId.slice(4, 12)
   const segments: any = {}
   for (const j of jobs) {
@@ -307,7 +340,7 @@ export async function publish(env: Bindings, projectId: string) {
   const cast = Object.fromEntries((bible.cast || []).map((c: any, i: number) => [c.name, { color: ['#ff7eb3', '#7dd3fc', '#fbbf24', '#a78bfa'][i % 4], img: imgs[c.id] ? imgs[c.id] + '?v=' + (now() % 1e8) : pj.cover_url, side: c.side || (i === 0 ? 'R' : 'L'), brand: c.role }]))
   const data = { series: { id: sid, title: pj.title, logline: pj.logline, gated: true, generated: true, cat: Tax.fmt(pj.cat), genre: pj.genre || null, mech: bible.mech || null }, prologue: ['P'], nodes: tree.nodes, segments, cast }
   await env.DB.prepare(`INSERT INTO published_series (id,project_id,cat,genre,title,logline,tags,cover,data,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)
-    ON CONFLICT(id) DO UPDATE SET data=excluded.data, cover=excluded.cover, cat=excluded.cat, genre=excluded.genre, version=version+1, updated_at=excluded.updated_at`)
+    ON CONFLICT(id) DO UPDATE SET data=excluded.data, cover=excluded.cover, cat=excluded.cat, genre=excluded.genre, title=excluded.title, logline=excluded.logline, version=version+1, updated_at=excluded.updated_at`)
     .bind(sid, projectId, Tax.fmt(pj.cat), pj.genre || null, pj.title, pj.logline, JSON.stringify([Tax.genreName(pj.genre) || Tax.fmtName(pj.cat), 'AI 生成'].filter(Boolean)), pj.cover_url, JSON.stringify(data), now(), now()).run()
   await env.DB.prepare(`UPDATE studio_projects SET status='published', series_id=?, updated_at=? WHERE id=?`).bind(sid, now(), projectId).run()
   return { series_id: sid, url: `/s/${sid}`, clips: jobs.length }

@@ -97,12 +97,18 @@ def run(job):
         return {'ok': True, 'url': url, 'spent': cost_of(outs, job['credits']), 'meta': meta}
     # ── 片段：Seedance 2.0 参考图模式（设定图）+ 原生音画 ──
     raw = f'{TMP}/{sid}_{cid}_raw.mp4'
-    outs = []
+    if os.path.exists(raw): os.remove(raw)  # 旧文件会让失败的重拍被误判为成功
+    outs, reason = [], ''
     for _ in range(2):
-        outs.append(sh('gsk', 'video', '-m', 'fal-ai/bytedance/seedance-2.0', '--tier', 'mini', '-r', '9:16', '-d', str(job['dur']), '-i', job['sheet_url'], '--reference_mode', 'true', '--audio_enable', 'true', '-o', raw, job['prompt']).stdout)
+        o = sh('gsk', 'video', '-m', 'fal-ai/bytedance/seedance-2.0', '--tier', 'mini', '-r', '9:16', '-d', str(job['dur']), '-i', job['sheet_url'], '--reference_mode', 'true', '--audio_enable', 'true', '-o', raw, job['prompt'])
+        outs.append(o.stdout)
         if os.path.exists(raw) and os.path.getsize(raw) > 100000: break
-    spent = cost_of(outs, job['credits'])
-    if not (os.path.exists(raw) and os.path.getsize(raw) > 100000): return {'ok': False, 'spent': spent, 'meta': {'error': 'video failed'}}
+        m = re.search(r'"error_code"\s*:\s*"([^"]+)"', o.stdout or ''); reason = m.group(1) if m else (o.stderr or '')[-200:]
+        if 'moderation' in reason: break  # 审核拒绝：同提示词重试必然再拒，交给服务端改写
+    if not (os.path.exists(raw) and os.path.getsize(raw) > 100000):
+        # 失败任务 Seedance 不扣费（已实测余额不变）→ 只记 0，避免账本虚高
+        return {'ok': False, 'spent': 0, 'meta': {'error': reason or 'video failed'}}
+    spent = cost_of(outs[-1:], job['credits'])
     mp4 = f'{TMP}/{sid}_{cid}.mp4'
     sh('ffmpeg', '-loglevel', 'error', '-y', '-i', raw, '-vf', 'scale=576:-2', '-c:v', 'libx264', '-crf', '24', '-preset', 'slow', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', mp4)
     dur = round(ffdur(mp4), 2)
