@@ -201,7 +201,19 @@ npx wrangler d1 migrations apply webapp-production                              
   - API：`GET /api/projects/:id/release`、`POST .../release/{meta|pack|cancel|rollback|live}`；节点 `PUT /node/jobs/:id/out?key=`
   - **真拍首发**：《雨夜牌局》`ms_8a7631217f` v1（1 抉择点 · 2 结局 · 3 片段 · 32 秒 · 5.2MB，合规低风险）；手机端实测开局 → 序章 → 下注 → 揭晓 → 结局卡铸造全链路通过
 - 环境变量（可选）：Studio `PLAYER_ORIGIN`（「打开玩家端」链接）、玩家端 `STUDIO_ORIGIN`（旧入口跳转）、`STUDIO_ALLOW_MOCK_PUBLISH=1`（允许模拟素材上架，仅测试用）
-- 验收：`npm run test:studio` → 结构 37 + 账本 33 + **编译器 27** + 接口 91，全部通过
+- **⚡ 算力网 suanli.com 接入**（对话 + 图片 + 视频一个 Key 全搞定）
+  - 入口：Studio → Agent 配置 →「一键接入 算力网」→ 粘贴 Key → 保存并测试（`POST /api/providers/suanli/connect`，Key 用 AES-GCM 加密，界面与审计日志只显示掩码）
+  - 连通测试走 `GET /v1/models`；错误码（KEY_INVALID / KEY_QUOTA_EXCEEDED / TENANT_INSUFFICIENT_BALANCE / RATE_LIMIT_EXCEEDED…）转成中文提示
+  - 推荐预设（11 个 Agent）：编剧/结构/评审 `deepseek-v4-pro`；剧本/提示词/连贯性 `deepseek-v4-flash-0731`；合规 `doubao-seed-2-0-lite`；一致性（视觉）`doubao-seed-2-0-pro`；设定图 `wan2.7-image-pro`（约 ¥0.2/张）；主线/分支视频 `doubao-seedance-2-0-cmcc1`（9:16 · 720p · 8 秒 · 有声，约 ¥1/秒，可在 Agent 参数里改 `unit_price_sec`）
+  - 视频按统一协议提交：`POST /v1/video/generations`。主线用设定图作 `metadata.content[].role=reference_image`，提示词里自动标注「图片N为某角色」；分支用上一段的尾帧作 `first_frame` 做首帧接力。轮询 `GET /v1/videos/{id}`，成片带 Bearer 从 `/v1/videos/{id}/content` 下载，入 R2 后由执行节点做后处理和质检
+  - 图片：`POST /v1/images/generations`，竖版封面 1536x2048，横版 2048x1152
+- **🔮 前置模拟 · 生成流程**（项目页 → 第 3 步完成后出现入口 `#/p/:id/insight`）
+  - **结构模拟**（免费）：结构图编译 + 2000 次蒙特卡洛通关 → 结局分布、付费结局触达率、均衡熵、单局时长和预警
+  - **剧本评审 Agent（REVIEWER）**：合理性 0–10 分；**吸引力指数** 0–100，由七个维度加权（钩子 .2 / 悬念 .15 / 利害 .2 / 反转 .1 / 情绪 .1 / 人物 .1 / 回报 .15），分 S/A/B/C/D 五档，附雷达图、问题、改进建议和钩子台词；历史存 `st_reviews`（migration 0016）
+  - **预算**：视频 + 图片 + LLM + 25% 重试缓冲
+  - **生成流程视图**：所有待生成提示词可按三种方式归类查看——按类型（主线/分支/汇合/结局/时间裂隙 × 参考图/首帧接力）、按生成批次（拓扑波次，尾帧接力排在后面）、按剧情流程。每张卡片可展开看完整提示词、模式、复用情况和成本，并直达第 7/8 步开拍
+  - API：`GET /api/projects/:id/insight`、`POST .../insight/review`、`GET .../insight/history`
+- 验收：`npm run test:studio` → 结构 37 + 账本 33 + **编译器 27** + 接口 91 + **算力网 20**，全部通过
 
 ## 📱 玩家端手机适配
 - 顶栏精简 + **底部 Tab 栏**（发现 / 漫剧 / 真人剧 / 抽象剧 / 我的，适配刘海 / 底部安全区）；播放页沉浸不显示底栏

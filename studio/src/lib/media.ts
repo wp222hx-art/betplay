@@ -6,6 +6,7 @@
 import { HttpError, type Env, type User, audit } from './auth'
 import { resolveProvider } from './agents'
 import * as Gw from './gateway'
+import { errText } from './gateway'
 import * as G from './graph'
 import * as L from './ledger'
 import * as Steps from './steps'
@@ -13,7 +14,7 @@ import { rand, sha256, uid } from './sec'
 
 const now = () => Date.now()
 const J = (s: any, d: any = null) => { try { return s ? JSON.parse(s) : d } catch { return d } }
-export const DIRECT = new Set(['ark_video', 'openai_video', 'ark_image', 'openai_image'])
+export const DIRECT = new Set(['ark_video', 'openai_video', 'ark_image', 'openai_image', 'suanli'])
 const MAX_ATTEMPTS = 3
 const STALE_CLAIM_MS = 30 * 60000
 
@@ -113,7 +114,8 @@ async function buildReq(s: SlotPlan, rows: Map<string, any>, slot: any, env: Env
   if (ov?.prompt) r.prompt = ov.prompt
   if (ov?.extra) r.prompt = `${r.prompt} ${ov.extra}`
   if (s.kind === 'video') {
-    r.reference_keys = (s.req.cast || []).map((c: string) => rows.get(`6:cast.${c}`)?.media_key).filter(Boolean).slice(0, 4)
+    const refCast = (s.req.cast || []).filter((c: string) => rows.get(`6:cast.${c}`)?.media_key).slice(0, 4)
+    r.reference_keys = refCast.map((c: string) => rows.get(`6:cast.${c}`).media_key); r.cast = refCast.concat((s.req.cast || []).filter((c: string) => !refCast.includes(c)))
     if (s.req.mode === 'frames' && s.req.from) r.first_frame_key = rows.get(s.deps[s.deps.length - 1])?.last_key || null
     if (direct) { // 直连服务商才需要可访问的图片地址；执行节点自己从 R2 拉
       if (r.first_frame_key) r.first_frame = await imageRef(env, r.first_frame_key)
@@ -139,7 +141,23 @@ async function directSubmit(env: Env, jobId: string) {
   const j: any = await env.DB.prepare('SELECT * FROM st_jobs WHERE id=?').bind(jobId).first(); const q = J(j.req, {}), pv = await resolveProvider(env, j.provider_id)
   try {
     let task = '', immediate: any = null
-    if (pv.kind === 'ark_video') {
+    const SL = pv.base.replace(/\/v1$/, '')
+    if (pv.kind === 'suanli' && j.step === 6) { // 算力网图片：/v1/images/generations（wan2.7-image / wan2.7-image-pro）
+      const size = q.ratio === '3:4' ? (pv.extra.size_portrait || '1536x2048') : (pv.extra.size_landscape || '2048x1152')
+      const r = await fetch(SL + '/v1/images/generations', { method: 'POST', headers: { Authorization: 'Bearer ' + pv.key, 'Content-Type': 'application/json' }, body: JSON.stringify({ model: j.model || 'wan2.7-image-pro', prompt: q.prompt, size, n: 1, response_format: 'url', ...(pv.extra.body || {}) }) })
+      const d: any = await r.json().catch(() => ({})); const url = d.data?.[0]?.url, b64 = d.data?.[0]?.b64_json
+      if (!r.ok || (!url && !b64)) throw new Error(`HTTP ${r.status}: ${errText(d)}`)
+      immediate = { url, b64 }
+    } else if (pv.kind === 'suanli') { // 算力网视频：统一协议 POST /v1/video/generations（Seedance 2.0 / 2.5；角色写在 metadata.content[].role）
+      const content: any[] = q.first_frame ? [{ type: 'image_url', image_url: { url: q.first_frame }, role: 'first_frame' }] : (q.reference_images || []).slice(0, 4).map((u: string) => ({ type: 'image_url', image_url: { url: u }, role: 'reference_image' }))
+      const refNote = !q.first_frame && content.length ? ' ' + content.map((_: any, i: number) => `图片${i + 1}为${(q.cast || [])[i] || '角色'}的设定图`).join('，') + '，人物外貌与之保持一致。' : ''
+      const model = j.model || 'doubao-seedance-2-0-cmcc1', is25 = /2[.-]5/.test(model)
+      const res = String(q.params?.resolution || '720p'); const resolution = is25 && res === '1080p' ? '720p' : res
+      const body: any = { model, prompt: q.prompt + refNote, ratio: q.ratio || q.params?.ratio || '9:16', duration: Math.min(is25 ? 30 : 15, q.duration || 8), metadata: { generate_audio: q.params?.audio !== false, watermark: false, resolution, ...(content.length ? { content } : {}), ...(q.params?.seed !== undefined ? { seed: q.params.seed } : {}) } }
+      const r = await fetch(SL + '/v1/video/generations', { method: 'POST', headers: { Authorization: 'Bearer ' + pv.key, 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      const d: any = await r.json().catch(() => ({})); task = d.id || d.task_id
+      if (!r.ok || !task) throw new Error(`HTTP ${r.status}: ${errText(d)}`)
+    } else if (pv.kind === 'ark_video') {
       const content: any[] = [{ type: 'text', text: q.prompt }]
       if (q.first_frame) content.push({ type: 'image_url', image_url: { url: q.first_frame }, role: 'first_frame' })
       else for (const u of q.reference_images || []) content.push({ type: 'image_url', image_url: { url: u }, role: 'reference_image' })
@@ -169,7 +187,16 @@ async function directPoll(env: Env, j: any) {
   const pv = await resolveProvider(env, j.provider_id)
   try {
     let st = '', video = '', last = '', err = ''
-    if (pv.kind === 'ark_video') {
+    let auth = false
+    if (pv.kind === 'suanli') { // GET /v1/videos/{id} 轮询；成片须带鉴权从 /v1/videos/{id}/content 下载
+      const SL = pv.base.replace(/\/v1$/, '')
+      const r = await fetch(SL + '/v1/videos/' + encodeURIComponent(j.task_id), { headers: { Authorization: 'Bearer ' + pv.key } })
+      const d: any = await r.json().catch(() => ({})); if (!r.ok) { if (r.status === 404) return failJob(env, j.id, '算力网任务不存在'); return }
+      const s = String(d.status || '').toLowerCase(); st = /succe|complete/.test(s) ? 'succeeded' : /fail|error|cancel|expire/.test(s) ? 'failed' : 'running'
+      video = SL + '/v1/videos/' + encodeURIComponent(j.task_id) + '/content'; auth = true; err = errText(d.error ? d : {}) || d.fail_reason || ''
+      const usage = d.usage?.total_tokens || d.usage?.completion_tokens || 0
+      if (usage) await env.DB.prepare(`UPDATE st_jobs SET result=? WHERE id=?`).bind(JSON.stringify({ usage }), j.id).run()
+    } else if (pv.kind === 'ark_video') {
       const r = await fetch(pv.base + (pv.extra.query_path || '/api/v3/contents/generations/tasks/') + encodeURIComponent(j.task_id), { headers: { Authorization: 'Bearer ' + pv.key } })
       const d: any = await r.json().catch(() => ({})); if (!r.ok) return
       st = d.status; video = d.content?.video_url || ''; last = d.content?.last_frame_url || ''; err = d.error ? `${d.error.code || ''} ${d.error.message || ''}` : ''
@@ -179,19 +206,19 @@ async function directPoll(env: Env, j: any) {
       const s = String(d.status || d.data?.status || '').toLowerCase(); st = /succe|complete|done|finish/.test(s) ? 'succeeded' : /fail|error|cancel/.test(s) ? 'failed' : 'running'
       video = d.video_url || d.data?.video_url || d.data?.output?.video_url || d.output?.[0] || ''; last = d.last_frame_url || ''; err = typeof d.error === 'string' ? d.error : d.error?.message || ''
     }
-    if (st === 'succeeded' && video) return ingest(env, j.id, { url: video, last_url: last })
+    if (st === 'succeeded' && video) return ingest(env, j.id, { url: video, last_url: last, auth: auth ? pv.key : undefined })
     if (st === 'failed' || st === 'expired' || st === 'cancelled') return failJob(env, j.id, err || st)
     await env.DB.prepare(`UPDATE st_jobs SET status='running', updated_at=? WHERE id=?`).bind(now(), j.id).run()
   } catch (e: any) { /* 网络抖动：下一轮再查 */ }
 }
 
 /** 把服务商结果搬进 R2（服务商链接通常 24 小时过期），然后交给执行节点做后处理 */
-async function ingest(env: Env, jobId: string, res: { url?: string; b64?: string; last_url?: string }) {
+async function ingest(env: Env, jobId: string, res: { url?: string; b64?: string; last_url?: string; auth?: string }) {
   const j: any = await env.DB.prepare('SELECT * FROM st_jobs WHERE id=?').bind(jobId).first(); if (!env.MEDIA) return failJob(env, jobId, 'R2 未绑定')
   const ext = j.step === 6 ? 'png' : 'mp4', key = `studio/${j.project_id}/${j.step}/${j.slot}/${jobId}.${ext}`
   let body: ArrayBuffer
   if (res.b64) body = Uint8Array.from(atob(res.b64), (c) => c.charCodeAt(0)).buffer
-  else { const r = await fetch(res.url!); if (!r.ok) return failJob(env, jobId, `下载结果失败 HTTP ${r.status}`); body = await r.arrayBuffer() }
+  else { const r = await fetch(res.url!, res.auth ? { headers: { Authorization: 'Bearer ' + res.auth }, redirect: 'follow' } : undefined); if (!r.ok) return failJob(env, jobId, `下载结果失败 HTTP ${r.status}`); body = await r.arrayBuffer() }
   await env.MEDIA.put(key, body, { httpMetadata: { contentType: ext === 'png' ? 'image/png' : 'video/mp4' } })
   let lastKey: string | null = null
   if (res.last_url) { try { const r = await fetch(res.last_url); if (r.ok) { lastKey = key.replace(/\.mp4$/, '_last.png'); await env.MEDIA.put(lastKey, await r.arrayBuffer(), { httpMetadata: { contentType: 'image/png' } }) } } catch {} }

@@ -23,6 +23,12 @@ async function record(env: Env, r: any) {
   if (r.cost) await env.DB.prepare('UPDATE st_agents SET spent=spent+? WHERE code=?').bind(r.cost, r.agent).run()
 }
 
+/** suanli 的 Base 是根域名（https://api.suanli.com），OpenAI 兼容服务商的 Base 通常已含 /v1 */
+export const chatUrl = (pv: any) => pv.kind === 'suanli' ? pv.base.replace(/\/v1$/, '') + '/v1/chat/completions' : pv.base + '/chat/completions'
+/** 算力网错误码 → 中文可操作提示 */
+const SUANLI_ERR: Record<string, string> = { KEY_INVALID: 'API Key 无效', KEY_EXPIRED: 'API Key 已过期', KEY_DISABLED: 'API Key 已禁用', KEY_QUOTA_EXCEEDED: 'API Key 额度已用完', KEY_IP_DENIED: '当前服务器 IP 不在 Key 白名单中', TENANT_INSUFFICIENT_BALANCE: '算力网账户余额不足，请充值', TENANT_DISABLED: '算力网租户已被禁用', RATE_LIMIT_EXCEEDED: '请求过于频繁，稍后重试' }
+export const errText = (j: any) => { const c = j?.error?.code || j?.code; return (c && SUANLI_ERR[c] ? `${SUANLI_ERR[c]}（${c}）` : '') || j?.error?.message || (typeof j?.error === 'string' ? j.error : '') || JSON.stringify(j).slice(0, 200) }
+
 /** 宽容 JSON：去围栏 / 取第一个对象 */
 export function parseJson(t: string) {
   const s = t.replace(/```(json)?/g, '').trim(); const i = s.indexOf('{'), k = s.lastIndexOf('}')
@@ -38,6 +44,7 @@ function mockText(code: string, prompt: string): any {
   if (code === 'SCRIPT') return { summary: '模拟剧本概要', location: 'casino hall', time: 'night', mood: '紧张', beats: [{ who, action: `${who} 走到牌桌前` }, { who, action: `${who} 推出筹码`, line: '跟。' }], cliff: '手停在筹码上方', duration: 8, cast: [who], requires: [], sets: [{ key: 'loc', value: 'casino hall' }] }
   if (code === 'PROMPT') return { prompt: `Night, a smoky casino hall under warm tungsten light. ${who} walks to the card table, pauses, then slides a stack of chips forward with a steady hand while the dealer watches. Slow push-in from a medium shot to a close-up on ${who}'s hand hovering above the chips. Film grain, shallow depth of field.`, shots: [{ camera: 'medium, slow push-in', visual: `${who} at the table` }], dialogue: [{ who, line: '跟。' }], negative: 'text, subtitles, watermark' }
   if (code === 'CONTINUITY') return { ok: true, conflicts: [] }
+  if (code === 'REVIEWER') return { logic: { score: 7, issues: [{ node: '', level: 'warn', msg: '模拟：主角动机可以再交代清楚' }] }, dims: { hook: 7, suspense: 6, stakes: 7, twist: 5, emotion: 6, character: 6, payoff: 7 }, highlights: ['模拟看点'], suggestions: [{ node: '', msg: '模拟：开场 3 秒直接给冲突' }], verdict: '模拟评审', logline_hook: '模拟宣传语' }
   if (code === 'COMPLIANCE') return { ok: !/血腥|未成年|提现|真钱/.test(prompt), risk: /血腥|未成年|提现|真钱/.test(prompt) ? 'high' : 'low', issues: /血腥|未成年|提现|真钱/.test(prompt) ? [{ where: 'mock', level: 'block', msg: '模拟：检测到高风险词' }] : [], rating: '16', note: '模拟合规审核' }
   if (code === 'STRUCTURE') return { start: 's1', nodes: [{ id: 's1', type: 'scene', title: '开局', beat: '入场' }, { id: 'c1', type: 'choice', title: '下注', beat: '发牌', question: '底牌未知' }, { id: 'e1', type: 'ending', title: '赢', tier: 'gold', beat: '赢' }, { id: 'e2', type: 'ending', title: '输', tier: 'bad', beat: '输' }], edges: [{ from: 's1', to: 'c1', kind: 'next', main: true }, { from: 'c1', to: 'e1', kind: 'option', label: '全押', main: true }, { from: 'c1', to: 'e2', kind: 'option', label: '弃牌' }] }
   return { mock: true, agent: code, echo: prompt.slice(0, 200) }
@@ -52,16 +59,16 @@ export async function chat(env: Env, code: string, o: { system?: string; prompt:
   try {
     let text = '', tin = 0, tout = 0
     if (pv.kind === 'mock_text') text = JSON.stringify(mockText(code, o.prompt))
-    else if (pv.kind === 'openai_compat') {
+    else if (pv.kind === 'openai_compat' || pv.kind === 'suanli') {
       if (!pv.base || !pv.key) throw new HttpError(409, 'PROVIDER_UNCONFIGURED', '服务商缺少 Base URL 或 Key')
       const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), o.timeoutMs || 90000)
       const { temperature, reasoning_effort, ...rest } = a.params || {}
       const body: any = { model: a.model, messages: [...(system ? [{ role: 'system', content: system }] : []), { role: 'user', content: o.prompt }], ...rest }
       if (/gpt-5|o\d/.test(a.model)) { if (reasoning_effort) body.reasoning_effort = reasoning_effort } else if (temperature !== undefined) body.temperature = temperature
       if (o.json) body.response_format = { type: 'json_object' }
-      const r = await fetch(pv.base + '/chat/completions', { method: 'POST', signal: ctl.signal, headers: { Authorization: 'Bearer ' + pv.key, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).finally(() => clearTimeout(tm))
+      const r = await fetch(chatUrl(pv), { method: 'POST', signal: ctl.signal, headers: { Authorization: 'Bearer ' + pv.key, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).finally(() => clearTimeout(tm))
       const j: any = await r.json().catch(() => ({}))
-      if (!r.ok) throw new Error(`HTTP ${r.status}: ${j.error?.message || JSON.stringify(j).slice(0, 200)}`)
+      if (!r.ok) throw new Error(`HTTP ${r.status}: ${errText(j)}`)
       text = j.choices?.[0]?.message?.content || ''; tin = j.usage?.prompt_tokens || 0; tout = j.usage?.completion_tokens || 0
     } else throw new HttpError(409, 'PROVIDER_CAPABILITY', `服务商 ${pv.kind} 不支持对话`)
     const cost = a.unit_price ? +(((tin + tout) / 1000) * a.unit_price).toFixed(4) : 0
@@ -86,11 +93,11 @@ export async function chatVision(env: Env, code: string, o: { system: string; te
   try {
     let text = '', tin = 0, tout = 0
     if (pv.kind === 'mock_text') text = JSON.stringify({ face: 8, deformed: false, burned_text: false, note: '模拟质检' })
-    else if (pv.kind === 'openai_compat') {
+    else if (pv.kind === 'openai_compat' || pv.kind === 'suanli') {
       const body: any = { model: a.params?.vision_model || a.model, messages: [{ role: 'system', content: o.system }, { role: 'user', content: [{ type: 'text', text: o.text }, ...o.images.map((u) => ({ type: 'image_url', image_url: { url: u } }))] }], response_format: { type: 'json_object' } }
       if (/gpt-5|o\d/.test(body.model)) body.reasoning_effort = a.params?.reasoning_effort || 'minimal'
       const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 90000)
-      const r = await fetch(pv.base + '/chat/completions', { method: 'POST', signal: ctl.signal, headers: { Authorization: 'Bearer ' + pv.key, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).finally(() => clearTimeout(tm))
+      const r = await fetch(chatUrl(pv), { method: 'POST', signal: ctl.signal, headers: { Authorization: 'Bearer ' + pv.key, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).finally(() => clearTimeout(tm))
       const j: any = await r.json().catch(() => ({})); if (!r.ok) throw new Error(`HTTP ${r.status}: ${j.error?.message || ''}`)
       text = j.choices?.[0]?.message?.content || ''; tin = j.usage?.prompt_tokens || 0; tout = j.usage?.completion_tokens || 0
     } else throw new HttpError(409, 'PROVIDER_CAPABILITY', '该服务商不支持图像理解')
@@ -182,6 +189,13 @@ export async function testProvider(env: Env, id: string) {
       return { ok: !!alive, note: alive ? '执行节点在线' : '没有在线的执行节点（P4 部署）', ms: 0 }
     }
     if (!pv.base || !pv.key) return { ok: false, note: '缺少 Base URL 或 Key', ms: 0 }
+    if (pv.kind === 'suanli') {
+      const r = await fetch(pv.base.replace(/\/v1$/, '') + '/v1/models', { headers: { Authorization: 'Bearer ' + pv.key } })
+      const j: any = await r.json().catch(() => ({}))
+      if (!r.ok) return { ok: false, note: errText(j) || `HTTP ${r.status}`, ms: now() - t0 }
+      const ids: string[] = (j.data || []).map((m: any) => m.id).filter(Boolean)
+      return { ok: true, note: `鉴权通过 · 可用模型 ${ids.length} 个（视频：${ids.filter((i) => /seedance|wan.*t2v|happyhorse/i.test(i)).join('、') || '无'}）`, ms: now() - t0, models: ids }
+    }
     if (pv.kind === 'openai_compat') {
       const r = await fetch(pv.base + '/models', { headers: { Authorization: 'Bearer ' + pv.key } })
       return { ok: r.ok, note: r.ok ? `鉴权通过（${r.status}）` : `HTTP ${r.status}`, ms: now() - t0 }

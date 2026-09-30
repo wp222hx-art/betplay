@@ -12,6 +12,7 @@ import * as Structure from './lib/structure'
 import * as Docs from './lib/docs'
 import * as Media from './lib/media'
 import * as Release from './lib/release'
+import * as Insight from './lib/insight'
 
 type V = { Bindings: Env; Variables: { user: User } }
 const app = new Hono<V>()
@@ -170,6 +171,10 @@ app.post('/api/projects/:id/media/:n/run', requireRole('writer'), async (c) => {
   const n = stepN(c); if (n === 9) throw new HttpError(400, 'BAD_STEP', '第 9 步由生成后自动检测；重拍请在第 7/8 步操作')
   const b = await body(c); return c.json(await Media.run(c.env, c.get('user'), c.req.param('id'), n, Array.isArray(b.only) ? b.only.map(String).slice(0, 100) : undefined, new URL(c.req.url).origin))
 })
+// ─── 前置模拟 · 剧本评审（第 3 步通过即可用；不花生成费）───
+app.get('/api/projects/:id/insight', requireRole('reviewer'), async (c) => c.json(await Insight.preview(c.env, c.req.param('id'))))
+app.post('/api/projects/:id/insight/review', requireRole('writer'), async (c) => c.json(await Insight.review(c.env, c.get('user'), c.req.param('id'))))
+app.get('/api/projects/:id/insight/history', requireRole('reviewer'), async (c) => c.json(await Insight.history(c.env, c.req.param('id'))))
 // ─── 第 10 步：预检 · 上架 · 版本快照 ───
 app.get('/api/projects/:id/release', requireRole('reviewer'), async (c) => c.json(await Release.board(c.env, c.req.param('id'))))
 app.post('/api/projects/:id/release/meta', requireRole('writer'), async (c) => c.json(await Release.saveMeta(c.env, c.get('user'), c.req.param('id'), await body(c))))
@@ -187,6 +192,7 @@ app.post('/api/projects/:id/media/:n/upload', requireRole('writer'), async (c) =
 app.get('/api/media-settings', requireRole('writer'), async (c) => c.json(await Media.settings(c.env)))
 app.post('/api/media-settings', requireRole('admin'), async (c) => c.json(await Media.saveSettings(c.env, c.get('user'), await body(c))))
 // 执行节点管理（admin）
+app.post('/api/providers/suanli/connect', requireRole('admin'), async (c) => { const r = await Agents.connectSuanli(c.env, c.get('user'), await body(c)); return c.json({ ...r, test: await Gw.testProvider(c.env, r.provider.id) }) })
 app.get('/api/nodes', requireRole('admin'), async (c) => c.json(await Media.listNodes(c.env)))
 app.post('/api/nodes', requireRole('admin'), async (c) => { const b = await body(c); return c.json(await Media.createNode(c.env, c.get('user'), b.name, Array.isArray(b.kinds) ? b.kinds : [])) })
 app.post('/api/nodes/:nid', requireRole('admin'), async (c) => { const b = await body(c); await c.env.DB.prepare('UPDATE st_exec_nodes SET enabled=? WHERE id=?').bind(b.enabled ? 1 : 0, c.req.param('nid')).run(); await audit(c.env, c.get('user').id, 'node_toggle', c.req.param('nid'), b); return c.json({ ok: true }) })

@@ -60,7 +60,7 @@
     const steps = d.steps, cur = n || (steps.find((s) => s.status !== 'done') || steps[9]).no, s = steps[cur - 1]
     const blocker = steps.slice(0, cur - 1).find((x) => x.status !== 'done')
     const [stn, stc] = ST[s.status] || [s.status, '#888']
-    frame('#/projects', `<a href="#/projects" class="mut sm"><i class="fas fa-arrow-left"></i> 全部项目</a><h1 style="margin-top:6px">${esc(d.project.title)}</h1>
+    frame('#/projects', `<a href="#/projects" class="mut sm"><i class="fas fa-arrow-left"></i> 全部项目</a><h1 style="margin-top:6px">${esc(d.project.title)} ${steps[2].status === 'done' ? `<a class="btn sm pri" href="#/p/${id}/insight" style="vertical-align:middle"><i class="fas fa-diagram-successor"></i> 前置模拟 · 生成流程</a>` : ''}</h1>
       <nav class="pipe">${steps.map((x) => `<a href="#/p/${id}/${x.no}" class="st-${x.status} ${x.no === cur ? 'on' : ''}"><i class="n">第 ${x.no} 步</i><b>${esc(x.name)}</b><span class="pill" style="--c:${ST[x.status][1]}">${ST[x.status][0]}</span></a>`).join('')}</nav>
       ${s.no === 3 && !blocker ? graphShell(s) : (s.no === 4 || s.no === 5) && !blocker ? docsShell(s) : s.no >= 6 && s.no <= 9 && !blocker ? mediaShell(s) : s.no === 10 && !blocker ? releaseShell(s) : `<section class="stepbox"><div class="card"><h2>第 ${s.no} 步 · ${esc(s.name)} <span class="pill" style="--c:${stc}">${stn}</span></h2><p class="sub">${esc(s.desc)}</p>
         ${blocker ? `<div class="locked"><i class="fas fa-lock"></i>请先完成第 ${blocker.no} 步「${esc(blocker.name)}」<br><a class="btn" style="margin-top:12px" href="#/p/${id}/${blocker.no}">去第 ${blocker.no} 步</a></div>` : stepBody(s)}
@@ -144,6 +144,15 @@
     q('[data-reopen]') && (q('[data-reopen]').onclick = async () => { if (!confirm('退回后，所有下游步骤都会失效。确定？')) return; try { await api(`/api/projects/${id}/steps/${s.no}/reopen`, { note: prompt('退回原因', '') || '' }); projectPage(id, s.no) } catch (e) { toast(e.message) } })
   }
 
+  // ─── 前置模拟 · 剧本评审 · 生成流程 ───
+  async function insightPage(id) {
+    const d = await api('/api/projects/' + id)
+    frame('#/projects', `<a href="#/p/${id}" class="mut sm"><i class="fas fa-arrow-left"></i> ${esc(d.project.title)}</a>
+      <h1 style="margin-top:6px">前置模拟 · 生成流程</h1><p class="sub">开拍前先看清：<b>能不能玩</b>（结构模拟）、<b>合不合理 / 吸不吸引人</b>（剧本评审）、<b>要拍哪些片段、按什么顺序、花多少钱</b>（生成清单）。除「剧本评审」一次对话调用外，全部免费。</p>
+      <div id="insight-p"></div>`, true)
+    window.InsightPanel.mount($('#insight-p'), { pid: id, canWrite: can('writer'), toast, api: (u, b) => api(u, b), goStep: (n) => { location.hash = `#/p/${id}/${n}` } })
+  }
+
   // ─── 第 10 步：预检 · 上架 ───
   function releaseShell(s) {
     const [stn, stc] = ST[s.status] || [s.status, '#888'], canR = S.me && (S.me.role === 'reviewer' || S.me.role === 'admin')
@@ -219,6 +228,11 @@
     const use = Object.fromEntries(d.usage.map((u) => [u.agent, u]))
     frame('#/config', `<h1>Agent 配置中心</h1><p class="sub">生产线上的每个 Agent 都在这里统一分配服务商、模型、参数、提示词版本和预算。<b>API Key 加密后入库，任何接口都只返回掩码。</b></p>
       ${d.master_key_ok ? '' : '<div class="banner bad">✗ 服务器未配置 STUDIO_MASTER_KEY，无法保存 API Key。请在环境变量中设置（≥16 位随机字符串）。</div>'}
+      ${adm ? `<section class="card sl-card"><h2><i class="fas fa-bolt"></i> 一键接入 算力网 suanli.com</h2>
+        <p class="sub">一个 Key 覆盖全部生产线：<b>对话</b>（DeepSeek V4 / 豆包 Seed 2.0 —— 编剧、结构、剧本、提示词、连贯监管、评审、合规、视觉质检）· <b>图片</b>（Wan 2.7 Image Pro —— 设定图、封面）· <b>视频</b>（Seedance 2.0 —— 主线 + 分支，参考图 / 首帧接力，有声 720p ≈ ¥1/秒）。Key 加密入库，只显示掩码。</p>
+        ${d.providers.some((p) => p.kind === 'suanli') ? `<div class="banner ok">已接入：${esc(d.providers.find((p) => p.kind === 'suanli').key_hint)}（再次提交可更换 Key 或重新套用推荐配置）</div>` : ''}
+        <form id="slf" class="sl-form"><input class="inp" name="key" type="password" autocomplete="off" placeholder="算力网 API Key（sk-…），在 suanli.com → API Keys 创建">
+        <label class="chk"><input type="checkbox" name="all" checked> 同时把 11 个 Agent 切到算力网推荐模型</label><button class="btn pri" type="submit"><i class="fas fa-plug-circle-check"></i> 保存并测试</button></form><div id="slr"></div></section>` : ''}
       <section class="card"><h2><i class="fas fa-plug"></i> 服务商 ${adm ? '<button class="btn sm pri" id="addp" style="float:right"><i class="fas fa-plus"></i> 添加服务商</button>' : ''}</h2>
         ${d.providers.map((p) => `<div class="prov"><div class="nm"><b>${esc(p.name)}</b> <span class="pill" style="--c:#7dd3fc">${esc(p.kind_name)}</span><div class="mut sm">${esc(p.base_url || '—')} · Key：${p.has_key ? esc(p.key_hint) : '<span class="warn-t">未设置</span>'}</div></div>
           <span class="pill" style="--c:${p.enabled ? '#3ddc97' : '#6b7280'}">${p.enabled ? '启用' : '停用'}</span>
@@ -230,6 +244,8 @@
           <input class="inp" name="budget" type="number" min="0" value="${a.budget}" title="预算（0=不限）" ${adm ? '' : 'disabled'}>
           <div style="display:flex;gap:6px">${adm ? `<button class="btn sm pri" data-savea>保存</button><button class="btn sm" data-more>详细</button>` : ''}</div></div>`).join('')}</section>`)
     if (!adm) return
+    $('#slf').onsubmit = async (e) => { e.preventDefault(); const fd = new FormData(e.target), btn = e.target.querySelector('button'); btn.disabled = true; $('#slr').innerHTML = '<p class="mut sm"><i class="fas fa-spinner fa-spin"></i> 保存并连通测试…</p>'
+      try { const r = await api('/api/providers/suanli/connect', { key: fd.get('key') || undefined, agents: fd.get('all') ? undefined : ['__none__'] }); $('#slr').innerHTML = `<div class="banner ${r.test.ok ? 'ok' : 'bad'}">${r.test.ok ? '✓' : '✗'} ${esc(r.test.note)}${r.agents.length ? `<br>已切换 Agent：${r.agents.map(esc).join('、')}` : ''}</div>`; if (r.test.ok) setTimeout(configPage, 1800) } catch (er) { $('#slr').innerHTML = `<div class="banner bad">${esc(er.message)}</div>` } btn.disabled = false }
     $('#addp').onclick = () => providerModal()
     document.querySelectorAll('[data-editp]').forEach((b) => (b.onclick = () => providerModal(d.providers.find((p) => p.id === b.dataset.editp))))
     document.querySelectorAll('[data-test]').forEach((b) => (b.onclick = async () => { b.disabled = true; try { const r = await api(`/api/providers/${b.dataset.test}/test`, {}); toast(`${r.ok ? '✓' : '✗'} ${r.note}${r.ms ? ` · ${r.ms}ms` : ''}`) } catch (er) { toast(er.message) } b.disabled = false }))
@@ -291,6 +307,7 @@
       if (!S.state || !S.me) { S.state = await api('/api/auth/state'); S.me = S.state.user }
       if (!S.me) return authPage()
       const h = location.hash.replace(/^#\/?/, '').split('/')
+      if (h[0] === 'p' && h[1] && h[2] === 'insight') return insightPage(h[1])
       if (h[0] === 'p' && h[1]) return projectPage(h[1], +h[2] || 0)
       if (h[0] === 'config') return configPage()
       if (h[0] === 'nodes' && can('admin')) return nodesPage()

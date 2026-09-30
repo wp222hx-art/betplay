@@ -6,6 +6,7 @@ const now = () => Date.now()
 const J = (s: any, d: any = null) => { try { return s ? JSON.parse(s) : d } catch { return d } }
 
 export const PROVIDER_KINDS: Record<string, { name: string; cap: 'text' | 'video' | 'image' | 'any'; needs: string[]; hint: string }> = {
+  suanli: { name: '算力网 suanli.com（对话 + 图片 + 视频）', cap: 'any', needs: ['key'], hint: '一个 Key 通用：/v1/chat/completions · /v1/images/generations · /v1/video/generations（Seedance 2.0/2.5、Wan 2.7）；Base 默认 https://api.suanli.com' },
   openai_compat: { name: 'OpenAI 兼容对话', cap: 'text', needs: ['base_url', 'key'], hint: 'OpenAI / DeepSeek / 豆包方舟对话 / 任意中转站 /chat/completions' },
   ark_video: { name: '火山方舟 Seedance（方舟原生格式）', cap: 'video', needs: ['base_url', 'key'], hint: '官方 https://ark.cn-beijing.volces.com 或方舟兼容中转；POST /api/v3/contents/generations/tasks' },
   openai_video: { name: 'OpenAI 风格视频中转', cap: 'video', needs: ['base_url', 'key'], hint: '中转站 POST /v1/videos/generations + 轮询' },
@@ -23,6 +24,7 @@ export const AGENT_DEFAULTS = [
   { code: 'SCREENWRITER', name: '编剧 Agent', step: 2, capability: 'text', duty: '立项 → 世界观、角色卡、主线梗概' },
   { code: 'STRUCTURE', name: '结构 Agent', step: 3, capability: 'text', duty: '在锚点上延展分支、设计汇合与回溯，控制路径数' },
   { code: 'SCRIPT', name: '剧本描述 Agent', step: 4, capability: 'text', duty: '节点剧情细节、对白、情绪、结尾悬念' },
+  { code: 'REVIEWER', name: '剧本评审 Agent', step: 4, capability: 'text', duty: '剧本合理性（动机/因果/人设/信息）+ 吸引力指数七维打分 + 可执行修改建议' },
   { code: 'PROMPT', name: '提示词 Agent', step: 5, capability: 'text', duty: '剧本 → 高质量视频/对白提示词（镜头、光线、台词）' },
   { code: 'CONTINUITY', name: '连贯监管 Agent', step: 5, capability: 'text', duty: '剧情账本：服装/道具/伤痕/已知信息逐节点比对，冲突打回' },
   { code: 'ASSET', name: '设定图 Agent', step: 6, capability: 'image', duty: '角色设定图、场景图、封面（原创面孔）' },
@@ -63,7 +65,7 @@ export async function upsertProvider(env: Env, u: User, b: any) {
   const kind = String(b.kind || '')
   if (!PROVIDER_KINDS[kind]) throw new HttpError(400, 'BAD_KIND', '服务商类型无效')
   const id = b.id || uid('pv_')
-  const base = b.base_url ? String(b.base_url).trim().replace(/\/+$/, '') : null
+  const base = b.base_url ? String(b.base_url).trim().replace(/\/+$/, '') : kind === 'suanli' ? 'https://api.suanli.com' : null
   if (base && !/^https:\/\//.test(base) && !/^http:\/\/(localhost|127\.)/.test(base)) throw new HttpError(400, 'BAD_URL', 'Base URL 必须是 https')
   let encd: { enc: string; iv: string } | null = null, kh: string | null = null
   if (b.key) { encd = await seal(env.STUDIO_MASTER_KEY || '', String(b.key).trim()); kh = hint(String(b.key).trim()) }
@@ -115,4 +117,26 @@ export async function resolveProvider(env: Env, id: string) {
   const key = p.key_enc ? await unseal(env.STUDIO_MASTER_KEY || '', p.key_enc, p.key_iv) : p.key_env ? env[p.key_env] || '' : ''
   const base = p.base_url || (p.base_env ? env[p.base_env] || '' : '')
   return { id: p.id, kind: p.kind as string, base: String(base).replace(/\/+$/, ''), key: String(key), extra: J(p.extra, {}) }
+}
+
+/** 一键接入算力网：保存加密 Key → 连通测试 → 按推荐把各 Agent 指向 suanli（只改选中的 Agent；原配置写进审计便于回退） */
+export const SUANLI_PRESET: Record<string, { model: string; params?: any }> = {
+  SCREENWRITER: { model: 'deepseek-v4-pro', params: { temperature: 0.9 } }, STRUCTURE: { model: 'deepseek-v4-pro', params: { temperature: 0.7 } },
+  SCRIPT: { model: 'deepseek-v4-flash-0731', params: { temperature: 0.85 } }, PROMPT: { model: 'deepseek-v4-flash-0731', params: { temperature: 0.6 } },
+  CONTINUITY: { model: 'deepseek-v4-flash-0731', params: { temperature: 0.2 } }, REVIEWER: { model: 'deepseek-v4-pro', params: { temperature: 0.3 } },
+  COMPLIANCE: { model: 'doubao-seed-2-0-lite', params: { temperature: 0.1 } }, CONSISTENCY: { model: 'doubao-seed-2-0-pro', params: { temperature: 0.1, vision_model: 'doubao-seed-2-0-pro' } },
+  ASSET: { model: 'wan2.7-image-pro' },
+  VIDEO_MAIN: { model: 'doubao-seedance-2-0-cmcc1', params: { ratio: '9:16', resolution: '720p', duration: 8, audio: true, unit_price_sec: 1.0 } },
+  VIDEO_BRANCH: { model: 'doubao-seedance-2-0-cmcc1', params: { ratio: '9:16', resolution: '720p', duration: 8, audio: true, unit_price_sec: 1.0 } }
+}
+export async function connectSuanli(env: Env, u: User, b: { key?: string; agents?: string[]; base_url?: string }) {
+  await seedDefaults(env)
+  let p: any = await env.DB.prepare(`SELECT id FROM st_providers WHERE kind='suanli' ORDER BY created_at LIMIT 1`).first()
+  if (!p && !b.key) throw new HttpError(400, 'NO_KEY', '请填写算力网 API Key')
+  const saved = await upsertProvider(env, u, { id: p?.id, kind: 'suanli', name: '算力网 suanli.com', base_url: b.base_url || 'https://api.suanli.com', ...(b.key ? { key: b.key } : {}) })
+  const want = (b.agents?.length ? b.agents : Object.keys(SUANLI_PRESET)).filter((c) => SUANLI_PRESET[c])
+  const before = (await env.DB.prepare(`SELECT code, provider_id, model, params FROM st_agents`).all()).results
+  for (const code of want) await updateAgent(env, u, code, { provider_id: saved.id, model: SUANLI_PRESET[code].model, ...(SUANLI_PRESET[code].params ? { params: SUANLI_PRESET[code].params } : {}) })
+  await audit(env, u.id, 'suanli_connect', saved.id, { agents: want, before })
+  return { provider: saved, agents: want }
 }
