@@ -52,6 +52,7 @@
         ${x.prompt ? `<details class="dw-ledger"><summary>提示词</summary><pre>${esc(x.prompt)}</pre></details>` : ''}
         <div class="ge-row">${!ro && x.step !== 9 && o.step !== 9 && !busy.has(x.status) ? `<button class="btn sm pri" data-redo="${esc(x.slot)}"><i class="fas fa-rotate"></i> ${x.media ? '重新生成' : '生成'}</button>` : ''}
           ${!ro && o.step !== 9 && !busy.has(x.status) ? `<label class="btn sm"><i class="fas fa-upload"></i> 上传替换<input type="file" hidden data-up="${esc(x.slot)}" accept="${isImg ? 'image/png,image/jpeg,image/webp' : 'video/mp4'}"></label>` : ''}
+          ${!ro && !isImg && x.media && !busy.has(x.status) && (x.status === 'qc_fail' || x.status === 'ok') ? `<button class="btn sm" data-recheck="${esc(x.slot)}" title="不重拍、不花生成费，只重跑一致性检测"><i class="fas fa-stethoscope"></i> 仅复检</button>` : ''}
           ${canJudge && x.media && !busy.has(x.status) && x.status !== 'ok' ? `<button class="btn sm ok" data-accept="${esc(x.slot)}"><i class="fas fa-check"></i> 人工放行</button>` : ''}
           ${canJudge && x.status === 'ok' ? `<button class="btn sm bad" data-reject="${esc(x.slot)}"><i class="fas fa-xmark"></i> 驳回重拍</button>` : ''}
           ${o.step === 9 && !ro ? `<a class="btn sm" href="#/p/${o.pid}/${x.step}">去第 ${x.step} 步重拍</a>` : ''}</div></div>`
@@ -63,6 +64,7 @@
       const go = async (fn, msg) => { try { t.disabled = true; await fn(); if (msg) o.toast(msg); await load(); o.onChange?.() } catch (e) { o.toast(e.message) } finally { t.disabled = false } }
       if (t.hasAttribute('data-run')) return go(async () => { const r = await o.api(`/api/projects/${o.pid}/media/${o.step}/run`, {}); o.toast(`已提交 ${r.started.length} 个${r.blocked.length ? `，${r.blocked.length} 个等待依赖` : ''}`) })
       if (t.dataset.redo) return go(() => o.api(`/api/projects/${o.pid}/media/${o.step}/run`, { only: [t.dataset.redo] }), '已提交')
+      if (t.dataset.recheck) { const x = st.d.slots.find((y) => y.slot === t.dataset.recheck); return go(() => o.api(`/api/projects/${o.pid}/media/${x.step}/recheck`, { slot: x.slot }), '已提交复检') }
       if (t.dataset.accept) { const x = st.d.slots.find((y) => y.slot === t.dataset.accept); return go(() => o.api(`/api/projects/${o.pid}/media/${x.step}/judge`, { slot: x.slot, accept: true, note: prompt('放行说明（可空）', '') || '' }), '已放行') }
       if (t.dataset.reject) { const x = st.d.slots.find((y) => y.slot === t.dataset.reject); const note = prompt('驳回原因（会作为追加约束写进下次提示词，例如「人物发型不对」）', ''); if (note === null) return; return go(() => o.api(`/api/projects/${o.pid}/media/${x.step}/judge`, { slot: x.slot, accept: false, note }), '已驳回') }
     })

@@ -386,14 +386,7 @@ export async function nodeReport(env: Env, node: any, jobId: string, b: any) {
   if (!slot || slot.job_id !== jobId) return { ok: true, superseded: true }
   if (j.phase === 'post') {
     await env.DB.prepare(`UPDATE st_slots SET media_key=?, first_key=?, last_key=?, poster_key=?, qc=?, updated_at=? WHERE project_id=? AND step=? AND slot=?`).bind(b.media_key, b.first_key, b.last_key, b.poster_key, JSON.stringify({ duration: b.duration, subs: b.subs ?? null, audio: b.audio ?? null }), now(), j.project_id, j.step, j.slot).run()
-    // 进入一致性检测（seam）：需要上一段尾帧与本段首帧、角色设定图
-    const { slots } = await plan(env, j.project_id), p = slots.find((x) => x.step === j.step && x.slot === j.slot)
-    const rows = new Map<string, any>(((await env.DB.prepare('SELECT * FROM st_slots WHERE project_id=?').bind(j.project_id).all()).results as any[]).map((r) => [`${r.step}:${r.slot}`, r]))
-    const prevKey = p?.req?.mode === 'frames' ? rows.get(p.deps[p.deps.length - 1])?.last_key || null : null
-    const refs = (p?.req?.cast || []).map((c: string) => ({ id: c, key: rows.get(`6:cast.${c}`)?.media_key })).filter((x: any) => x.key)
-    const sid = uid('job_')
-    await env.DB.prepare(`INSERT INTO st_jobs (id,project_id,step,slot,phase,route,status,req,attempt,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)`).bind(sid, j.project_id, j.step, j.slot, 'seam', 'node', 'queued', JSON.stringify({ first_key: b.first_key, poster_key: b.poster_key, prev_last_key: prevKey, refs, cast: p?.req?.cast || [], prompt: p?.req?.prompt || '', mode: p?.req?.mode, subs: b.subs ?? null }), j.attempt, now(), now()).run()
-    await env.DB.prepare(`UPDATE st_slots SET status='checking', job_id=?, updated_at=? WHERE project_id=? AND step=? AND slot=?`).bind(sid, now(), j.project_id, j.step, j.slot).run()
+    await queueSeam(env, j.project_id, +j.step, j.slot, j.attempt, { first_key: b.first_key, poster_key: b.poster_key, media_key: b.media_key, subs: b.subs ?? null })
     return { ok: true }
   }
   // seam：确定性指标（节点算）+ 视觉 Agent（Worker 调 CONSISTENCY，小图）→ 综合判定
@@ -411,6 +404,31 @@ export async function nodeReport(env: Env, node: any, jobId: string, b: any) {
   await env.DB.prepare(`UPDATE st_slots SET status=?, qc=?, note=?, override=?, updated_at=? WHERE project_id=? AND step=? AND slot=?`).bind(reasons.length ? 'qc_fail' : 'ok', JSON.stringify(qc), reasons.length ? reasons.join('；') : null, reasons.length ? JSON.stringify({ ...(J(slot.override, {}) || {}), extra }) : slot.override, now(), j.project_id, j.step, j.slot).run()
   return { ok: true, pass: !reasons.length }
 }
+/** 排入一致性检测（seam）：上一段尾帧 vs 本段首帧 + 角色设定图 + 关键帧拼图 */
+async function queueSeam(env: Env, pid: string, step: number, slotKey: string, attempt: number, b: { first_key: string; poster_key: string; media_key: string; subs: any }) {
+  const { slots } = await plan(env, pid), p = slots.find((x) => x.step === step && x.slot === slotKey)
+  const rows = new Map<string, any>(((await env.DB.prepare('SELECT * FROM st_slots WHERE project_id=?').bind(pid).all()).results as any[]).map((r) => [`${r.step}:${r.slot}`, r]))
+  const prevKey = p?.req?.mode === 'frames' ? rows.get(p.deps[p.deps.length - 1])?.last_key || null : null
+  const refs = (p?.req?.cast || []).map((c: string) => ({ id: c, key: rows.get(`6:cast.${c}`)?.media_key })).filter((x: any) => x.key)
+  const sid = uid('job_')
+  await env.DB.prepare(`INSERT INTO st_jobs (id,project_id,step,slot,phase,route,status,req,attempt,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)`).bind(sid, pid, step, slotKey, 'seam', 'node', 'queued', JSON.stringify({ first_key: b.first_key, poster_key: b.poster_key, clip_key: b.media_key, prev_last_key: prevKey, refs, cast: p?.req?.cast || [], prompt: p?.req?.prompt || '', mode: p?.req?.mode, subs: b.subs }), attempt, now(), now()).run()
+  await env.DB.prepare(`UPDATE st_slots SET status='checking', job_id=?, updated_at=? WHERE project_id=? AND step=? AND slot=?`).bind(sid, now(), pid, step, slotKey).run()
+  return sid
+}
+/** 只重跑质检（不重拍、不花生成费）：用于误判申诉 / 调整阈值后复检 */
+export async function recheck(env: Env, u: User, pid: string, step: number, slotKey: string) {
+  if (step !== 7 && step !== 8) throw new HttpError(400, 'BAD_STEP', '只有视频步骤可以复检')
+  const r: any = await env.DB.prepare('SELECT * FROM st_slots WHERE project_id=? AND step=? AND slot=?').bind(pid, step, slotKey).first()
+  if (!r) throw new HttpError(404, 'NO_SLOT', '素材不存在')
+  const s: any = await env.DB.prepare('SELECT status FROM st_steps WHERE project_id=? AND step=?').bind(pid, step).first()
+  if (s?.status === 'done') throw new HttpError(409, 'STEP_DONE', '该步骤已审核通过，请先退回')
+  if (!r.media_key || !r.first_key) throw new HttpError(409, 'NO_MEDIA', '还没有可复检的视频')
+  if (['queued', 'running', 'post', 'checking'].includes(r.status)) throw new HttpError(409, 'BUSY', '正在处理中')
+  const q = J(r.qc, {}) || {}
+  const sid = await queueSeam(env, pid, step, slotKey, r.attempts || 1, { first_key: r.first_key, poster_key: r.poster_key, media_key: r.media_key, subs: q.subs ?? null })
+  await audit(env, u.id, 'media_recheck', `${pid}#${step}/${slotKey}`, {})
+  return { ok: true, job: sid }
+}
 export async function nodeUploadKey(env: Env, node: any, jobId: string, name: string) {
   const j: any = await env.DB.prepare('SELECT * FROM st_jobs WHERE id=?').bind(jobId).first()
   if (!j || j.claimed_by !== node.id) throw new HttpError(409, 'NOT_YOURS', '任务不属于该节点')
@@ -424,7 +442,7 @@ async function visionCheck(env: Env, j: any, b: any) {
   const frame = await toData(b.frame_key); if (!frame) return null
   const refs = (await Promise.all((b.ref_keys || []).slice(0, 3).map(async (r: any) => ({ id: r.id, url: await toData(r.key) })))).filter((r: any) => r.url)
   const r = await Gw.chatVision(env, 'CONSISTENCY', {
-    system: '你是 AI 短剧质检员。第一张是本段视频的关键帧，后面是角色设定图（按顺序标注 id）。只输出 JSON：{"has_person":bool（关键帧里是否能看清至少一个人物面部）,"face":0-10（仅当 has_person=true：与对应设定图的相似度，同一人=8~10）,"deformed":bool（脸/手严重畸变）,"burned_text":bool（画面有字幕/文字/水印/Logo）,"note":"≤30字"}',
+    system: '你是 AI 短剧质检员。第一张是本段视频的关键帧拼图（从左到右 3 帧：开头 / 中段 / 结尾），后面是角色设定图（按顺序标注 id）。只输出 JSON：{"has_person":bool（3 帧中是否至少有一帧能看清人物的正脸或侧脸——只有手、背影、下颌、远景小人都算 false）,"face":0-10（仅当 has_person=true：取脸最清楚的那一帧，与对应设定图比相似度，同一人=8~10，明显换人≤4）,"deformed":bool（脸/手严重畸变）,"burned_text":bool（画面有字幕/文字/水印/Logo）,"note":"≤30字"}\n注意：特写手部 / 道具的插入镜头是正常分镜，不要因为看不到脸给低分，应 has_person=false。',
     text: `设定图顺序：${refs.map((x: any) => x.id).join(', ') || '无'}。本段提示词：${String(J(j.req, {}).prompt || '').slice(0, 300)}`,
     images: [frame, ...refs.map((x: any) => x.url)], project_id: j.project_id, step: 9
   })

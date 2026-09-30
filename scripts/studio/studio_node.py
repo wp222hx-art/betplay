@@ -177,13 +177,29 @@ def post(job):
         if name == 'poster': keys['poster_key'] = put_file(job, thumb(png, png.replace('.png', '.jpg'), 480), 'poster.jpg', 'image/jpeg')
         else: keys[f'{name}_key'] = put_file(job, png, f'{name}.png', 'image/png')
     return {**keys, 'duration': dur, 'subs': burned_subs(mp4), 'audio': has_audio(mp4)}
+def contact_sheet(job, clip_key, h=360):
+    """关键帧拼图：25% / 55% / 85% 三帧横排（插入镜头不再被单帧误判）"""
+    if not clip_key: return None
+    try:
+        from PIL import Image
+        mp4 = get_media(clip_key, f"{TMP}/{job['id']}_clip.mp4"); dur = ffdur(mp4) or 8; ims = []
+        for k, t in enumerate((0.25, 0.55, 0.85)):
+            png = f"{TMP}/{job['id']}_cs{k}.png"; sh('ffmpeg', '-loglevel', 'error', '-y', '-ss', f'{dur * t:.2f}', '-i', mp4, '-frames:v', '1', png)
+            if os.path.exists(png): im = Image.open(png).convert('RGB'); im.thumbnail((h * 2, h)); ims.append(im)
+        if not ims: return None
+        W = sum(i.width for i in ims) + 6 * (len(ims) - 1); S = Image.new('RGB', (W, max(i.height for i in ims)), (0, 0, 0)); x = 0
+        for i in ims: S.paste(i, (x, 0)); x += i.width + 6
+        dst = f"{TMP}/{job['id']}_sheet.jpg"; S.save(dst, 'JPEG', quality=75); return dst
+    except Exception as e:
+        print('[node] contact sheet failed', e, flush=True); return None
 def seam(job):
     q = job['req']; out = {'seam': None, 'subs': q.get('subs')}
     first = get_media(q['first_key'], f"{TMP}/{job['id']}_first.png")
     if q.get('prev_last_key'): out['seam'] = seam_score(get_media(q['prev_last_key'], f"{TMP}/{job['id']}_prev.png"), first)
     # 供视觉 Agent：关键帧 + 设定图缩略（小图，节省 token 与 Worker 内存）
     if q.get('poster_key'):
-        fr = get_media(q['poster_key'], f"{TMP}/{job['id']}_frame.jpg"); out['frame_key'] = put_file(job, thumb(fr, fr, 384, 72), 'qc_frame.jpg', 'image/jpeg')
+        fr = get_media(q['poster_key'], f"{TMP}/{job['id']}_frame.jpg"); sheet = contact_sheet(job, q.get('clip_key'))
+        out['frame_key'] = put_file(job, sheet or thumb(fr, fr, 384, 72), 'qc_frame.jpg', 'image/jpeg')
         refs = []
         for r in (q.get('refs') or [])[:3]:
             p = get_media(r['key'], f"{TMP}/{job['id']}_ref_{r['id']}.png"); refs.append({'id': r['id'], 'key': put_file(job, thumb(p, p.replace('.png', '.jpg'), 384, 72), f"qc_ref_{r['id']}.jpg", 'image/jpeg')})

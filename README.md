@@ -187,7 +187,7 @@ npx wrangler d1 migrations apply webapp-production                              
   - 媒体：`/m/*` 需登录并支持 Range（视频可拖动）；执行节点 API `/node/claim`、`/node/jobs/:id/report`、`PUT /node/jobs/:id/files/:name`、`/node/media/*`
   - 前端「素材工作台」：卡片网格 + 详情（视频 / 首尾帧 / 质检指标）+ 筛选 + 一键生产 / 重拍 / 上传 / 通过 / 打回；「执行节点」页创建节点（令牌只显示一次）+ 生产参数（阈值 / 并发 / 自动重拍 / 公网域名）
   - API：`/api/projects/:id/media/:n[/run|/judge|/upload]`、`/api/media-settings`、`/api/nodes[/:nid]`
-  - **真拍小样** `sp_8a7631217fd4`《雨夜牌局》（gsk · nano-banana-pro 设定图 + Seedance 2.0 mini 视频）：设定图 3 张（MIRI 首张误成男性 → 打回附意见后重画正确）；主线 3 段 8 秒全部一次通过（人脸 8–9 分、0 字幕、有音轨）；分支 e2 走尾帧接力。实测成本 ≈ **3,080 积分 / 8 秒段**（设定图 ≈ 90/张）
+  - **真拍小样** `sp_8a7631217fd4`《雨夜牌局》（gsk · nano-banana-pro 设定图 + Seedance 2.0 mini 视频）：设定图 3 张（MIRI 首张误成男性 → 打回附意见后重画正确）；主线 3 段 8 秒全部一次通过（人脸 8–9 分、0 字幕、有音轨）；分支 e2 走尾帧接力：接缝分 0.952、人脸 9 分（首次被单帧误判为 0 分——手部特写镜头；已改为 3 帧拼图 + 新增「仅复检」，免费复检后通过），第 6–9 步全部审批通过。实测成本 ≈ **3,080 积分 / 8 秒段**（设定图 ≈ 90/张）
 - **执行节点部署**：`pm2 start ecosystem.config.cjs --only studio-node`；在 Studio「执行节点」页新建节点拿令牌，写入 `.node.env`（`STUDIO=…  NODE_TOKEN=msn_…  KINDS=post,gsk,jimeng_cli  CONC=3`）。用即梦需先在节点机器上 `dreamina login --headless`
 - **手机适配**：底部固定 Tab 栏（含安全区）、十步流水线横滑并自动定位当前步、结构图双指缩放 + 大触控端口、输入框 16px 防 iOS 放大、弹窗改底部抽屉；390 / 360 / 768 宽度全部页面无横向溢出
 - 验收：`npm run test:studio` → 结构引擎 **37/37** + 剧情账本 **33/33** + 接口验收 **91/91**（模拟服务商 + 真实执行节点离线跑通 1→9 步：卡关、令牌、生成、质检打回重拍、Range、人工判定、闸门、stale 传播）

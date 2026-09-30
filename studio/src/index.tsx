@@ -159,6 +159,7 @@ app.post('/api/projects/:id/media/:n/run', requireRole('writer'), async (c) => {
   const n = stepN(c); if (n === 9) throw new HttpError(400, 'BAD_STEP', '第 9 步由生成后自动检测；重拍请在第 7/8 步操作')
   const b = await body(c); return c.json(await Media.run(c.env, c.get('user'), c.req.param('id'), n, Array.isArray(b.only) ? b.only.map(String).slice(0, 100) : undefined, new URL(c.req.url).origin))
 })
+app.post('/api/projects/:id/media/:n/recheck', requireRole('writer'), async (c) => { const b = await body(c); return c.json(await Media.recheck(c.env, c.get('user'), c.req.param('id'), +c.req.param('n'), String(b.slot || ''))) })
 app.post('/api/projects/:id/media/:n/judge', requireApprover, async (c) => { const b = await body(c); return c.json(await Media.judge(c.env, c.get('user'), c.req.param('id'), +c.req.param('n'), String(b.slot || ''), !!b.accept, String(b.note || '').slice(0, 300))) })
 app.post('/api/projects/:id/media/:n/upload', requireRole('writer'), async (c) => {
   const fd = await c.req.formData(), f = fd.get('file') as any, slot = String(fd.get('slot') || '')
