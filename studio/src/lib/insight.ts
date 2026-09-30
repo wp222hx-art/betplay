@@ -6,6 +6,7 @@
 import { HttpError, type Env, type User, audit } from './auth'
 import * as C from './compile'
 import * as Sl from './suanli'
+import * as Pf from './platforms'
 import * as G from './graph'
 import * as Gw from './gateway'
 import * as L from './ledger'
@@ -116,16 +117,18 @@ export async function preview(env: Env, pid: string) {
   const docs = async (kind: string) => new Map<string, any>(((await env.DB.prepare(`SELECT node_id,data FROM st_node_docs WHERE project_id=? AND kind=?`).bind(pid, kind).all()).results as any[]).map((x) => [x.node_id, J(x.data)]))
   const scripts = await docs('script'), prompts = await docs('prompt')
   const a: any = await env.DB.prepare(`SELECT a.model, a.params, p.kind FROM st_agents a LEFT JOIN st_providers p ON p.id=a.provider_id WHERE a.code='VIDEO_BRANCH'`).first()
-  const ap = J(a?.params, {}) || {}, vm = a?.kind === 'suanli' ? Sl.find(a.model) : undefined
-  const priceSec = +ap.unit_price_sec || (vm ? Sl.videoPerSec(vm, ap.resolution || '720p') : PRICE.video_sec)
+  const ap = J(a?.params, {}) || {}, vm = Pf.isPlatform(a?.kind) ? await Pf.findModel(env, a.kind, a.model) : undefined
+  const priceSec = +ap.unit_price_sec || (vm ? (a.kind === 'suanli' ? Sl.videoPerSec(vm, ap.resolution || '720p') : Pf.perSec(vm, String(ap.resolution || '720p').toLowerCase()) ?? PRICE.video_sec) : PRICE.video_sec)
+  const dyn = !!vm && (vm.price as any).unit === 'quota'
   const ai: any = await env.DB.prepare(`SELECT a.model, p.kind FROM st_agents a LEFT JOIN st_providers p ON p.id=a.provider_id WHERE a.code='ASSET'`).first()
-  const imgPrice = ai?.kind === 'suanli' ? (Sl.find(ai.model)?.price.per ?? PRICE.image) : PRICE.image
+  const imgM = Pf.isPlatform(ai?.kind) ? await Pf.findModel(env, ai.kind, ai.model) : undefined
+  const imgPrice = imgM ? (Pf.imageCost(imgM, '1536x2048') || PRICE.image) : PRICE.image
   const sim = simulate(graph, scripts), man = manifest(graph, prompts, scripts, { priceSec })
   const cast = (bible?.cast || []).length
   const budget = { videos: man.totals.cost, images: +((cast + 1) * imgPrice * 1.5).toFixed(2), llm: +(graph.nodes.length * 3 * PRICE.llm_call).toFixed(2), retry_buffer: +(man.totals.cost * 0.25).toFixed(2) }
   const total = +(budget.videos + budget.images + budget.llm + budget.retry_buffer).toFixed(2)
   const last: any = await env.DB.prepare(`SELECT * FROM st_reviews WHERE project_id=? ORDER BY created_at DESC LIMIT 1`).bind(pid).first()
-  return { brief: { title: brief?.theme, format: brief?.format }, simulation: sim, manifest: man, lint: scripts.size ? lint(graph, scripts, bible) : [], budget: { ...budget, total, currency: 'CNY', note: `按算力网公开价估算：视频 ¥${priceSec}/秒${vm ? `（${vm.id} · ${ap.resolution || '720p'}）` : ''}，图片 ¥${imgPrice}/张，含 25% 重拍缓冲` }, price: { video_sec: priceSec, image: imgPrice, video_model: a?.model || null, image_model: ai?.model || null },
+  return { brief: { title: brief?.theme, format: brief?.format }, simulation: sim, manifest: man, lint: scripts.size ? lint(graph, scripts, bible) : [], budget: { ...budget, total, currency: 'CNY', note: `按所选模型的平台公开价估算：视频 ¥${priceSec}/秒${vm ? `（${vm.id} · ${ap.resolution || '720p'}${dyn ? '，该模型按任务实扣，此处用 Seedance 2.0 官方价参考' : ''}）` : ''}，图片 ¥${imgPrice}/张，含 25% 重拍缓冲`, price: { video_sec: priceSec, image: imgPrice, video_model: a?.model || null, image_model: ai?.model || null, dynamic: dyn } },
     review: last ? { ...last, dims: J(last.dims), issues: J(last.issues), suggestions: J(last.suggestions) } : null, stage: { scripts: scripts.size, prompts: prompts.size, nodes: graph.nodes.length } }
 }
 

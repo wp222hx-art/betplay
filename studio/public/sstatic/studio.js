@@ -18,7 +18,7 @@
   const can = (role) => S.me && ({ reviewer: 1, writer: 2, admin: 3 })[S.me.role] >= ({ reviewer: 1, writer: 2, admin: 3 })[role]
 
   function frame(active, inner, wide) {
-    const tabs = [['#/projects', 'fa-diagram-project', '项目'], ['#/config', 'fa-robot', 'Agent 配置'], ...(can('admin') ? [['#/nodes', 'fa-server', '执行节点'], ['#/users', 'fa-users', '账号'], ['#/audit', 'fa-clock-rotate-left', '审计']] : [])]
+    const tabs = [['#/projects', 'fa-diagram-project', '项目'], ['#/config', 'fa-robot', 'Agent 配置'], ['#/monitor', 'fa-heart-pulse', '模型监控'], ...(can('admin') ? [['#/nodes', 'fa-server', '执行节点'], ['#/users', 'fa-users', '账号'], ['#/audit', 'fa-clock-rotate-left', '审计']] : [])]
     app.innerHTML = `<header class="top"><a class="logo" href="#/projects"><img src="/sstatic/momo.svg" alt=""><b>MoMo</b><span>Studio</span></a>
       <nav class="tabs" id="main-tabs">${tabs.map(([h, ic, n]) => `<a href="${h}" class="${active === h ? 'on' : ''}"><i class="fas ${ic}"></i><b>${n}</b></a>`).join('')}</nav>
       <div class="me">${esc(S.me.name)}<span class="role">${ROLE[S.me.role]}</span><button class="btn sm" id="lo"><i class="fas fa-right-from-bracket"></i></button></div></header><main class="${wide ? 'wide' : ''}">${inner}</main>`
@@ -228,11 +228,7 @@
     const use = Object.fromEntries(d.usage.map((u) => [u.agent, u]))
     frame('#/config', `<h1>Agent 配置中心</h1><p class="sub">生产线上的每个 Agent 都在这里统一分配服务商、模型、参数、提示词版本和预算。<b>API Key 加密后入库，任何接口都只返回掩码。</b></p>
       ${d.master_key_ok ? '' : '<div class="banner bad">✗ 服务器未配置 STUDIO_MASTER_KEY，无法保存 API Key。请在环境变量中设置（≥16 位随机字符串）。</div>'}
-      ${adm ? `<section class="card sl-card"><h2><i class="fas fa-bolt"></i> 一键接入 算力网 suanli.com</h2>
-        <p class="sub">一个 Key 覆盖全部生产线：<b>对话</b>（DeepSeek V4 Pro 0813 / Flash 0731 / 豆包 Seed 2.0 —— 编剧、结构、剧本、提示词、连贯监管、评审、合规、视觉质检）· <b>图片</b>（万相 2.7 Image Pro ¥0.5/张 —— 设定图、封面）· <b>视频</b>（Seedance 2.0 —— 主线参考图 + 分支首帧接力，有声 720p ≈ ¥1/秒、1080p ≈ ¥2.5/秒，按 token 计费）。Key 加密入库，只显示掩码。下方「模型目录」按类别列出全部模型、文档参数和价格；每个 Agent 的模型下拉只显示适配它的模型。</p>
-        ${d.providers.some((p) => p.kind === 'suanli') ? `<div class="banner ok">已接入：${esc(d.providers.find((p) => p.kind === 'suanli').key_hint)}（再次提交可更换 Key 或重新套用推荐配置）</div>` : ''}
-        <form id="slf" class="sl-form"><input class="inp" name="key" type="password" autocomplete="off" placeholder="算力网 API Key（sk-…），在 suanli.com → API Keys 创建">
-        <label class="chk"><input type="checkbox" name="all" checked> 同时把 11 个 Agent 切到算力网推荐模型</label><button class="btn pri" type="submit"><i class="fas fa-plug-circle-check"></i> 保存并测试</button></form><div id="slr"></div></section>` : ''}
+
       <section class="card"><h2><i class="fas fa-plug"></i> 服务商 ${adm ? '<button class="btn sm pri" id="addp" style="float:right"><i class="fas fa-plus"></i> 添加服务商</button>' : ''}</h2>
         ${d.providers.map((p) => `<div class="prov"><div class="nm"><b>${esc(p.name)}</b> <span class="pill" style="--c:#7dd3fc">${esc(p.kind_name)}</span><div class="mut sm">${esc(p.base_url || '—')} · Key：${p.has_key ? esc(p.key_hint) : '<span class="warn-t">未设置</span>'}</div></div>
           <span class="pill" style="--c:${p.enabled ? '#3ddc97' : '#6b7280'}">${p.enabled ? '启用' : '停用'}</span>
@@ -245,8 +241,6 @@
           <div style="display:flex;gap:6px">${adm ? `<button class="btn sm pri" data-savea>保存</button><button class="btn sm" data-more>详细</button>` : ''}</div></div>`).join('')}</section>`)
     if (window.SuanliUI) window.SuanliUI.enhance({ cfg: d, api, toast, reload: configPage, esc, adm })
     if (!adm) return
-    $('#slf').onsubmit = async (e) => { e.preventDefault(); const fd = new FormData(e.target), btn = e.target.querySelector('button'); btn.disabled = true; $('#slr').innerHTML = '<p class="mut sm"><i class="fas fa-spinner fa-spin"></i> 保存并连通测试…</p>'
-      try { const r = await api('/api/providers/suanli/connect', { key: fd.get('key') || undefined, agents: fd.get('all') ? undefined : ['__none__'] }); $('#slr').innerHTML = `<div class="banner ${r.test.ok ? 'ok' : 'bad'}">${r.test.ok ? '✓' : '✗'} ${esc(r.test.note)}${r.agents.length ? `<br>已切换 Agent：${r.agents.map(esc).join('、')}` : ''}</div>`; if (r.test.ok) setTimeout(configPage, 1800) } catch (er) { $('#slr').innerHTML = `<div class="banner bad">${esc(er.message)}</div>` } btn.disabled = false }
     $('#addp').onclick = () => providerModal()
     document.querySelectorAll('[data-editp]').forEach((b) => (b.onclick = () => providerModal(d.providers.find((p) => p.id === b.dataset.editp))))
     document.querySelectorAll('[data-test]').forEach((b) => (b.onclick = async () => { b.disabled = true; try { const r = await api(`/api/providers/${b.dataset.test}/test`, {}); toast(`${r.ok ? '✓' : '✗'} ${r.note}${r.ms ? ` · ${r.ms}ms` : ''}`) } catch (er) { toast(er.message) } b.disabled = false }))
@@ -288,6 +282,12 @@
     })
   }
 
+  // ─── 模型监控 ───
+  async function monitorPage() {
+    frame('#/monitor', `<h1>模型监控</h1><p class="sub">四个接入平台的在线状态、心跳、延迟、余额，以及每个模型的使用情况与错误。</p><div id="mon"><p class="mut">加载中…</p></div>`)
+    if (window.SuanliUI) window.SuanliUI.monitor($('#mon'), { api, toast, esc, adm: can('admin'), fmtT })
+  }
+
   // ─── 账号 / 审计 ───
   async function usersPage() {
     const us = await api('/api/users')
@@ -311,6 +311,7 @@
       if (h[0] === 'p' && h[1] && h[2] === 'insight') return insightPage(h[1])
       if (h[0] === 'p' && h[1]) return projectPage(h[1], +h[2] || 0)
       if (h[0] === 'config') return configPage()
+      if (h[0] === 'monitor') return monitorPage()
       if (h[0] === 'nodes' && can('admin')) return nodesPage()
       if (h[0] === 'users' && can('admin')) return usersPage()
       if (h[0] === 'audit' && can('admin')) return auditPage()

@@ -8,6 +8,8 @@ import { resolveProvider } from './agents'
 import * as Gw from './gateway'
 import { errText } from './gateway'
 import * as Sl from './suanli'
+import * as Pf from './platforms'
+import * as Ad from './adapters'
 import * as G from './graph'
 import * as L from './ledger'
 import * as Steps from './steps'
@@ -15,7 +17,7 @@ import { rand, sha256, uid } from './sec'
 
 const now = () => Date.now()
 const J = (s: any, d: any = null) => { try { return s ? JSON.parse(s) : d } catch { return d } }
-export const DIRECT = new Set(['ark_video', 'openai_video', 'ark_image', 'openai_image', 'suanli'])
+export const DIRECT = new Set(['ark_video', 'openai_video', 'ark_image', 'openai_image', 'suanli', 'tokenhot', 'ark'])
 const MAX_ATTEMPTS = 3
 const STALE_CLAIM_MS = 30 * 60000
 
@@ -164,6 +166,17 @@ async function directSubmit(env: Env, jobId: string) {
       const r = await fetch(SL + '/v1/video/generations', { method: 'POST', headers: { Authorization: 'Bearer ' + pv.key, 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       const d: any = await r.json().catch(() => ({})); task = d.id || d.task_id
       if (!r.ok || !task) throw new Error(`HTTP ${r.status}: ${errText(d)}`)
+    } else if ((pv.kind === 'tokenhot' || pv.kind === 'ark') && j.step === 6) { // TokenHot / 方舟：图片（按模型协议）
+      const M = await Pf.findModel(env, pv.kind, j.model, pv), P = q.params || {}
+      const o = await Ad.image(pv, M, j.model, q.prompt, q.ratio === '3:4', P)
+      immediate = { url: o.url, b64: o.b64, cost: Pf.imageCost(M, o.size, o.n) }
+    } else if (pv.kind === 'tokenhot' || pv.kind === 'ark') { // TokenHot / 方舟：视频（Seedance content[] / Kling / Veo / Wan3 / HappyHorse / Grok / Omni）
+      const M = await Pf.findModel(env, pv.kind, j.model, pv), P = q.params || {}
+      if ((M as any)?.public_url && (String(q.first_frame || '').startsWith('data:') || (q.reference_images || []).some((u: string) => u.startsWith('data:')))) throw new Error(`${j.model} 只接受公网图片地址：请在「设置」里配置 Studio 公网地址（https）后重试`)
+      const seed = P.seed !== undefined && P.seed !== '' ? +P.seed : undefined
+      const r = await Ad.videoSubmit(pv, M, j.model, { prompt: q.prompt, first_frame: q.first_frame || null, refs: q.reference_images || [], cast: q.cast || [], ratio: P.ratio || q.ratio || '9:16', duration: q.duration || +P.duration || 8, resolution: String(P.resolution || '720p'), audio: P.audio !== false, watermark: P.watermark === true, seed })
+      task = r.task
+      await env.DB.prepare(`UPDATE st_jobs SET req=? WHERE id=?`).bind(JSON.stringify({ ...q, sent: r.sent }), jobId).run()
     } else if (pv.kind === 'ark_video') {
       const content: any[] = [{ type: 'text', text: q.prompt }]
       if (q.first_frame) content.push({ type: 'image_url', image_url: { url: q.first_frame }, role: 'first_frame' })
@@ -205,6 +218,14 @@ async function directPoll(env: Env, j: any) {
       if (usage) await env.DB.prepare(`UPDATE st_jobs SET result=? WHERE id=?`).bind(JSON.stringify({ usage }), j.id).run()
       const q = J(j.req, {}), sent = q.sent || {}
       cost = Sl.costOf(Sl.find(j.model), { vtok: usage || undefined, sec: sent.duration || q.duration || 8, res: sent.resolution || '720p' })
+    } else if (pv.kind === 'tokenhot' || pv.kind === 'ark') {
+      const x = await Ad.videoPoll(pv, j.task_id)
+      st = x.status; video = x.video; last = x.last; err = x.err; auth = x.auth
+      if (st === 'succeeded') {
+        const q = J(j.req, {}), sent = q.sent || {}, M = await Pf.findModel(env, pv.kind, j.model, pv)
+        cost = x.quota ? Pf.thQuotaCny(x.quota) : Pf.videoCost(M, { vtok: x.usage || undefined, sec: sent.duration || q.duration || 8, res: sent.resolution || '720p' })
+        await env.DB.prepare(`UPDATE st_jobs SET result=? WHERE id=?`).bind(JSON.stringify({ usage: x.usage, quota: x.quota }), j.id).run()
+      }
     } else if (pv.kind === 'ark_video') {
       const r = await fetch(pv.base + (pv.extra.query_path || '/api/v3/contents/generations/tasks/') + encodeURIComponent(j.task_id), { headers: { Authorization: 'Bearer ' + pv.key } })
       const d: any = await r.json().catch(() => ({})); if (!r.ok) return

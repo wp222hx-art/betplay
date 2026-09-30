@@ -2,11 +2,15 @@
 import { HttpError, type Env, type User, audit } from './auth'
 import { hint, seal, unseal, uid } from './sec'
 import * as Sl from './suanli'
+import * as Pf from './platforms'
 
 const now = () => Date.now()
 const J = (s: any, d: any = null) => { try { return s ? JSON.parse(s) : d } catch { return d } }
 
 export const PROVIDER_KINDS: Record<string, { name: string; cap: 'text' | 'video' | 'image' | 'any'; needs: string[]; hint: string }> = {
+  tokenhot: { name: 'TokenHot（对话 + 图片 + 视频聚合）', cap: 'any', needs: ['key'], hint: 'docs.tokenhot.cn：/v1/chat/completions · /v1/images/generations · /v1/video/generations（Seedance / Kling / Veo / Wan 3.0 / HappyHorse）；Base 默认 https://api.tokenhot.cn' },
+  deepseek: { name: 'DeepSeek 官方（对话）', cap: 'text', needs: ['key'], hint: 'api-docs.deepseek.com：/chat/completions（deepseek-v4-pro / deepseek-flash）；余额 /user/balance；Base 默认 https://api.deepseek.com' },
+  ark: { name: '豆包 · 火山方舟官方（对话 + 图片 + 视频）', cap: 'any', needs: ['key'], hint: '方舟 API Key：/chat/completions（Seed 2.1）· /images/generations（Seedream 5.0）· /contents/generations/tasks（Seedance 2.5 / 2.0）；Base 默认 https://ark.cn-beijing.volces.com/api/v3' },
   suanli: { name: '算力网 suanli.com（对话 + 图片 + 视频）', cap: 'any', needs: ['key'], hint: '一个 Key 通用：/v1/chat/completions · /v1/images/generations · /v1/video/generations（Seedance 2.0/2.5、Wan 2.7）；Base 默认 https://api.suanli.com' },
   openai_compat: { name: 'OpenAI 兼容对话', cap: 'text', needs: ['base_url', 'key'], hint: 'OpenAI / DeepSeek / 豆包方舟对话 / 任意中转站 /chat/completions' },
   ark_video: { name: '火山方舟 Seedance（方舟原生格式）', cap: 'video', needs: ['base_url', 'key'], hint: '官方 https://ark.cn-beijing.volces.com 或方舟兼容中转；POST /api/v3/contents/generations/tasks' },
@@ -66,7 +70,7 @@ export async function upsertProvider(env: Env, u: User, b: any) {
   const kind = String(b.kind || '')
   if (!PROVIDER_KINDS[kind]) throw new HttpError(400, 'BAD_KIND', '服务商类型无效')
   const id = b.id || uid('pv_')
-  const base = b.base_url ? String(b.base_url).trim().replace(/\/+$/, '') : kind === 'suanli' ? 'https://api.suanli.com' : null
+  const base = b.base_url ? String(b.base_url).trim().replace(/\/+$/, '') : Pf.isPlatform(kind) ? Pf.PLATFORMS[kind].base : null
   if (base && !/^https:\/\//.test(base) && !/^http:\/\/(localhost|127\.)/.test(base)) throw new HttpError(400, 'BAD_URL', 'Base URL 必须是 https')
   let encd: { enc: string; iv: string } | null = null, kh: string | null = null
   if (b.key) { encd = await seal(env.STUDIO_MASTER_KEY || '', String(b.key).trim()); kh = hint(String(b.key).trim()) }
@@ -93,12 +97,13 @@ export async function updateAgent(env: Env, u: User, code: string, b: any) {
   let fixes: string[] = []
   const pid = b.provider_id || a.provider_id
   if (pid) {
-    const p: any = await env.DB.prepare('SELECT kind FROM st_providers WHERE id=?').bind(pid).first()
+    const p: any = await env.DB.prepare('SELECT kind, base_url, extra FROM st_providers WHERE id=?').bind(pid).first()
     if (!p) throw new HttpError(400, 'NO_PROVIDER', '服务商不存在')
     const cap = PROVIDER_KINDS[p.kind].cap
     if (cap !== 'any' && cap !== a.capability) throw new HttpError(400, 'CAPABILITY_MISMATCH', `${a.name} 需要「${a.capability}」能力，该服务商只提供「${cap}」`)
-    if (p.kind === 'suanli') { // 按算力网文档校验：模型类别 / JSON 能力 / 首帧·参考图角色；参数按文档枚举与范围夹紧
-      const model = b.model ?? a.model, m = Sl.find(model)
+    if (Pf.isPlatform(p.kind)) { // 按平台文档校验：模型类别 / JSON 能力 / 首帧·参考图角色；参数按文档枚举与范围夹紧
+      const model = b.model ?? a.model, m = await Pf.findModel(env, p.kind, model, { base: p.base_url, extra: J(p.extra, {}) })
+      if (!m && model && b.model) throw new HttpError(400, 'UNKNOWN_MODEL', `${Pf.PLATFORMS[p.kind].short} 目录中没有模型「${model}」（可在模型目录里「在线同步」后再试）`)
       const why = Sl.fitFor(code, m); if (why) throw new HttpError(400, 'MODEL_MISMATCH', `${a.name}：${why}`)
       if (m) { const n = Sl.normalizeParams(m, b.params ?? J(a.params, {})); fixes = n.fixes; if (b.params || fixes.length) b.params = n.params }
     }
@@ -142,6 +147,31 @@ export async function suanliCatalog(env: Env, force = false) {
   const p: any = await env.DB.prepare(`SELECT id FROM st_providers WHERE kind='suanli' AND enabled=1 ORDER BY created_at LIMIT 1`).first()
   const pv = p ? await resolveProvider(env, p.id).catch(() => null) : null
   return { provider_id: p?.id || null, ...(await Sl.catalog(env, pv, force)) }
+}
+/** 一键接入任意平台：保存加密 Key → 按平台推荐把能覆盖的 Agent 切过去（只改选中的；原配置写审计） */
+export async function connectPlatform(env: Env, u: User, kind: string, b: { key?: string; agents?: string[]; base_url?: string }) {
+  if (kind === 'suanli') return connectSuanli(env, u, b)
+  if (!Pf.isPlatform(kind)) throw new HttpError(400, 'BAD_KIND', '未知平台')
+  await seedDefaults(env)
+  const meta = Pf.PLATFORMS[kind]
+  const p: any = await env.DB.prepare(`SELECT id FROM st_providers WHERE kind=? ORDER BY created_at LIMIT 1`).bind(kind).first()
+  if (!p && !b.key) throw new HttpError(400, 'NO_KEY', `请填写 ${meta.name} 的 API Key`)
+  const saved = await upsertProvider(env, u, { id: p?.id, kind, name: meta.name, base_url: b.base_url || meta.base, ...(b.key ? { key: b.key } : {}) })
+  const preset = Pf.PRESETS[kind]
+  await Pf.modelsOf(env, kind, await resolveProvider(env, saved.id), true).catch(() => null) // 预热目录（TokenHot 需要在线价格表）
+  const want = (b.agents?.length ? b.agents : Object.keys(preset)).filter((c) => preset[c])
+  const before = (await env.DB.prepare(`SELECT code, provider_id, model, params FROM st_agents`).all()).results
+  const applied: string[] = [], skipped: string[] = []
+  for (const code of want) { try { await updateAgent(env, u, code, { provider_id: saved.id, model: preset[code].model, ...(preset[code].params ? { params: preset[code].params } : {}) }); applied.push(code) } catch (e: any) { skipped.push(`${code}：${e?.message || e}`) } }
+  await audit(env, u.id, 'platform_connect', saved.id, { kind, agents: applied, skipped, before })
+  return { provider: saved, agents: applied, skipped }
+}
+export async function platformCatalog(env: Env, kind: string, force = false) {
+  if (!Pf.isPlatform(kind)) throw new HttpError(400, 'BAD_KIND', '未知平台')
+  if (kind === 'suanli') return { platform: kind, meta: Pf.PLATFORMS.suanli, ...(await suanliCatalog(env, force)) }
+  const p: any = await env.DB.prepare(`SELECT id FROM st_providers WHERE kind=? AND enabled=1 ORDER BY created_at LIMIT 1`).bind(kind).first()
+  const pv = p ? await resolveProvider(env, p.id).catch(() => null) : null
+  return { provider_id: p?.id || null, ...(await Pf.catalog(env, kind, pv, force)) }
 }
 export async function connectSuanli(env: Env, u: User, b: { key?: string; agents?: string[]; base_url?: string }) {
   await seedDefaults(env)

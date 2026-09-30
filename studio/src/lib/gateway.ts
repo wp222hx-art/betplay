@@ -4,6 +4,8 @@ import { HttpError, type Env } from './auth'
 import { resolveProvider, seedDefaults } from './agents'
 import { uid } from './sec'
 import * as Sl from './suanli'
+import * as Pf from './platforms'
+import * as Ad from './adapters'
 
 const now = () => Date.now()
 const J = (s: any, d: any = null) => { try { return s ? JSON.parse(s) : d } catch { return d } }
@@ -76,8 +78,16 @@ export async function chat(env: Env, code: string, o: { system?: string; prompt:
       const j: any = await r.json().catch(() => ({}))
       if (!r.ok) throw new Error(`HTTP ${r.status}: ${errText(j)}`)
       text = j.choices?.[0]?.message?.content || ''; tin = j.usage?.prompt_tokens || 0; tout = j.usage?.completion_tokens || 0
+    } else if (pv.kind === 'tokenhot' || pv.kind === 'deepseek' || pv.kind === 'ark') {
+      if (!pv.key) throw new HttpError(409, 'PROVIDER_UNCONFIGURED', '服务商缺少 Key')
+      const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), o.timeoutMs || 120000)
+      const body = Ad.chatBody(pv, a.model, [...(system ? [{ role: 'system', content: system }] : []), { role: 'user', content: o.prompt }], a.params, !!o.json)
+      const r = await fetch(Ad.chatEndpoint(pv), { method: 'POST', signal: ctl.signal, headers: { Authorization: 'Bearer ' + pv.key, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).finally(() => clearTimeout(tm))
+      const j: any = await r.json().catch(() => ({}))
+      if (!r.ok) throw new Error(`HTTP ${r.status}: ${Ad.errMsg(j, r.status)}`)
+      text = j.choices?.[0]?.message?.content || ''; tin = j.usage?.prompt_tokens || 0; tout = j.usage?.completion_tokens || 0
     } else throw new HttpError(409, 'PROVIDER_CAPABILITY', `服务商 ${pv.kind} 不支持对话`)
-    const cost = a.unit_price ? +(((tin + tout) / 1000) * a.unit_price).toFixed(4) : pv.kind === 'suanli' ? Sl.costOf(Sl.find(a.model), { tin, tout }) : 0
+    const cost = a.unit_price ? +(((tin + tout) / 1000) * a.unit_price).toFixed(4) : pv.kind === 'suanli' ? Sl.costOf(Sl.find(a.model), { tin, tout }) : Pf.isPlatform(pv.kind) ? Pf.chatCost(pv.kind, await Pf.findModel(env, pv.kind, a.model, pv), tin, tout) : 0
     let data: any = null, bad = ''
     if (o.json) { try { data = parseJson(text) } catch (pe: any) { bad = `模型输出不是合法 JSON：${String(pe?.message || pe).slice(0, 80)}` } }
     recorded = true
@@ -107,8 +117,15 @@ export async function chatVision(env: Env, code: string, o: { system: string; te
       const r = await fetch(chatUrl(pv), { method: 'POST', signal: ctl.signal, headers: { Authorization: 'Bearer ' + pv.key, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).finally(() => clearTimeout(tm))
       const j: any = await r.json().catch(() => ({})); if (!r.ok) throw new Error(`HTTP ${r.status}: ${j.error?.message || ''}`)
       text = j.choices?.[0]?.message?.content || ''; tin = j.usage?.prompt_tokens || 0; tout = j.usage?.completion_tokens || 0
+    } else if (pv.kind === 'tokenhot' || pv.kind === 'deepseek' || pv.kind === 'ark') {
+      const vm = a.params?.vision_model || a.model
+      const body = Ad.chatBody(pv, vm, [{ role: 'system', content: o.system }, { role: 'user', content: [{ type: 'text', text: o.text }, ...o.images.map((u) => ({ type: 'image_url', image_url: { url: u } }))] }], { ...(a.params || {}), thinking: a.params?.thinking || 'disabled' }, true)
+      const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 90000)
+      const r = await fetch(Ad.chatEndpoint(pv), { method: 'POST', signal: ctl.signal, headers: { Authorization: 'Bearer ' + pv.key, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).finally(() => clearTimeout(tm))
+      const j: any = await r.json().catch(() => ({})); if (!r.ok) throw new Error(`HTTP ${r.status}: ${Ad.errMsg(j, r.status)}`)
+      text = j.choices?.[0]?.message?.content || ''; tin = j.usage?.prompt_tokens || 0; tout = j.usage?.completion_tokens || 0
     } else throw new HttpError(409, 'PROVIDER_CAPABILITY', '该服务商不支持图像理解')
-    const cost = a.unit_price ? +(((tin + tout) / 1000) * a.unit_price).toFixed(4) : pv.kind === 'suanli' ? Sl.costOf(Sl.find(a.params?.vision_model || a.model), { tin, tout }) : 0
+    const cost = a.unit_price ? +(((tin + tout) / 1000) * a.unit_price).toFixed(4) : pv.kind === 'suanli' ? Sl.costOf(Sl.find(a.params?.vision_model || a.model), { tin, tout }) : Pf.isPlatform(pv.kind) ? Pf.chatCost(pv.kind, await Pf.findModel(env, pv.kind, a.params?.vision_model || a.model, pv), tin, tout) : 0
     await record(env, { id, project_id: o.project_id, step: o.step, agent: code, provider_id: pv.id, model: a.model, status: 'ok', latency_ms: now() - t0, tokens_in: tin, tokens_out: tout, cost, input: o.text, output: text, created_by: o.user })
     return { run_id: id, data: parseJson(text) }
   } catch (e: any) {

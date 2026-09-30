@@ -5,16 +5,16 @@ import type { Env } from './auth'
 const now = () => Date.now()
 
 export type Cat = 'chat' | 'vision' | 'image' | 'video'
-export type Proto = 'chat' | 'images' | 'video_moldex' | 'video_generic'
+export type Proto = string // chat / images / video_moldex / video_generic / th_* / ark_* / unsupported
 export type Param = { k: string; n: string; type: 'enum' | 'int' | 'float' | 'bool'; options?: (string | number)[]; min?: number; max?: number; step?: number; def: any; d?: string }
 export type Model = {
   id: string; name: string; vendor: string; cat: Cat; proto: Proto; caps: string[]; ctx?: number; max_out?: number
-  price: { unit: 'mtok' | 'image' | 'sec' | 'vtok'; in?: number; out?: number; cache?: number; per?: number; per_res?: Record<string, number>; with_video?: number; note: string }
-  roles?: string[]; params: Param[]; notes?: string; tier?: 'flagship' | 'balanced' | 'budget'; source?: 'builtin' | 'live'
+  price: { unit: 'mtok' | 'image' | 'sec' | 'vtok' | 'quota' | 'call'; in?: number; out?: number; cache?: number; per?: number; per_res?: Record<string, number>; with_video?: number; idle?: { in: number; out: number }; per_px?: { limit: number; lo: number; hi: number }; note: string }
+  roles?: string[]; params: Param[]; notes?: string; tier?: 'flagship' | 'balanced' | 'budget'; source?: 'builtin' | 'live'; platform?: string; deprecated?: boolean; public_url?: boolean
 }
 
 // ───────── 参数表（全部取自文档字段说明）─────────
-const CHAT_PARAMS = (reasoning = true): Param[] => [
+export const CHAT_PARAMS = (reasoning = true): Param[] => [
   { k: 'temperature', n: '采样温度', type: 'float', min: 0, max: 2, step: 0.05, def: 0.7, d: 'temperature 0~2：越高越发散，编剧 0.8~1.0，审核/质检 ≤0.2' },
   { k: 'top_p', n: '核采样', type: 'float', min: 0, max: 1, step: 0.05, def: 1, d: 'top_p 0~1' },
   { k: 'max_completion_tokens', n: '最大输出 token', type: 'int', min: 256, max: 32768, step: 256, def: 8192, d: 'max_completion_tokens（新版参数）' },
@@ -44,7 +44,7 @@ const T2V_PARAMS = (maxDur: number): Param[] => [
 const SEEDANCE_ROLES = ['first_frame', 'reference_image', 'reference_video', 'reference_audio']
 
 // Seedance 按 token 计费：tokens = 宽 × 高 × 24fps × 秒 / 1024（文档示例 5 秒 720p = 108,900 token）
-export const RES_PX: Record<string, number> = { '480p': 854 * 480, '720p': 1280 * 720, '1080p': 1920 * 1080 }
+export const RES_PX: Record<string, number> = { '480p': 864 * 496, '720p': 1280 * 720, '1080p': 1920 * 1080, '4k': 3840 * 2160 } // 与火山官方价格表反推一致（2.0 480p 5 秒 ¥2.31）
 export const vtokPerSec = (res: string) => Math.round((RES_PX[res] || RES_PX['720p']) * 24 / 1024)
 
 const sd = (id: string, vendor: string, v25: boolean, tier: Model['tier'], note = ''): Model => ({
@@ -102,6 +102,7 @@ export const NEEDS: Record<string, { cats: Cat[]; json?: boolean; roles?: string
 /** 某模型能否给某 Agent 用：返回 null=可以，否则返回原因 */
 export function fitFor(code: string, m: Model | undefined): string | null {
   const n = NEEDS[code]; if (!n || !m) return null
+  if (m.proto === 'unsupported') return `${m.id} 的调用协议文档未给出，暂不支持在生产线里直接调用`
   if (!n.cats.includes(m.cat)) return `${m.id} 属于「${CAT_NAME[m.cat]}」，该 Agent 需要「${n.cats.map((c) => CAT_NAME[c]).join(' / ')}」`
   if (n.json && !m.caps.includes('json_mode')) return `${m.id} 未声明 json_mode，该 Agent 需要结构化 JSON 输出`
   for (const r of n.roles || []) if (!(m.roles || []).includes(r)) return `${m.id} 不支持 ${r}（${n.why}）`
@@ -151,6 +152,7 @@ export function sizeOf(ratio = '9:16', res = '720p') {
 // ───────── 在线目录（缓存 6 小时）─────────
 const byId = new Map(BUILTIN.map((m) => [m.id, m]))
 let live: { at: number; list: Model[] } | null = null
+export const allModels = () => [...BUILTIN, ...(live?.list || [])]
 export function find(id?: string | null) { if (!id) return undefined; return byId.get(id) || live?.list.find((m) => m.id === id) }
 
 function classifyLive(x: any): Model | null {

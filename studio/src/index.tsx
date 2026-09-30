@@ -13,6 +13,7 @@ import * as Docs from './lib/docs'
 import * as Media from './lib/media'
 import * as Release from './lib/release'
 import * as Insight from './lib/insight'
+import * as Health from './lib/health'
 
 type V = { Bindings: Env; Variables: { user: User } }
 const app = new Hono<V>()
@@ -52,7 +53,12 @@ app.post('/api/users/:id', requireRole('admin'), async (c) => {
 app.get('/api/config', requireRole('writer'), async (c) => c.json(await Agents.listConfig(c.env)))
 app.post('/api/providers', requireRole('admin'), async (c) => c.json(await Agents.upsertProvider(c.env, c.get('user'), await body(c))))
 app.post('/api/providers/:id/delete', requireRole('admin'), async (c) => c.json(await Agents.deleteProvider(c.env, c.get('user'), c.req.param('id'))))
-app.post('/api/providers/:id/test', requireRole('admin'), async (c) => c.json(await Gw.testProvider(c.env, c.req.param('id'))))
+app.post('/api/providers/:id/test', requireRole('admin'), async (c) => { const id = c.req.param('id'); const p: any = await c.env.DB.prepare('SELECT kind FROM st_providers WHERE id=?').bind(id).first(); if (p && ['tokenhot', 'deepseek', 'ark', 'suanli'].includes(p.kind)) return c.json(await Health.test(c.env, id)); return c.json(await Gw.testProvider(c.env, id)) })
+// 模型接入：多平台目录 / 一键接入 / 心跳 / 监控总览
+app.get('/api/platforms/:kind/catalog', requireRole('writer'), async (c) => c.json(await Agents.platformCatalog(c.env, c.req.param('kind'), c.req.query('refresh') === '1')))
+app.post('/api/platforms/:kind/connect', requireRole('admin'), async (c) => { const r = await Agents.connectPlatform(c.env, c.get('user'), c.req.param('kind'), await body(c)); return c.json({ ...r, test: await Health.test(c.env, r.provider.id) }) })
+app.get('/api/health/providers', requireRole('writer'), async (c) => { c.executionCtx?.waitUntil?.(Health.beat(c.env).catch(() => {})); return c.json(await Health.overview(c.env)) })
+app.post('/api/health/beat', requireRole('admin'), async (c) => c.json({ beats: await Health.beat(c.env, true), ...(await Health.overview(c.env)) }))
 app.post('/api/agents/:code', requireRole('admin'), async (c) => c.json(await Agents.updateAgent(c.env, c.get('user'), c.req.param('code'), await body(c))))
 app.get('/api/agents/:code/prompts', requireRole('writer'), async (c) => c.json(await Agents.promptHistory(c.env, c.req.param('code'))))
 app.post('/api/agents/:code/try', requireRole('admin'), async (c) => { const b = await body(c); return c.json(await Gw.chat(c.env, c.req.param('code'), { prompt: String(b.prompt || '用一句话介绍你的职责'), user: c.get('user').id, timeoutMs: 45000 })) })
@@ -221,7 +227,7 @@ app.get('/pub/*', async (c) => {
 
 // ─── 执行节点 API（Bearer 节点令牌；不走 Cookie）───
 const nodeOf = async (c: any) => Media.nodeAuth(c.env, (c.req.header('authorization') || '').replace(/^Bearer\s+/i, '') || undefined)
-app.post('/node/claim', async (c) => c.json(await Media.nodeClaim(c.env, await nodeOf(c), await body(c))))
+app.post('/node/claim', async (c) => { const n = await nodeOf(c); c.executionCtx?.waitUntil?.(Health.beat(c.env).catch(() => {})); return c.json(await Media.nodeClaim(c.env, n, await body(c))) })
 app.post('/node/jobs/:jid/report', async (c) => c.json(await Media.nodeReport(c.env, await nodeOf(c), c.req.param('jid'), await body(c))))
 app.put('/node/jobs/:jid/files/:name', async (c) => {
   const n = await nodeOf(c), key = await Media.nodeUploadKey(c.env, n, c.req.param('jid'), c.req.param('name'))

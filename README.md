@@ -212,13 +212,47 @@ npx wrangler d1 migrations apply webapp-production                              
   - **参数按文档校验**：非法枚举回到默认值，越界数值夹紧（例如 2.5 传 1080p 会改成 720p，时长上限 30 秒），并把修正内容返回给前端；对话请求只发送文档列出的采样参数
   - **计价**：Seedance 按 token 计费（720p = 21,600 token/秒 → 2.0 约 ¥0.99/秒、1080p 约 ¥2.48/秒；2.5 约 ¥1.51/秒），入账时优先使用上游返回的 `usage.total_tokens`；图片按张，对话按输入/输出 token 单价。前置模拟的预算按当前所选模型实时计算。成片入库前先原子认领任务，并发轮询不会重复计费
   - 前端（`models.js`）：配置页有分类模型目录（可展开看协议、能力、适用 Agent、参数表）；Agent 模型下拉按类别分组，只显示适配该 Agent 的模型并附价格；「参数」弹窗按文档参数表生成表单，并实时显示每段预估价格。API：`GET /api/suanli/catalog[?refresh=1]`
+- **🔌 多平台模型接入中心**（Agent 配置页顶部；`studio/src/lib/platforms.ts` 目录 · `adapters.ts` 协议 · `health.ts` 监控）
+  - **TokenHot**（docs.tokenhot.cn，new-api 网关）：模型从公开价格表 `/api/pricing` 实时同步（96 个，自动分为对话 / 看图 / 图片 / 视频），价格按倍率 × $2 × 汇率换算；视频按任务返回的 `quota` 实扣记账。已接的协议：
+    - Seedance 2.0 / fast / mini / 2.5：`content[]`，带 first_frame / last_frame / reference_image
+    - Kling v3：`file_infos` 首帧 / 尾帧
+    - Veo 3.1：`imageUrls` + `generationType`
+    - Wan 3.0：`input.media` + `parameters`
+    - HappyHorse i2v / r2v / t2v
+    - Grok Imagine、Gemini Omni
+    - 图片：Seedream、GPT Image、Nano Banana（Gemini 原生 `generateContent`）、Qwen Image
+    - 语音合成 / 视频编辑 / 向量模型标为「不可用于生产线」
+  - **DeepSeek 官方**：`deepseek-v4-pro`（0813）和 `deepseek-flash`（V4.1，可看图）。
+    - 思考模式默认开启，此时不发 temperature；可设 `thinking=disabled` 关闭
+    - 峰谷计价：工作日 9-12 / 14-18 点为高峰，其余时段半价
+    - 余额走 `/user/balance`
+  - **豆包 · 火山方舟官方**：
+    - 对话：Seed 2.1 Pro / Lite / Turbo、Seed 2.0 Lite / Mini（含阶梯价）
+    - 图片：Seedream 5.0 Pro / 5.0 / Flash；Pro 按像素分档计价
+    - 视频：Seedance 2.5 / 2.0 / fast / mini，走 `POST /api/v3/contents/generations/tasks`，带 `return_last_frame`、按 `usage.completion_tokens` 计费；限时折扣到期后自动恢复原价
+    - 价格来自官方价格表：2.0 720p 5 秒 ¥4.97，2.5 为 ¥7.56
+  - **算力网**：沿用原有接入
+  - 每个平台都能一键接入：Key 加密保存，按平台推荐模型切换它能覆盖的 Agent，平台覆盖不到的 Agent 保持不变
+  - 模型目录可按类别查看和搜索；Agent 选模型的下拉只列出适配该 Agent 的模型
+  - 参数表单按各平台文档生成；图片必须是公网 URL 的模型会有提示
+- **💓 模型监控**（顶栏「模型监控」，`#/monitor`；migration 0017 `st_provider_checks`）
+  - **连通测试（深度）**：鉴权 + 模型列表 + 余额，再发一次最小对话（max_tokens=8，关闭思考）。方舟没有模型列表接口，改用最小对话做鉴权探测
+  - **心跳（轻量、不花钱）**：每个服务商至少间隔 5 分钟探测一次，由执行节点领任务和后台访问触发，不需要定时任务；每个服务商保留最近 500 条记录
+  - **总览**：在线 / 故障 / 心跳超时状态、24 小时可用率、平均延迟、余额（DeepSeek ¥、TokenHot $；方舟无余额接口）、心跳火花线、正在使用的 Agent
+  - **使用情况**：按服务商 × 模型统计 7 天内的对话调用、token、花费、媒体任务（成功 / 失败 / 进行中），以及最近错误
+  - API：
+    - `GET /api/platforms/:kind/catalog[?refresh=1]`
+    - `POST /api/platforms/:kind/connect`
+    - `POST /api/providers/:id/test`
+    - `GET /api/health/providers`
+    - `POST /api/health/beat`
 - **🔮 前置模拟 · 生成流程**（项目页 → 第 3 步完成后出现入口 `#/p/:id/insight`）
   - **结构模拟**（免费）：结构图编译 + 2000 次蒙特卡洛通关 → 结局分布、付费结局触达率、均衡熵、单局时长和预警
   - **剧本评审 Agent（REVIEWER）**：合理性 0–10 分；**吸引力指数** 0–100，由七个维度加权（钩子 .2 / 悬念 .15 / 利害 .2 / 反转 .1 / 情绪 .1 / 人物 .1 / 回报 .15），分 S/A/B/C/D 五档，附雷达图、问题、改进建议和钩子台词；历史存 `st_reviews`（migration 0016）
   - **预算**：视频 + 图片 + LLM + 25% 重试缓冲
   - **生成流程视图**：所有待生成提示词可按三种方式归类查看——按类型（主线/分支/汇合/结局/时间裂隙 × 参考图/首帧接力）、按生成批次（拓扑波次，尾帧接力排在后面）、按剧情流程。每张卡片可展开看完整提示词、模式、复用情况和成本，并直达第 7/8 步开拍
   - API：`GET /api/projects/:id/insight`、`POST .../insight/review`、`GET .../insight/history`
-- 验收：`npm run test:studio` → 结构 37 + 账本 33 + **编译器 27** + **算力网目录 24** + 接口 91 + **算力网集成 29**，全部通过
+- 验收：`npm run test:studio` → 结构 37 + 账本 33 + **编译器 27** + **算力网目录 24** + **多平台目录 38** + 接口 91 + **算力网集成 29** + **多平台集成 34**，共 313 项，全部通过
 
 ## 📱 玩家端手机适配
 - 顶栏精简 + **底部 Tab 栏**（发现 / 漫剧 / 真人剧 / 抽象剧 / 我的，适配刘海 / 底部安全区）；播放页沉浸不显示底栏
