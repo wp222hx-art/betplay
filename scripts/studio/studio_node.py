@@ -111,16 +111,27 @@ def gsk_image(job):
     return {'media_key': put_file(job, out, 'image.png', 'image/png'), 'cost': gsk_cost(o.stdout)}
 def gsk_video(job):
     q = job['req']; raw = f"{TMP}/{job['id']}_raw.mp4"; model = job.get('model') if job.get('model') not in (None, '', 'mock') else 'fal-ai/bytedance/seedance-2.0'
-    args = ['gsk', 'video', '-m', model, '--tier', q.get('params', {}).get('tier', 'mini'), '-r', q.get('ratio', '9:16'), '-d', str(q.get('duration', 8)), '--audio_enable', 'true', '-o', raw]
+    # 注意：-i 是可变长参数（图片数组），提示词必须放在 -i 之前，否则会被当成图片路径吞掉
+    args = ['gsk', 'video', q['prompt'], '-m', model, '--tier', q.get('params', {}).get('tier', 'mini'), '-r', q.get('ratio', '9:16'), '-d', str(q.get('duration', 8)), '--audio_enable', 'true', '-o', raw]
     if q.get('first_frame_key'):
         url = gsk_upload(get_media(q['first_frame_key'], f"{TMP}/{job['id']}_first.png")); args += ['-i', url]
     elif q.get('reference_keys'):
         urls = [gsk_upload(get_media(k, f"{TMP}/{job['id']}_ref{i}.png")) for i, k in enumerate(q['reference_keys'][:4])]
         args += ['-i', *[u for u in urls if u], '--reference_mode', 'true']
-    o = sh(*args, q['prompt'], timeout=1800)
+    for tries in range(2):  # gsk 偶发「结果里没有文件 URL」（上游瞬时失败）→ 节点内重试一次，不消耗槽位 attempt
+        o = sh(*args, timeout=1800)
+        if os.path.exists(raw) and os.path.getsize(raw) > 100000: break
+        os.makedirs("/tmp/gsklogs", exist_ok=True); open(f"/tmp/gsklogs/{job['id']}_{tries}.log", "w").write((o.stdout or '') + '\n---stderr---\n' + (o.stderr or ''))
+        if 'Could not find a file URL' not in (o.stdout or '') + (o.stderr or ''): break
+        print(f"[node] gsk video 无文件返回，重试 {tries + 1}", flush=True); time.sleep(15)
     if not (os.path.exists(raw) and os.path.getsize(raw) > 100000):
+        tail = (o.stdout or '')[-600:]
+        m2 = re.search(r'"(?:message|error)"\s*:\s*"([^"]{4,200})"', tail)
+        if m2 and not re.search(r'"error_code"', tail): raise RuntimeError('gsk video: ' + m2.group(1))
         m = re.search(r'"error_code"\s*:\s*"([^"]+)"', o.stdout or ''); raise RuntimeError(m.group(1) if m else (o.stderr or o.stdout or 'video failed')[-240:])
-    return {'media_key': put_file(job, raw, 'raw.mp4', 'video/mp4'), 'cost': gsk_cost(o.stdout)}
+    # gsk 视频输出不带积分字段 → 按实测费率估算（seedance-2.0 mini+音频 ≈ 385 积分/秒，可用 GSK_VIDEO_RATE 覆盖）
+    cost = gsk_cost(o.stdout) or round(float(q.get('duration', 8)) * float(os.environ.get('GSK_VIDEO_RATE', 385)))
+    return {'media_key': put_file(job, raw, 'raw.mp4', 'video/mp4'), 'cost': cost}
 
 # ─────────── 生成：即梦 dreamina CLI ───────────
 def dreamina(*args, timeout=1800):

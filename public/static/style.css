@@ -38,7 +38,21 @@ html,body{overflow-x:hidden}
   /* 播放页：沉浸，不显示底栏 */
   .comic-body .tab-bar,.player-body .tab-bar{display:none}
   .comic-body,.player-body{padding-bottom:0}
+  /* 手机端：交易所入口收进「工作台」菜单；菜单变全宽下拉，可滚动 */
+  .more-menu{position:fixed;left:10px;right:10px;top:calc(56px + env(safe-area-inset-top));max-height:70vh;overflow:auto;overscroll-behavior:contain}
+  .more-menu a{padding:13px 14px;font-size:15px}
+  /* 输入控件 ≥16px：避免 iOS 聚焦时自动放大页面 */
+  input:not([type=checkbox]):not([type=radio]):not([type=range]),select,textarea{font-size:16px!important}
+  /* 小点击区放大到 ≥ 32px 触控热区 */
+  #fc{display:inline-block;padding:8px 4px;margin:-8px 0}
+  input[type=checkbox]{width:18px;height:18px}
+  .toggle label{padding:6px 4px}
 }
+.m-only{display:none!important}
+@media(max-width:760px){.m-only{display:flex!important}}
+/* 触控：去掉点击高亮 + 300ms 延迟/双击缩放 */
+a,button,label,summary,[role=button],.opt,.opt2,.dc{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+@media(hover:none){.btn:hover{border-color:var(--line);color:var(--txt)}.btn.gold:hover{background:linear-gradient(135deg,#ff8cc0,#ff4f93)}}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(120px);background:#3a1a34;border:1px solid var(--line);padding:10px 18px;border-radius:12px;transition:.3s;z-index:99;font-size:14px;max-width:90vw}
 .toast.show{transform:translateX(-50%) translateY(0)}
 /* console */

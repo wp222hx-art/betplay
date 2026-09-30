@@ -23,7 +23,7 @@ const nav = (active: string) => `
     ${FMT.map(([k, ic, n]) => `<a href="/?cat=${k}" class="${act(active) === k ? 'on' : ''}"><i class="fas ${ic}"></i><b>${n}</b></a>`).join('')}
     <a href="/market" class="${active === 'market' ? 'on' : ''}"><i class="fas fa-gem"></i><b>结局卡</b></a>
     <details class="nav-more ${['voice', 'console', 'agents', 'studio', 'arch', 'director', 'publish'].includes(active) ? 'on' : ''}"><summary><i class="fas fa-toolbox"></i><b>工作台</b></summary>
-      <div class="more-menu"><a href="/director"><i class="fas fa-video"></i> 导演台 · 一键生成</a><a href="/publish"><i class="fas fa-rocket"></i> 上架中心 · 提交上线</a><a href="/studio"><i class="fas fa-clapperboard"></i> 制作平台</a><a href="/arch"><i class="fas fa-sitemap"></i> 技术架构</a><a href="/voice"><i class="fas fa-microphone-lines"></i> 声线工作室</a><a href="/console"><i class="fas fa-gauge-high"></i> 运营后台</a><a href="/agents"><i class="fas fa-robot"></i> 7-Agent</a></div>
+      <div class="more-menu"><a href="/market" class="m-only"><i class="fas fa-gem"></i> 结局卡交易所</a><a href="/director"><i class="fas fa-video"></i> 导演台 · 一键生成</a><a href="/publish"><i class="fas fa-rocket"></i> 上架中心 · 提交上线</a><a href="/studio"><i class="fas fa-clapperboard"></i> 制作平台</a><a href="/arch"><i class="fas fa-sitemap"></i> 技术架构</a><a href="/voice"><i class="fas fa-microphone-lines"></i> 声线工作室</a><a href="/console"><i class="fas fa-gauge-high"></i> 运营后台</a><a href="/agents"><i class="fas fa-robot"></i> 7-Agent</a></div>
     </details>
   </div>
 </nav>

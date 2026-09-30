@@ -25,3 +25,10 @@
   }
   window.DF_AUTH = { token, uid: () => localStorage.df_uid }
 })()
+
+// 「工作台」下拉：点页面其它位置 / 选中菜单项 / 滚动 时自动收起（手机端尤其需要）
+;(() => {
+  const close = (e) => document.querySelectorAll('details.nav-more[open]').forEach((d) => { if (!e || e.type === 'scroll' || !d.contains(e.target) || e.target.closest('.more-menu a')) d.open = false })
+  document.addEventListener('click', close, true)
+  addEventListener('scroll', () => close({ type: 'scroll' }), { passive: true })
+})()
