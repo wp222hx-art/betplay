@@ -1,6 +1,7 @@
 export const shell = () => `<!DOCTYPE html>
 <html lang="zh-CN"><head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#140a13">
 <meta name="robots" content="noindex,nofollow">
 <title>MoMo Studio · 短剧生产后台</title>
 <link rel="icon" type="image/svg+xml" href="/sstatic/momo.svg">
@@ -11,5 +12,6 @@ export const shell = () => `<!DOCTYPE html>
 <div id="app"></div>
 <script src="/sstatic/graph.js"></script>
 <script src="/sstatic/docs.js"></script>
+<script src="/sstatic/media.js"></script>
 <script src="/sstatic/studio.js"></script>
 </body></html>`

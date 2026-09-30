@@ -9,3 +9,7 @@ dist/
 scripts/film/raw/
 scripts/love/raw/
 media_src/
+.node.env
+
+core
+core.*

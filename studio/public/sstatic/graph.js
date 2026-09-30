@@ -57,7 +57,7 @@
           <rect width="${NW}" height="${NH}" rx="${n.type === 'choice' ? 18 : 10}"/><rect class="band" width="6" height="${NH}" rx="3"/>
           <text x="16" y="24" class="tt">${t.icon} ${esc(n.title).slice(0, 12)}</text>
           <text x="16" y="45" class="sb">${esc(tier ? `${t.name} · ${tier[0]}` : n.id === st.g.start ? `起点 · ${t.name}` : `${t.name} · ${n.id}`)}</text>
-          ${ro ? '' : `<circle class="port" cx="${NW}" cy="${NH / 2}" r="7"/>`}</g>`
+          ${ro ? '' : `<circle class="port" cx="${NW}" cy="${NH / 2}" r="${matchMedia('(pointer:coarse)').matches ? 12 : 7}"/>`}</g>`
       }).join('')
       vp.setAttribute('transform', `translate(${st.view.x},${st.view.y}) scale(${st.view.k})`)
       inspector(); issues(); stat()
@@ -122,7 +122,17 @@
 
     // ── 交互：拖拽 / 平移 / 连线 ──
     let drag = null
+    // 双指捏合缩放（手机 / 平板）
+    const pts = new Map(); let pinch = null
+    svg.addEventListener('pointerdown', (ev) => { pts.set(ev.pointerId, { x: ev.clientX, y: ev.clientY }); if (pts.size === 2) { const [a, b] = [...pts.values()], r = svg.getBoundingClientRect(); pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), k: st.view.k, cx: (a.x + b.x) / 2 - r.left, cy: (a.y + b.y) / 2 - r.top, vx: st.view.x, vy: st.view.y }; drag = null } }, true)
+    svg.addEventListener('pointermove', (ev) => {
+      if (!pts.has(ev.pointerId)) return; pts.set(ev.pointerId, { x: ev.clientX, y: ev.clientY })
+      if (pinch && pts.size === 2) { const [a, b] = [...pts.values()], k2 = Math.max(0.15, Math.min(2.5, pinch.k * Math.hypot(a.x - b.x, a.y - b.y) / pinch.d)); st.view.k = k2; st.view.x = pinch.cx - ((pinch.cx - pinch.vx) * k2) / pinch.k; st.view.y = pinch.cy - ((pinch.cy - pinch.vy) * k2) / pinch.k; vp.setAttribute('transform', `translate(${st.view.x},${st.view.y}) scale(${st.view.k})`); ev.stopImmediatePropagation() }
+    }, true)
+    const up = (ev) => { pts.delete(ev.pointerId); if (pts.size < 2) pinch = null }
+    svg.addEventListener('pointerup', up, true); svg.addEventListener('pointercancel', up, true)
     svg.addEventListener('pointerdown', (ev) => {
+      if (pts.size > 1) return
       const port = ev.target.closest('.port'), ng = ev.target.closest('.ge-n'), eg = ev.target.closest('.ge-e')
       if (st.proposal) return
       if (port && !ro) { const id = ng.dataset.n; drag = { mode: 'link', from: id }; st.connect = id; svg.setPointerCapture(ev.pointerId); return }

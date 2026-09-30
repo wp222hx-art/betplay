@@ -79,6 +79,29 @@ export async function chat(env: Env, code: string, o: { system?: string; prompt:
   }
 }
 
+/** 多模态（图 + 文）：用于一致性质检。images 为 data URL / https URL */
+export async function chatVision(env: Env, code: string, o: { system: string; text: string; images: string[]; project_id?: string; step?: number; user?: string }) {
+  const a = await agentOf(env, code), pv = await resolveProvider(env, a.provider_id), id = uid('run_'), t0 = now()
+  try {
+    let text = '', tin = 0, tout = 0
+    if (pv.kind === 'mock_text') text = JSON.stringify({ face: 8, deformed: false, burned_text: false, note: '模拟质检' })
+    else if (pv.kind === 'openai_compat') {
+      const body: any = { model: a.params?.vision_model || a.model, messages: [{ role: 'system', content: o.system }, { role: 'user', content: [{ type: 'text', text: o.text }, ...o.images.map((u) => ({ type: 'image_url', image_url: { url: u } }))] }], response_format: { type: 'json_object' } }
+      if (/gpt-5|o\d/.test(body.model)) body.reasoning_effort = a.params?.reasoning_effort || 'minimal'
+      const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 90000)
+      const r = await fetch(pv.base + '/chat/completions', { method: 'POST', signal: ctl.signal, headers: { Authorization: 'Bearer ' + pv.key, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).finally(() => clearTimeout(tm))
+      const j: any = await r.json().catch(() => ({})); if (!r.ok) throw new Error(`HTTP ${r.status}: ${j.error?.message || ''}`)
+      text = j.choices?.[0]?.message?.content || ''; tin = j.usage?.prompt_tokens || 0; tout = j.usage?.completion_tokens || 0
+    } else throw new HttpError(409, 'PROVIDER_CAPABILITY', '该服务商不支持图像理解')
+    const cost = a.unit_price ? +(((tin + tout) / 1000) * a.unit_price).toFixed(4) : 0
+    await record(env, { id, project_id: o.project_id, step: o.step, agent: code, provider_id: pv.id, model: a.model, status: 'ok', latency_ms: now() - t0, tokens_in: tin, tokens_out: tout, cost, input: o.text, output: text, created_by: o.user })
+    return { run_id: id, data: parseJson(text) }
+  } catch (e: any) {
+    await record(env, { id, project_id: o.project_id, step: o.step, agent: code, provider_id: pv.id, model: a.model, status: 'error', latency_ms: now() - t0, error: String(e?.message || e).slice(0, 300), input: o.text, created_by: o.user })
+    throw e
+  }
+}
+
 // ─────────── 视频（异步任务：submit → poll）───────────
 export type VideoReq = { prompt: string; duration?: number; ratio?: string; resolution?: string; first_frame?: string; last_frame?: string; reference_images?: string[]; audio?: boolean; seed?: number; callback_url?: string }
 

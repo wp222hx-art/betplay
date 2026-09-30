@@ -10,6 +10,7 @@ import { shell } from './page'
 import * as G from './lib/graph'
 import * as Structure from './lib/structure'
 import * as Docs from './lib/docs'
+import * as Media from './lib/media'
 
 type V = { Bindings: Env; Variables: { user: User } }
 const app = new Hono<V>()
@@ -88,11 +89,16 @@ app.post('/api/projects/:id/steps/:n', requireRole('writer'), async (c) => {
     if (!b.submit) throw new HttpError(400, 'USE_NODE_API', '第 4/5 步请逐节点编辑，完成后「提交审核」')
     output = await Docs.gate(c.env, c.req.param('id'), n)
   }
+  if (n >= 6 && n <= 9) { // 素材步骤：产出 = 服务端闸门摘要
+    if (!b.submit) throw new HttpError(400, 'USE_MEDIA_API', '第 6–9 步请在素材工作台操作，完成后「提交审核」')
+    output = await Media.gate(c.env, c.req.param('id'), n as any)
+  }
   return c.json(await Steps.saveStep(c.env, c.get('user'), c.req.param('id'), n, { input: b.input, output, note: b.note, status: b.submit ? 'review' : undefined }))
 })
 app.post('/api/projects/:id/steps/:n/approve', requireApprover, async (c) => {
   const b = await body(c), n = +c.req.param('n')
   if (n === 4 || n === 5) await Docs.gate(c.env, c.req.param('id'), n) // 审批时重新验证：提交后文档又被改动也拦得住
+  if (n >= 6 && n <= 9) await Media.gate(c.env, c.req.param('id'), n as any)
   if (n === 3) { const r: any = await c.env.DB.prepare('SELECT output FROM st_steps WHERE project_id=? AND step=3').bind(c.req.param('id')).first(); const a = G.analyze(G.normalize(JSON.parse(r?.output || '{}'))); if (!a.ok) throw new HttpError(422, 'GRAPH_INVALID', '结构图存在错误，不能通过', { issues: a.issues }) }
   return c.json(await Steps.approveStep(c.env, c.get('user'), c.req.param('id'), +c.req.param('n'), b.note || '')) })
 app.post('/api/projects/:id/steps/:n/reopen', requireRole('writer'), async (c) => { const b = await body(c); return c.json(await Steps.reopenStep(c.env, c.get('user'), c.req.param('id'), +c.req.param('n'), b.note || '')) })
@@ -102,7 +108,7 @@ app.post('/api/projects/:id/steps/:n/run', requireRole('writer'), async (c) => {
   const row: any = await Steps.assertOpen(c.env, id, n)
   if (n === 2) {
     const brief = await Steps.doneOutput(c.env, id, 1)
-    const r = await Gw.chat(c.env, 'SCREENWRITER', { json: true, project_id: id, step: 2, user: u.id, system: '你是互动博弈短剧总编剧。只输出 JSON：{"logline":"≤40字","world":"世界观≤120字","cast":[{"id":"英文单词","name":"中文名","role":"中文人设≤16字","look":"ENGLISH ONLY appearance"}],"mainline":["主线节拍1","节拍2","..."]}。cast 3~4 人，mainline 5~8 条。角色必须是原创虚构成年人，不得像任何真人。', prompt: `主题：${brief.theme}\n形态：${brief.format}\n题材：${brief.genre || '自动'}\n受众：${brief.audience || '全年龄'}\n规模：${brief.scale || 'pilot'}` })
+    const r = await Gw.chat(c.env, 'SCREENWRITER', { json: true, project_id: id, step: 2, user: u.id, system: '你是互动博弈短剧总编剧。只输出 JSON：{"logline":"≤40字","world":"世界观≤120字","cast":[{"id":"英文单词","name":"中文名","role":"中文人设≤16字","look":"ENGLISH ONLY，必须以性别和年龄开头，如 woman, late 20s, ...；再写发型、脸型、服装"}],"mainline":["主线节拍1","节拍2","..."]}。cast 3~4 人，mainline 5~8 条。角色必须是原创虚构成年人，不得像任何真人。', prompt: `主题：${brief.theme}\n形态：${brief.format}\n题材：${brief.genre || '自动'}\n受众：${brief.audience || '全年龄'}\n规模：${brief.scale || 'pilot'}` })
     const out = r.data || { raw: r.text }
     await Steps.saveStep(c.env, u, id, 2, { output: out, status: 'review', run_id: r.run_id })
     return c.json({ run_id: r.run_id, output: out, latency_ms: r.latency_ms })
@@ -145,6 +151,59 @@ app.post('/api/projects/:id/prompts-run', requireRole('writer'), async (c) => {
   if (b.errors) only = (await Docs.promptStatus(c.env, id)).nodes.filter((n: any) => n.state === 'conflict' || n.state === 'error').map((n: any) => n.id).slice(0, 50)
   return c.json(await Docs.generatePrompts(c.env, c.get('user'), id, { only, force: !!b.force }))
 })
+
+// ─── 第 6–9 步 · 素材流水线 ───
+const stepN = (c: any) => { const n = +c.req.param('n'); if (![6, 7, 8, 9].includes(n)) throw new HttpError(400, 'BAD_STEP', '素材步骤为 6–9'); return n as 6 | 7 | 8 | 9 }
+app.get('/api/projects/:id/media/:n', requireRole('reviewer'), async (c) => c.json(await Media.status(c.env, c.req.param('id'), stepN(c))))
+app.post('/api/projects/:id/media/:n/run', requireRole('writer'), async (c) => {
+  const n = stepN(c); if (n === 9) throw new HttpError(400, 'BAD_STEP', '第 9 步由生成后自动检测；重拍请在第 7/8 步操作')
+  const b = await body(c); return c.json(await Media.run(c.env, c.get('user'), c.req.param('id'), n, Array.isArray(b.only) ? b.only.map(String).slice(0, 100) : undefined, new URL(c.req.url).origin))
+})
+app.post('/api/projects/:id/media/:n/judge', requireApprover, async (c) => { const b = await body(c); return c.json(await Media.judge(c.env, c.get('user'), c.req.param('id'), +c.req.param('n'), String(b.slot || ''), !!b.accept, String(b.note || '').slice(0, 300))) })
+app.post('/api/projects/:id/media/:n/upload', requireRole('writer'), async (c) => {
+  const fd = await c.req.formData(), f = fd.get('file') as any, slot = String(fd.get('slot') || '')
+  if (!f || typeof f === 'string') throw new HttpError(400, 'NO_FILE', '请选择文件')
+  return c.json(await Media.upload(c.env, c.get('user'), c.req.param('id'), +c.req.param('n'), slot, f))
+})
+app.get('/api/media-settings', requireRole('writer'), async (c) => c.json(await Media.settings(c.env)))
+app.post('/api/media-settings', requireRole('admin'), async (c) => c.json(await Media.saveSettings(c.env, c.get('user'), await body(c))))
+// 执行节点管理（admin）
+app.get('/api/nodes', requireRole('admin'), async (c) => c.json(await Media.listNodes(c.env)))
+app.post('/api/nodes', requireRole('admin'), async (c) => { const b = await body(c); return c.json(await Media.createNode(c.env, c.get('user'), b.name, Array.isArray(b.kinds) ? b.kinds : [])) })
+app.post('/api/nodes/:nid', requireRole('admin'), async (c) => { const b = await body(c); await c.env.DB.prepare('UPDATE st_exec_nodes SET enabled=? WHERE id=?').bind(b.enabled ? 1 : 0, c.req.param('nid')).run(); await audit(c.env, c.get('user').id, 'node_toggle', c.req.param('nid'), b); return c.json({ ok: true }) })
+
+// 素材读取：登录后可看（支持 Range，手机端视频拖动）；/pub 为给服务商拉参考图的 1 小时签名链接
+async function serveR2(c: any, key: string) {
+  if (!key.startsWith('studio/') || key.includes('..')) throw new HttpError(404, 'NOT_FOUND', '不存在')
+  const range = c.req.header('range'), m = range?.match(/bytes=(\d*)-(\d*)/)
+  const head = await c.env.MEDIA?.head(key); if (!head) return c.text('not found', 404)
+  const size = head.size, ct = head.httpMetadata?.contentType || 'application/octet-stream'
+  if (m && (m[1] || m[2])) {
+    const start = m[1] ? +m[1] : Math.max(0, size - +m[2]), end = m[1] && m[2] ? Math.min(+m[2], size - 1) : size - 1
+    const o = await c.env.MEDIA.get(key, { range: { offset: start, length: end - start + 1 } })
+    return new Response(o.body, { status: 206, headers: { 'Content-Type': ct, 'Content-Range': `bytes ${start}-${end}/${size}`, 'Content-Length': String(end - start + 1), 'Accept-Ranges': 'bytes', 'Cache-Control': 'private, max-age=3600' } })
+  }
+  const o = await c.env.MEDIA.get(key)
+  return new Response(o.body, { headers: { 'Content-Type': ct, 'Content-Length': String(size), 'Accept-Ranges': 'bytes', 'Cache-Control': 'private, max-age=3600' } })
+}
+app.get('/m/*', requireRole('reviewer'), async (c) => serveR2(c, decodeURIComponent(c.req.path.slice(3))))
+app.get('/pub/*', async (c) => {
+  const key = decodeURIComponent(c.req.path.slice(5)), exp = +(c.req.query('exp') || 0), sig = c.req.query('sig') || ''
+  if (!exp || exp < Date.now() || sig !== (await Media.sign(c.env, key + '|' + exp))) return c.text('forbidden', 403)
+  return serveR2(c, key)
+})
+
+// ─── 执行节点 API（Bearer 节点令牌；不走 Cookie）───
+const nodeOf = async (c: any) => Media.nodeAuth(c.env, (c.req.header('authorization') || '').replace(/^Bearer\s+/i, '') || undefined)
+app.post('/node/claim', async (c) => c.json(await Media.nodeClaim(c.env, await nodeOf(c), await body(c))))
+app.post('/node/jobs/:jid/report', async (c) => c.json(await Media.nodeReport(c.env, await nodeOf(c), c.req.param('jid'), await body(c))))
+app.put('/node/jobs/:jid/files/:name', async (c) => {
+  const n = await nodeOf(c), key = await Media.nodeUploadKey(c.env, n, c.req.param('jid'), c.req.param('name'))
+  const len = +(c.req.header('content-length') || 0); if (len > 120 * 1024 * 1024) throw new HttpError(413, 'TOO_LARGE', '文件过大')
+  await c.env.MEDIA!.put(key, await c.req.arrayBuffer(), { httpMetadata: { contentType: c.req.header('content-type') || 'application/octet-stream' } })
+  return c.json({ key })
+})
+app.get('/node/media/*', async (c) => { await nodeOf(c); return serveR2(c, decodeURIComponent(c.req.path.slice(12))) })
 
 // ─── 审计 ───
 app.get('/api/audit', requireRole('admin'), async (c) => c.json((await c.env.DB.prepare('SELECT a.*, u.email FROM st_audit a LEFT JOIN st_users u ON u.id=a.user_id ORDER BY a.created_at DESC LIMIT 100').all()).results))

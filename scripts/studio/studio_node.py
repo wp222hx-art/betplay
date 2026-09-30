@@ -1,0 +1,224 @@
+#!/usr/bin/env python3
+# MoMo Studio 执行节点 —— 常驻在有 ffmpeg 的机器上（本沙箱 / 自己的服务器 / 装了即梦 CLI 的电脑）
+#   令牌鉴权（后台「执行节点」里创建，只显示一次）；心跳 + 领取 + 回报；素材直接 PUT 到后台 R2
+#   能力（KINDS，逗号分隔）：
+#     post        后处理：压制 576p、首帧/尾帧/海报、烧录字幕检测、音轨检测
+#     seam        （随 post）一致性检测：上一段尾帧 ↔ 本段首帧 衔接分；关键帧 + 设定图缩略供视觉 Agent
+#     mock_image / mock_video   离线占位素材（尾帧接力可视化，联调不花钱）
+#     gsk         Genspark gsk CLI：nano-banana-pro 设定图、Seedance 2.0 视频（参考图 / 首帧）
+#     jimeng_cli  即梦 dreamina CLI：text2image、multimodal2video（全能参考）、image2video（首帧接力）
+# 用法：STUDIO=http://localhost:3001 NODE_TOKEN=msn_xxx KINDS=post,mock_image,mock_video python3 studio_node.py [--once]
+import json, os, re, sys, time, glob, shutil, subprocess, urllib.request as U, urllib.error, concurrent.futures as cf, threading
+BASE = os.environ.get('STUDIO', 'http://localhost:3001').rstrip('/'); TOKEN = os.environ.get('NODE_TOKEN', '')
+KINDS = [k.strip() for k in os.environ.get('KINDS', 'post,mock_image,mock_video').split(',') if k.strip()]
+CONC = int(os.environ.get('CONC', '2')); ONCE = '--once' in sys.argv; VERSION = 'node-1.0'
+TMP = os.environ.get('NODE_TMP', '/tmp/studio_node'); os.makedirs(TMP, exist_ok=True)
+DREAMINA = shutil.which('dreamina') or os.path.expanduser('~/.local/bin/dreamina')
+
+def req(method, path, body=None, data=None, ctype='application/json', timeout=120):
+    h = {'Authorization': 'Bearer ' + TOKEN}
+    if data is None and body is not None: data = json.dumps(body).encode()
+    if data is not None: h['Content-Type'] = ctype
+    r = U.Request(BASE + path, data=data, headers=h, method=method)
+    try: return json.loads(U.urlopen(r, timeout=timeout).read() or b'{}')
+    except urllib.error.HTTPError as e: raise RuntimeError(f'HTTP {e.code} {e.read()[:200]!r}')
+def put_file(job, path, name, ctype): 
+    with open(path, 'rb') as f: return req('PUT', f"/node/jobs/{job['id']}/files/{name}", data=f.read(), ctype=ctype, timeout=600)['key']
+def get_media(key, path):
+    r = U.Request(BASE + '/node/media/' + key, headers={'Authorization': 'Bearer ' + TOKEN})
+    with open(path, 'wb') as f: f.write(U.urlopen(r, timeout=300).read())
+    return path
+def sh(*a, timeout=1800): return subprocess.run([str(x) for x in a], capture_output=True, text=True, timeout=timeout)
+def ffdur(p):
+    try: return float(sh('ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', p).stdout.strip())
+    except Exception: return 0.0
+def has_audio(p): return bool(sh('ffprobe', '-v', 'error', '-select_streams', 'a', '-show_entries', 'stream=index', '-of', 'csv=p=0', p).stdout.strip())
+
+# ─────────── 图像指标（纯 numpy，无需 OpenCV）───────────
+def load_gray(p, w=96):
+    from PIL import Image; import numpy as np
+    im = Image.open(p).convert('RGB'); h = max(1, int(im.height * w / im.width)); im = im.resize((w, h))
+    return np.asarray(im).astype('float32') / 255.0
+def seam_score(a_png, b_png):
+    """尾帧 ↔ 首帧 衔接分 0~1：结构（归一化互相关）× 0.6 + 颜色直方图交集 × 0.4"""
+    import numpy as np
+    A, B = load_gray(a_png), load_gray(b_png)
+    h = min(A.shape[0], B.shape[0]); A, B = A[:h], B[:h]
+    ga, gb = A.mean(2), B.mean(2); da, db = ga - ga.mean(), gb - gb.mean()
+    sa, sb = float(da.std()), float(db.std())
+    if sa < 0.02 or sb < 0.02:  # 纹理太少（纯色 / 黑场）→ 互相关无意义，改用像素差
+        ncc = max(0.0, 1.0 - float(np.abs(A - B).mean()) * 4)
+    else:
+        ncc = max(0.0, float((da * db).sum() / (np.sqrt((da ** 2).sum() * (db ** 2).sum()) + 1e-6)))
+    hist = 0.0
+    for c in range(3):
+        ha, _ = np.histogram(A[..., c], bins=16, range=(0, 1)); hb, _ = np.histogram(B[..., c], bins=16, range=(0, 1))
+        hist += np.minimum(ha / ha.sum(), hb / hb.sum()).sum() / 3
+    return round(0.6 * ncc + 0.4 * float(hist), 4)
+def burned_subs(mp4):
+    """烧录字幕：2fps 抽帧，统计下 1/3 出现“白字 + 强横向边缘”文字带的帧比例"""
+    try:
+        import numpy as np; from PIL import Image
+        pat = f'{TMP}/_sub_{os.getpid()}_{threading.get_ident()}_%03d.png'
+        sh('ffmpeg', '-loglevel', 'error', '-y', '-i', mp4, '-vf', 'fps=2,scale=288:-1', pat)
+        fs = sorted(glob.glob(pat.replace('%03d', '*'))); hits = 0
+        for f in fs:
+            a = np.asarray(Image.open(f).convert('L')).astype(int); h = a.shape[0]; band = a[int(h * .62):int(h * .9)]
+            rows = (band > 225).sum(1); edge = (np.abs(np.diff(band, axis=1)) > 90).sum(1); run = best = 0
+            for r, e in zip(rows, edge):
+                run = run + 1 if (0.03 < r / band.shape[1] < 0.35 and e > 12) else 0; best = max(best, run)
+            hits += 5 <= best <= 40; os.remove(f)
+        return round(hits / len(fs), 3) if fs else None
+    except Exception: return None
+def thumb(src, dst, w=384, q=80):
+    from PIL import Image
+    im = Image.open(src).convert('RGB'); im.thumbnail((w, w * 2)); im.save(dst, 'JPEG', quality=q); return dst
+
+# ─────────── 生成：模拟 ───────────
+PALETTE = ['#ff5c9f', '#8b8fff', '#38bdf8', '#f5a524', '#3ddc97', '#c084fc', '#ff8a5d']
+def color_of(s): return PALETTE[sum(map(ord, s)) % len(PALETTE)]
+def mock_image(job):
+    from PIL import Image, ImageDraw
+    q = job['req']; w, h = (1536, 864) if q.get('ratio') == '16:9' else (900, 1200)
+    im = Image.new('RGB', (w, h), color_of(job['slot'])); d = ImageDraw.Draw(im)
+    for i in range(3): x = w * (i + 1) // 4; d.ellipse([x - h // 8, h // 4, x + h // 8, h // 4 + h // 4], fill='#fbeef5'); d.rectangle([x - h // 7, h // 2, x + h // 7, h - h // 8], fill='#2a1828')
+    out = f"{TMP}/{job['id']}.png"; im.save(out); return {'media_key': put_file(job, out, 'image.png', 'image/png'), 'cost': 0}
+def mock_video(job):
+    """占位视频：首帧 = 上一段尾帧（尾帧接力时），逐渐过渡到本段颜色；尾帧导出供下一段接力"""
+    q = job['req']; dur = int(q.get('duration') or 5); raw = f"{TMP}/{job['id']}_raw.mp4"; col = color_of(job['slot'])
+    first = None
+    if q.get('first_frame_key'):
+        first = get_media(q['first_frame_key'], f"{TMP}/{job['id']}_first.png")
+    if first:
+        if True:
+            sh('ffmpeg', '-loglevel', 'error', '-y', '-loop', '1', '-t', dur, '-i', first, '-f', 'lavfi', '-t', dur, '-i', f'color=c={col}:s=576x1024:r=24', '-f', 'lavfi', '-t', dur, '-i', 'sine=frequency=330:sample_rate=44100',
+               '-filter_complex', f"[0]scale=576:1024,setsar=1,fps=24[a];[1]format=rgba,fade=in:st=1:d={max(1, dur - 2)}:alpha=1[b];[a][b]overlay,format=yuv420p[v]", '-map', '[v]', '-map', '2:a', '-c:v', 'libx264', '-c:a', 'aac', '-shortest', raw)
+    else:
+        sh('ffmpeg', '-loglevel', 'error', '-y', '-f', 'lavfi', '-t', dur, '-i', f'color=c={col}:s=576x1024:r=24', '-f', 'lavfi', '-t', dur, '-i', 'sine=frequency=440:sample_rate=44100',
+           '-vf', "drawbox=x=188:y=300:w=200:h=420:color=#fbeef5@0.85:t=fill", '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest', raw)
+    if not os.path.exists(raw): raise RuntimeError('mock ffmpeg failed')
+    return {'media_key': put_file(job, raw, 'raw.mp4', 'video/mp4'), 'cost': 0}
+
+# ─────────── 生成：gsk ───────────
+def gsk_cost(out):
+    m = re.findall(r'"(?:estimated_credits|credits_used|cost_credits)"\s*:\s*([\d.]+)', out or ''); return max(map(float, m)) if m else 0
+def gsk_upload(path):
+    m = re.search(r'https://www\.genspark\.ai/api/files/s/\w+', sh('gsk', 'upload', path).stdout); return m.group(0) if m else None
+def gsk_image(job):
+    q = job['req']; out = f"{TMP}/{job['id']}.png"
+    o = sh('gsk', 'img', '-m', job.get('model') if job.get('model') not in (None, '', 'mock') else 'nano-banana-pro', '-r', q.get('ratio', '16:9'), '-o', out, q['prompt'], timeout=900)
+    if not os.path.exists(out): raise RuntimeError('gsk img failed: ' + (re.search(r'"error[^"]*"\s*:\s*"([^"]+)"', o.stdout or '') or [None, (o.stderr or o.stdout)[-200:]])[1])
+    return {'media_key': put_file(job, out, 'image.png', 'image/png'), 'cost': gsk_cost(o.stdout)}
+def gsk_video(job):
+    q = job['req']; raw = f"{TMP}/{job['id']}_raw.mp4"; model = job.get('model') if job.get('model') not in (None, '', 'mock') else 'fal-ai/bytedance/seedance-2.0'
+    args = ['gsk', 'video', '-m', model, '--tier', q.get('params', {}).get('tier', 'mini'), '-r', q.get('ratio', '9:16'), '-d', str(q.get('duration', 8)), '--audio_enable', 'true', '-o', raw]
+    if q.get('first_frame_key'):
+        url = gsk_upload(get_media(q['first_frame_key'], f"{TMP}/{job['id']}_first.png")); args += ['-i', url]
+    elif q.get('reference_keys'):
+        urls = [gsk_upload(get_media(k, f"{TMP}/{job['id']}_ref{i}.png")) for i, k in enumerate(q['reference_keys'][:4])]
+        args += ['-i', *[u for u in urls if u], '--reference_mode', 'true']
+    o = sh(*args, q['prompt'], timeout=1800)
+    if not (os.path.exists(raw) and os.path.getsize(raw) > 100000):
+        m = re.search(r'"error_code"\s*:\s*"([^"]+)"', o.stdout or ''); raise RuntimeError(m.group(1) if m else (o.stderr or o.stdout or 'video failed')[-240:])
+    return {'media_key': put_file(job, raw, 'raw.mp4', 'video/mp4'), 'cost': gsk_cost(o.stdout)}
+
+# ─────────── 生成：即梦 dreamina CLI ───────────
+def dreamina(*args, timeout=1800):
+    o = sh(DREAMINA, *args, timeout=timeout)
+    if 'login' in (o.stdout + o.stderr) and ('未检测到有效登录' in (o.stdout + o.stderr) or 'not logged' in (o.stdout + o.stderr).lower()): raise RuntimeError('即梦 CLI 未登录：请在节点机器上执行 dreamina login')
+    return o
+def dreamina_wait(submit_out, outdir, timeout=1500):
+    m = re.search(r'submit_id["\s:=]+([\w-]+)', submit_out)
+    if not m: raise RuntimeError('即梦提交失败：' + submit_out[-240:])
+    sid, t0 = m.group(1), time.time()
+    while time.time() - t0 < timeout:
+        o = dreamina('query_result', f'--submit_id={sid}', f'--download_dir={outdir}', timeout=300)
+        fs = [f for f in glob.glob(outdir + '/*') if re.search(r'\.(mp4|png|jpe?g|webp)$', f)]
+        if fs: return fs[0], o.stdout
+        if re.search(r'"?(status|gen_status)"?\s*[:=]\s*"?(fail|failed|error)', o.stdout, re.I): raise RuntimeError('即梦任务失败：' + o.stdout[-240:])
+        time.sleep(10)
+    raise RuntimeError('即梦任务超时')
+def jimeng_image(job):
+    q = job['req']; d = f"{TMP}/{job['id']}_dl"; os.makedirs(d, exist_ok=True)
+    o = dreamina('text2image', f"--prompt={q['prompt']}", f"--ratio={q.get('ratio', '16:9')}", '--resolution_type=2k', *([f"--model_version={job['model']}"] if job.get('model') not in (None, '', 'mock') else []))
+    f, _ = dreamina_wait(o.stdout + o.stderr, d)
+    return {'media_key': put_file(job, f, 'image' + os.path.splitext(f)[1], 'image/png' if f.endswith('png') else 'image/jpeg'), 'cost': 0}
+def jimeng_video(job):
+    q = job['req']; d = f"{TMP}/{job['id']}_dl"; os.makedirs(d, exist_ok=True); model = job.get('model') if job.get('model') not in (None, '', 'mock') else 'seedance2.0'
+    common = [f"--prompt={q['prompt']}", f"--duration={int(q.get('duration', 8))}", '--video_resolution=720p', f'--model_version={model}']
+    if q.get('first_frame_key'):
+        img = get_media(q['first_frame_key'], f"{TMP}/{job['id']}_first.png"); o = dreamina('image2video', f'--image={img}', *common, f"--ratio={q.get('ratio', '9:16')}")
+    else:
+        imgs = [get_media(k, f"{TMP}/{job['id']}_ref{i}.png") for i, k in enumerate((q.get('reference_keys') or [])[:4])]
+        o = dreamina('multimodal2video', *sum([['--image', p] for p in imgs], []), *common, f"--ratio={q.get('ratio', '9:16')}")
+    f, _ = dreamina_wait(o.stdout + o.stderr, d)
+    return {'media_key': put_file(job, f, 'raw.mp4', 'video/mp4'), 'cost': 0}
+
+# ─────────── 后处理 + 一致性检测 ───────────
+def post(job):
+    q = job['req']; raw = get_media(q['raw_key'], f"{TMP}/{job['id']}_in.mp4"); mp4 = f"{TMP}/{job['id']}.mp4"
+    sh('ffmpeg', '-loglevel', 'error', '-y', '-i', raw, '-vf', 'scale=576:-2', '-c:v', 'libx264', '-crf', '24', '-preset', 'veryfast', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', mp4)
+    if not os.path.exists(mp4) or os.path.getsize(mp4) < 1000: raise RuntimeError('压制失败（原始视频可能损坏）')
+    dur = round(ffdur(mp4), 2); keys = {'media_key': put_file(job, mp4, 'clip.mp4', 'video/mp4')}
+    for name, ss in (('first', ['-ss', '0']), ('poster', ['-ss', str(min(1.0, dur / 3))]), ('last', ['-sseof', '-0.08'])):
+        png = f"{TMP}/{job['id']}_{name}.png"; sh('ffmpeg', '-loglevel', 'error', '-y', *ss, '-i', mp4, '-frames:v', '1', png)
+        if not os.path.exists(png) and name == 'last': sh('ffmpeg', '-loglevel', 'error', '-y', '-ss', str(max(0, dur - 0.15)), '-i', mp4, '-frames:v', '1', png)
+        if name == 'poster': keys['poster_key'] = put_file(job, thumb(png, png.replace('.png', '.jpg'), 480), 'poster.jpg', 'image/jpeg')
+        else: keys[f'{name}_key'] = put_file(job, png, f'{name}.png', 'image/png')
+    return {**keys, 'duration': dur, 'subs': burned_subs(mp4), 'audio': has_audio(mp4)}
+def seam(job):
+    q = job['req']; out = {'seam': None, 'subs': q.get('subs')}
+    first = get_media(q['first_key'], f"{TMP}/{job['id']}_first.png")
+    if q.get('prev_last_key'): out['seam'] = seam_score(get_media(q['prev_last_key'], f"{TMP}/{job['id']}_prev.png"), first)
+    # 供视觉 Agent：关键帧 + 设定图缩略（小图，节省 token 与 Worker 内存）
+    if q.get('poster_key'):
+        fr = get_media(q['poster_key'], f"{TMP}/{job['id']}_frame.jpg"); out['frame_key'] = put_file(job, thumb(fr, fr, 384, 72), 'qc_frame.jpg', 'image/jpeg')
+        refs = []
+        for r in (q.get('refs') or [])[:3]:
+            p = get_media(r['key'], f"{TMP}/{job['id']}_ref_{r['id']}.png"); refs.append({'id': r['id'], 'key': put_file(job, thumb(p, p.replace('.png', '.jpg'), 384, 72), f"qc_ref_{r['id']}.jpg", 'image/jpeg')})
+        out['ref_keys'] = refs
+    return out
+
+def run(job):
+    ph, kind, img = job['phase'], job.get('kind'), job['step'] == 6
+    if ph == 'post': return post(job)
+    if ph == 'seam': return seam(job)
+    if kind == 'mock_image' or (kind == 'mock_video' and img): return mock_image(job)
+    if kind == 'mock_video': return mock_video(job)
+    if kind == 'gsk': return gsk_image(job) if img else gsk_video(job)
+    if kind == 'jimeng_cli': return jimeng_image(job) if img else jimeng_video(job)
+    raise RuntimeError(f'节点不支持 {kind}')
+
+def info():
+    i = {'running': None}
+    if 'gsk' in KINDS:
+        try: i['balance'] = json.loads(sh('gsk', 'me', timeout=30).stdout)['data']['credit_balance']
+        except Exception: pass
+    if 'jimeng_cli' in KINDS:
+        try: i['jimeng'] = (sh(DREAMINA, 'user_credit', timeout=30).stdout or '')[-160:]
+        except Exception: pass
+    return i
+
+def worker(n):
+    idle = 0
+    while True:
+        try: job = req('POST', '/node/claim', {'kinds': KINDS, 'version': VERSION, 'info': info() if n == 0 and idle % 20 == 0 else {}}).get('job')
+        except Exception as e: print(f'[node#{n}] claim error {str(e)[:120]} → retry', flush=True); time.sleep(10); continue
+        if not job:
+            if ONCE: return
+            idle += 1; time.sleep(3 if idle < 10 else 8); continue
+        idle = 0; t0 = time.time()
+        try: res = {'ok': True, **run(job)}
+        except Exception as e: res = {'ok': False, 'error': str(e)[:400]}
+        for k in range(5):
+            try: req('POST', f"/node/jobs/{job['id']}/report", res); break
+            except Exception as e: print(f'[node#{n}] report retry {k}: {str(e)[:100]}', flush=True); time.sleep(5)
+        print(f"[node#{n}] {job['phase']:4} {job.get('kind') or '-':10} {job['slot']:14} {'ok ' if res['ok'] else 'FAIL ' + res.get('error', '')[:80]} {int(time.time() - t0)}s", flush=True)
+        for f in glob.glob(f"{TMP}/{job['id']}*"):
+            try: shutil.rmtree(f) if os.path.isdir(f) else os.remove(f)
+            except Exception: pass
+
+if __name__ == '__main__':
+    if not TOKEN: sys.exit('缺少 NODE_TOKEN（后台 → 执行节点 → 新建）')
+    print(f'MoMo Studio 执行节点 {VERSION} → {BASE} 能力={KINDS} 并发={CONC}', flush=True)
+    with cf.ThreadPoolExecutor(CONC) as ex: list(ex.map(worker, range(CONC)))

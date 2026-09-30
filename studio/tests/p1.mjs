@@ -116,6 +116,63 @@ try {
   r = await wri('POST', `/api/projects/${p3}/steps/4/reopen`, { note: 'x' }); ok('退回第 4 步 → 第 5 步失效', r.json?.staled >= 1)
   r = await wri('GET', `/api/projects/${p3}/prompts`); ok('第 4 步退回后提示词接口被卡', r.status === 409)
 
+  // 4c P4 · 素材流水线（模拟图片/视频 + 本地执行节点）
+  {
+    await A('POST', `/api/agents/ASSET`, { provider_id: 'mock_image', model: 'mock' })
+    r = await wri('POST', '/api/projects', { title: '素材测试剧' }); const p4 = r.json.id
+    await wri('POST', `/api/projects/${p4}/steps/1`, { output: { theme: 't', format: 'live' }, submit: true }); await rev('POST', `/api/projects/${p4}/steps/1/approve`)
+    await wri('POST', `/api/projects/${p4}/steps/2/run`); await rev('POST', `/api/projects/${p4}/steps/2/approve`)
+    r = await wri('POST', `/api/projects/${p4}/graph/draft`); await wri('POST', `/api/projects/${p4}/steps/3`, { output: r.json.proposal, submit: true }); await rev('POST', `/api/projects/${p4}/steps/3/approve`)
+    await wri('POST', `/api/projects/${p4}/scripts-run`, {}); await wri('POST', `/api/projects/${p4}/steps/4`, { submit: true }); await rev('POST', `/api/projects/${p4}/steps/4/approve`)
+    await wri('POST', `/api/projects/${p4}/prompts-run`, {}); await wri('POST', `/api/projects/${p4}/steps/5`, { submit: true }); r = await rev('POST', `/api/projects/${p4}/steps/5/approve`)
+    ok('P4 项目前 5 步通过', r.json?.next === 6)
+    r = await wri('POST', `/api/projects/${p4}/media/7/run`, {}); ok('设定图未通过时不能开拍主线 409', r.status === 409 && r.json?.blocking_step === 6)
+    r = await anon('POST', '/node/claim', {}); ok('执行节点无令牌 401', r.status === 401)
+    r = await anon('POST', '/node/claim', {}, { authorization: 'Bearer msn_fake' }); ok('执行节点伪造令牌 401', r.status === 401)
+    r = await wri('POST', '/api/nodes', { name: 'x' }); ok('编剧不能创建执行节点 403', r.status === 403)
+    r = await A('POST', '/api/nodes', { name: '测试节点', kinds: ['post', 'mock_image', 'mock_video'] }); const tok = r.json?.token; ok('管理员创建执行节点（令牌仅返回一次）', /^msn_/.test(tok || ''))
+    r = await A('GET', '/api/nodes'); ok('节点列表不含令牌', !JSON.stringify(r.json).includes(tok))
+    const node = spawn('python3', [join(ROOT, 'scripts/studio/studio_node.py')], { env: { ...process.env, STUDIO: BASE, NODE_TOKEN: tok, KINDS: 'post,mock_image,mock_video', CONC: '3', NODE_TMP: join(persist, 'node') }, stdio: 'ignore', detached: true })
+    const wait = async (step, cond, ms = 90000) => { const t0 = Date.now(); let v; while (Date.now() - t0 < ms) { v = await wri('GET', `/api/projects/${p4}/media/${step}`); if (cond(v.json)) return v.json; await new Promise((z) => setTimeout(z, 1500)) } return v.json }
+    try {
+      r = await wri('POST', `/api/projects/${p4}/media/6/run`, {}); ok('提交设定图（2 角色 + 封面）', r.json?.started?.length === 3, JSON.stringify(r.json))
+      let m = await wait(6, (d) => d.summary.complete); ok('设定图全部生成', m.summary.complete, JSON.stringify(m.summary))
+      r = await anon('GET', m.slots[0].media); ok('未登录不能读素材 401', r.status === 401)
+      r = await wri('POST', `/api/projects/${p4}/steps/6`, { submit: true }); await rev('POST', `/api/projects/${p4}/steps/6/approve`)
+      r = await wri('POST', `/api/projects/${p4}/media/7/run`, {}); ok('主线开拍', r.json?.started?.length >= 3, JSON.stringify(r.json))
+      m = await wait(7, (d) => d.summary.ok + d.summary.failed + d.summary.qc_fail === d.summary.total)
+      ok('主线全部通过（后处理 + 质检）', m.summary.complete, JSON.stringify(m.slots.map((x) => [x.slot, x.status, x.note])))
+      ok('主线全部为参考图模式', m.slots.every((x) => x.mode === 'reference'))
+      ok('主线有首帧/尾帧/海报/质检', m.slots.every((x) => x.first && x.last && x.thumb && x.qc?.duration > 0 && x.qc?.audio === true))
+      r = await wri('GET', m.slots[0].media, null, { range: 'bytes=0-99' }); ok('视频支持 Range 206', r.status === 206)
+      await wri('POST', `/api/projects/${p4}/steps/7`, { submit: true }); await rev('POST', `/api/projects/${p4}/steps/7/approve`)
+      r = await wri('POST', `/api/projects/${p4}/media/8/run`, {}); ok('分支开拍', r.status === 200)
+      m = await wait(8, (d) => d.summary.ok + d.summary.failed + d.summary.qc_fail === d.summary.total && d.summary.total > 0)
+      const br = m.slots[0]
+      ok('分支为尾帧接力并算出衔接分', br.mode === 'frames' && typeof br.qc?.seam === 'number' && br.qc.seam >= 0.55, JSON.stringify(br.qc))
+      r = await wri('POST', `/api/projects/${p4}/media/8/judge`, { slot: br.slot, accept: false }); ok('编剧不能判定素材 403', r.status === 403)
+      r = await rev('POST', `/api/projects/${p4}/media/8/judge`, { slot: br.slot, accept: false, note: 'hero 的发型不对' }); ok('审核驳回 → 不合格', r.status === 200)
+      r = await wri('POST', `/api/projects/${p4}/steps/8`, { submit: true }); ok('有不合格素材不能提交 422', r.status === 422)
+      r = await wri('POST', `/api/projects/${p4}/media/8/run`, { only: [br.slot] }); m = await wait(8, (d) => d.slots[0].status === 'ok' || d.slots[0].status === 'qc_fail' && d.slots[0].attempts > 1)
+      ok('重拍通过，驳回意见写入下次提示词', m.slots[0].status === 'ok' && m.slots[0].attempts === 2)
+      const jobs = execSync(`npx wrangler d1 execute webapp-production --local --persist-to ${persist} --json --command "SELECT req FROM st_jobs WHERE slot='${br.slot}' AND phase='gen' ORDER BY created_at DESC LIMIT 1"`, { cwd: ROOT }).toString()
+      ok('重拍请求含驳回约束 + 上一段尾帧', jobs.includes('hero 的发型不对') && jobs.includes('first_frame_key'))
+      await wri('POST', `/api/projects/${p4}/steps/8`, { submit: true }); r = await rev('POST', `/api/projects/${p4}/steps/8/approve`); ok('分支审批通过', r.json?.next === 9)
+      r = await wri('POST', `/api/projects/${p4}/steps/9`, { submit: true }); ok('一致性检测提交（汇总衔接分）', r.status === 200)
+      r = await rev('POST', `/api/projects/${p4}/steps/9/approve`); ok('一致性检测通过 → 解锁第 10 步', r.json?.next === 10)
+      // 依赖传播：退回第 6 步重画一个角色 → 重新通过后，用到该角色的视频全部变 stale
+      const m7 = (await wri('GET', `/api/projects/${p4}/media/7`)).json, dep = m7.slots.flatMap((x) => x.deps).find((d) => d.startsWith('6:')).slice(2)
+      await wri('POST', `/api/projects/${p4}/steps/6/reopen`, { note: '换演员' })
+      const unused = ['cast.hero', 'cast.boss'].find((c) => !m7.slots.some((x) => x.deps.includes('6:' + c)))
+      r = await wri('POST', `/api/projects/${p4}/media/6/run`, { only: [dep] }); await wait(6, (d) => d.slots.find((x) => x.slot === dep).attempts === 2 && d.slots.find((x) => x.slot === dep).status === 'ok')
+      await wri('POST', `/api/projects/${p4}/steps/6`, { submit: true }); await rev('POST', `/api/projects/${p4}/steps/6/approve`)
+      m = (await wri('GET', `/api/projects/${p4}/media/7`)).json
+      ok('换设定图 → 用到该角色的视频变 stale（需重拍）', m.slots.filter((x) => x.deps.includes('6:' + dep)).every((x) => x.status === 'stale') && m.slots.some((x) => x.status === 'stale'), JSON.stringify(m.slots.map((x) => [x.slot, x.status, x.deps])))
+      ok('没用到该角色的视频不受影响', m.slots.filter((x) => !x.deps.includes('6:' + dep)).every((x) => x.status === 'ok'))
+      void unused
+    } finally { try { process.kill(-node.pid) } catch {} }
+  }
+
   // 5 Key 加密与不外泄
   r = await A('POST', '/api/providers', { name: '测试中转站', kind: 'ark_video', base_url: 'https://relay.example.com', key: SECRET }); const prov = r.json?.id; ok('保存供应商 Key', r.status === 200 && !!prov, JSON.stringify(r.json))
   r = await A('GET', '/api/config'); const p = (r.json?.providers || []).find((x) => x.id === prov)

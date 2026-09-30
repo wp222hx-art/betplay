@@ -18,9 +18,9 @@
   const can = (role) => S.me && ({ reviewer: 1, writer: 2, admin: 3 })[S.me.role] >= ({ reviewer: 1, writer: 2, admin: 3 })[role]
 
   function frame(active, inner, wide) {
-    const tabs = [['#/projects', 'fa-diagram-project', '项目'], ['#/config', 'fa-robot', 'Agent 配置'], ...(can('admin') ? [['#/users', 'fa-users', '账号'], ['#/audit', 'fa-clock-rotate-left', '审计']] : [])]
+    const tabs = [['#/projects', 'fa-diagram-project', '项目'], ['#/config', 'fa-robot', 'Agent 配置'], ...(can('admin') ? [['#/nodes', 'fa-server', '执行节点'], ['#/users', 'fa-users', '账号'], ['#/audit', 'fa-clock-rotate-left', '审计']] : [])]
     app.innerHTML = `<header class="top"><a class="logo" href="#/projects"><img src="/sstatic/momo.svg" alt=""><b>MoMo</b><span>Studio</span></a>
-      <nav class="tabs">${tabs.map(([h, ic, n]) => `<a href="${h}" class="${active === h ? 'on' : ''}"><i class="fas ${ic}"></i><b>${n}</b></a>`).join('')}</nav>
+      <nav class="tabs" id="main-tabs">${tabs.map(([h, ic, n]) => `<a href="${h}" class="${active === h ? 'on' : ''}"><i class="fas ${ic}"></i><b>${n}</b></a>`).join('')}</nav>
       <div class="me">${esc(S.me.name)}<span class="role">${ROLE[S.me.role]}</span><button class="btn sm" id="lo"><i class="fas fa-right-from-bracket"></i></button></div></header><main class="${wide ? 'wide' : ''}">${inner}</main>`
     $('#lo').onclick = async () => { await api('/api/auth/logout', {}); S.me = null; route() }
   }
@@ -62,19 +62,21 @@
     const [stn, stc] = ST[s.status] || [s.status, '#888']
     frame('#/projects', `<a href="#/projects" class="mut sm"><i class="fas fa-arrow-left"></i> 全部项目</a><h1 style="margin-top:6px">${esc(d.project.title)}</h1>
       <nav class="pipe">${steps.map((x) => `<a href="#/p/${id}/${x.no}" class="st-${x.status} ${x.no === cur ? 'on' : ''}"><i class="n">第 ${x.no} 步</i><b>${esc(x.name)}</b><span class="pill" style="--c:${ST[x.status][1]}">${ST[x.status][0]}</span></a>`).join('')}</nav>
-      ${s.no === 3 && !blocker ? graphShell(s) : (s.no === 4 || s.no === 5) && !blocker ? docsShell(s) : `<section class="stepbox"><div class="card"><h2>第 ${s.no} 步 · ${esc(s.name)} <span class="pill" style="--c:${stc}">${stn}</span></h2><p class="sub">${esc(s.desc)}</p>
+      ${s.no === 3 && !blocker ? graphShell(s) : (s.no === 4 || s.no === 5) && !blocker ? docsShell(s) : s.no >= 6 && s.no <= 9 && !blocker ? mediaShell(s) : `<section class="stepbox"><div class="card"><h2>第 ${s.no} 步 · ${esc(s.name)} <span class="pill" style="--c:${stc}">${stn}</span></h2><p class="sub">${esc(s.desc)}</p>
         ${blocker ? `<div class="locked"><i class="fas fa-lock"></i>请先完成第 ${blocker.no} 步「${esc(blocker.name)}」<br><a class="btn" style="margin-top:12px" href="#/p/${id}/${blocker.no}">去第 ${blocker.no} 步</a></div>` : stepBody(s)}
       </div><aside><div class="card"><h3>步骤信息</h3><div class="kv"><b>负责 Agent</b><span>${esc(s.agent)}</span><b>版本</b><span>v${s.version}</span><b>审批</b><span>${s.approved_at ? fmtT(s.approved_at) : '—'}</span><b>备注</b><span>${esc(s.note || '—')}</span></div></div>
-        <div class="card"><h3>最近调用</h3>${d.runs.length ? d.runs.slice(0, 8).map((r) => `<div class="sm" style="margin-bottom:6px"><span class="pill" style="--c:${r.status === 'ok' || r.status === 'submitted' ? '#3ddc97' : '#ff5d73'}">${esc(r.status)}</span> 第${r.step || '-'}步 ${esc(r.agent)} · ${esc(r.model || '')} · ${r.latency_ms}ms${r.error ? `<div class="bad-t">${esc(r.error.slice(0, 90))}</div>` : ''}</div>`).join('') : '<p class="mut sm">暂无</p>'}</div></aside></section>`}`, (s.no >= 3 && s.no <= 5) && !blocker)
+        <div class="card"><h3>最近调用</h3>${d.runs.length ? d.runs.slice(0, 8).map((r) => `<div class="sm" style="margin-bottom:6px"><span class="pill" style="--c:${r.status === 'ok' || r.status === 'submitted' ? '#3ddc97' : '#ff5d73'}">${esc(r.status)}</span> 第${r.step || '-'}步 ${esc(r.agent)} · ${esc(r.model || '')} · ${r.latency_ms}ms${r.error ? `<div class="bad-t">${esc(r.error.slice(0, 90))}</div>` : ''}</div>`).join('') : '<p class="mut sm">暂无</p>'}</div></aside></section>`}`, (s.no >= 3 && s.no <= 9) && !blocker)
+    requestAnimationFrame(() => document.querySelector('.pipe a.on')?.scrollIntoView({ inline: 'center', block: 'nearest' }))
     if (s.no === 3 && !blocker) return bindGraph(id, s)
     if ((s.no === 4 || s.no === 5) && !blocker) return bindDocs(id, s)
+    if (s.no >= 6 && s.no <= 9 && !blocker) return bindMedia(id, s)
     bindStep(id, s)
   }
 
   // ─── 第 3 步：结构图画布 ───
   function graphShell(s) {
     const [stn, stc] = ST[s.status] || [s.status, '#888'], canW = can('writer') && s.status !== 'done', canR = S.me && (S.me.role === 'reviewer' || S.me.role === 'admin')
-    return `<section class="card gcard"><div class="gh"><h2>第 3 步 · 结构图 <span class="pill" style="--c:${stc}">${stn}</span></h2><span class="mut sm">v${s.version} · ${esc(s.desc)}</span><span class="ge-grow"></span>
+    return `<section class="card gcard"><div class="gh"><h2>第 3 步 · 结构图 <span class="pill" style="--c:${stc}">${stn}</span></h2><span class="mut sm hide-m">v${s.version} · ${esc(s.desc)}</span><span class="ge-grow"></span>
       ${canW ? `<button class="btn sm" data-gsave><i class="fas fa-floppy-disk"></i> 保存</button><button class="btn sm warn" data-gsubmit><i class="fas fa-paper-plane"></i> 提交审核</button>` : ''}
       ${canR && ['review', 'ready', 'stale'].includes(s.status) && s.output ? `<button class="btn sm ok" data-approve><i class="fas fa-check"></i> 审核通过 · 解锁下一步</button>` : ''}
       ${can('writer') && s.status === 'done' ? `<button class="btn sm bad" data-reopen><i class="fas fa-rotate-left"></i> 退回修改</button>` : ''}</div>
@@ -104,7 +106,7 @@
   function docsShell(s) {
     const [stn, stc] = ST[s.status] || [s.status, '#888'], canR = S.me && (S.me.role === 'reviewer' || S.me.role === 'admin')
     const ro = s.status === 'done' || !can('writer')
-    return `<section class="card gcard"><div class="gh"><h2>第 ${s.no} 步 · ${esc(s.name)} <span class="pill" style="--c:${stc}">${stn}</span></h2><span class="mut sm">v${s.version} · ${esc(s.desc)}</span><span class="ge-grow"></span>
+    return `<section class="card gcard"><div class="gh"><h2>第 ${s.no} 步 · ${esc(s.name)} <span class="pill" style="--c:${stc}">${stn}</span></h2><span class="mut sm hide-m">v${s.version} · ${esc(s.desc)}</span><span class="ge-grow"></span>
       ${!ro ? `<button class="btn sm warn" data-dsubmit><i class="fas fa-paper-plane"></i> 提交审核</button>` : ''}
       ${canR && ['review', 'ready', 'stale'].includes(s.status) && s.output ? `<button class="btn sm ok" data-approve><i class="fas fa-check"></i> 审核通过 · 解锁下一步</button>` : ''}
       ${can('writer') && s.status === 'done' ? `<button class="btn sm bad" data-reopen><i class="fas fa-rotate-left"></i> 退回修改</button>` : ''}</div>
@@ -119,6 +121,41 @@
     q('[data-dsubmit]') && (q('[data-dsubmit]').onclick = async () => { try { await api(`/api/projects/${id}/steps/${s.no}`, { submit: true }); toast('已提交审核'); projectPage(id, s.no) } catch (e) { showBad(e) } })
     q('[data-approve]') && (q('[data-approve]').onclick = async () => { try { const r = await api(`/api/projects/${id}/steps/${s.no}/approve`, { note: prompt('审核意见（可空）', '') || '' }); toast(`已通过，第 ${r.next} 步已解锁`); location.hash = `#/p/${id}/${r.next}` } catch (e) { showBad(e) } })
     q('[data-reopen]') && (q('[data-reopen]').onclick = async () => { if (!confirm('退回后，所有下游步骤都会失效。确定？')) return; try { await api(`/api/projects/${id}/steps/${s.no}/reopen`, { note: prompt('退回原因', '') || '' }); projectPage(id, s.no) } catch (e) { toast(e.message) } })
+  }
+
+  // ─── 第 6–9 步：素材工作台 ───
+  function mediaShell(s) {
+    const [stn, stc] = ST[s.status] || [s.status, '#888'], canR = S.me && (S.me.role === 'reviewer' || S.me.role === 'admin'), ro = s.status === 'done' || !can('writer')
+    return `<section class="card gcard"><div class="gh"><h2>第 ${s.no} 步 · ${esc(s.name)} <span class="pill" style="--c:${stc}">${stn}</span></h2><span class="mut sm hide-m">${esc(s.desc)}</span><span class="ge-grow"></span>
+      ${!ro ? `<button class="btn sm warn" data-dsubmit><i class="fas fa-paper-plane"></i> 提交审核</button>` : ''}
+      ${canR && ['review', 'ready', 'stale'].includes(s.status) && s.output ? `<button class="btn sm ok" data-approve><i class="fas fa-check"></i> 审核通过</button>` : ''}
+      ${can('writer') && s.status === 'done' ? `<button class="btn sm bad" data-reopen><i class="fas fa-rotate-left"></i> 退回修改</button>` : ''}</div>
+      ${s.status === 'done' ? '<div class="banner ok" style="margin-bottom:10px">已审核通过（只读）。</div>' : ''}
+      <div id="media-wb"></div></section>`
+  }
+  function bindMedia(id, s) {
+    const canR = S.me && (S.me.role === 'reviewer' || S.me.role === 'admin')
+    window.MediaWorkbench.mount($('#media-wb'), { pid: id, step: s.no, readonly: s.status === 'done' || !can('writer'), canJudge: canR && s.status !== 'done', toast, api: (u, b) => api(u, b), onChange: () => { if (s.status === 'review') projectPage(id, s.no) } })
+    const q = (sel) => $(sel)
+    const showBad = (e) => toast(e.data?.bad?.length ? `${e.message}｜例如「${e.data.bad[0].title || e.data.bad[0].slot}」` : e.message)
+    q('[data-dsubmit]') && (q('[data-dsubmit]').onclick = async () => { try { await api(`/api/projects/${id}/steps/${s.no}`, { submit: true }); toast('已提交审核'); projectPage(id, s.no) } catch (e) { showBad(e) } })
+    q('[data-approve]') && (q('[data-approve]').onclick = async () => { try { const r = await api(`/api/projects/${id}/steps/${s.no}/approve`, { note: prompt('审核意见（可空）', '') || '' }); toast(r.next ? `已通过，第 ${r.next} 步已解锁` : '全部完成'); if (r.next) location.hash = `#/p/${id}/${r.next}`; else projectPage(id, s.no) } catch (e) { showBad(e) } })
+    q('[data-reopen]') && (q('[data-reopen]').onclick = async () => { if (!confirm('退回后，所有下游步骤都会失效。确定？')) return; try { await api(`/api/projects/${id}/steps/${s.no}/reopen`, { note: prompt('退回原因', '') || '' }); projectPage(id, s.no) } catch (e) { toast(e.message) } })
+  }
+
+  // ─── 执行节点（admin）───
+  async function nodesPage() {
+    const d = await api('/api/nodes'), set = await api('/api/media-settings')
+    frame('#/nodes', `<h1>执行节点</h1><p class="sub">即梦 CLI、gsk、视频后处理与一致性检测跑在执行节点上（有 ffmpeg 的常驻机器）。方舟 / 中转站 API 由后台直连，不需要节点，但<b>后处理与质检仍需要至少一个带 post 能力的节点</b>。</p>
+      <div class="card"><h3>节点</h3>${d.nodes.length ? `<div class="tbl"><table><tr><th>名称</th><th>能力</th><th>状态</th><th>最近心跳</th><th></th></tr>${d.nodes.map((n) => `<tr><td><b>${esc(n.name)}</b><div class="mut sm">${esc(n.id)} ${esc(n.info?.v || '')}</div></td><td>${(n.kinds || []).map((k) => `<span class="chip">${esc(k)}</span>`).join(' ')}</td><td>${!n.enabled ? '<span class="bad-t">已停用</span>' : n.online ? '<span class="ok-t">● 在线</span>' : '<span class="mut">离线</span>'}${n.info?.balance != null ? `<div class="mut sm">gsk 余额 ${n.info.balance}</div>` : ''}</td><td class="mut sm">${fmtT(n.last_seen)}</td><td><button class="btn sm" data-tog="${n.id}" data-e="${n.enabled ? 0 : 1}">${n.enabled ? '停用' : '启用'}</button></td></tr>`).join('')}</table></div>` : '<p class="mut">还没有节点</p>'}
+        <p class="mut sm">队列：${d.queue.map((q) => `${q.phase}/${q.status} ${q.n}`).join('，') || '空'}</p></div>
+      <div class="card"><h3>新建节点</h3><form id="nf" class="grid g4"><input class="inp" name="name" placeholder="名称，例如：剪辑室 Mac mini" required>
+        <label class="chk"><input type="checkbox" name="k" value="post" checked> post 后处理/质检</label><label class="chk"><input type="checkbox" name="k" value="jimeng_cli"> 即梦 CLI</label><label class="chk"><input type="checkbox" name="k" value="gsk"> gsk</label><label class="chk"><input type="checkbox" name="k" value="mock_video" checked> 模拟视频</label><label class="chk"><input type="checkbox" name="k" value="mock_image" checked> 模拟图片</label>
+        <button class="btn pri" type="submit">创建并获取令牌</button></form><div id="tok"></div></div>
+      <div class="card"><h3>生产参数</h3><form id="sf2" class="grid g4"><label class="f">同时生成上限<input class="inp" type="number" name="max_concurrent" min="1" max="32" value="${set.max_concurrent}"></label><label class="f">衔接分下限（0–1）<input class="inp" type="number" step="0.05" name="seam_min" value="${set.seam_min}"></label><label class="f">人物一致下限（0–10）<input class="inp" type="number" name="face_min" value="${set.face_min}"></label><label class="f">字幕帧比例上限<input class="inp" type="number" step="0.05" name="subs_max" value="${set.subs_max}"></label><label class="chk"><input type="checkbox" name="auto_retry" ${set.auto_retry ? 'checked' : ''}> 失败/不合格自动重拍（≤3 次）</label><button class="btn" type="submit">保存</button></form></div>`)
+    document.querySelectorAll('[data-tog]').forEach((b) => (b.onclick = async () => { await api('/api/nodes/' + b.dataset.tog, { enabled: b.dataset.e === '1' }); nodesPage() }))
+    $('#nf').onsubmit = async (e) => { e.preventDefault(); const fd = new FormData(e.target); try { const r = await api('/api/nodes', { name: fd.get('name'), kinds: fd.getAll('k') }); $('#tok').innerHTML = `<div class="banner warn" style="margin-top:12px">令牌只显示这一次，请立即保存：<pre class="code-b">${esc(r.token)}</pre>在节点机器上运行：<pre class="code-b">STUDIO=${esc(location.origin)} NODE_TOKEN=${esc(r.token)} KINDS=${esc(fd.getAll('k').join(','))} python3 scripts/studio/studio_node.py</pre></div>` } catch (er) { toast(er.message) } }
+    $('#sf2').onsubmit = async (e) => { e.preventDefault(); const fd = Object.fromEntries(new FormData(e.target)); try { await api('/api/media-settings', { ...fd, auto_retry: !!fd.auto_retry }); toast('已保存') } catch (er) { toast(er.message) } }
   }
 
   function stepBody(s) {
@@ -236,6 +273,7 @@
       const h = location.hash.replace(/^#\/?/, '').split('/')
       if (h[0] === 'p' && h[1]) return projectPage(h[1], +h[2] || 0)
       if (h[0] === 'config') return configPage()
+      if (h[0] === 'nodes' && can('admin')) return nodesPage()
       if (h[0] === 'users' && can('admin')) return usersPage()
       if (h[0] === 'audit' && can('admin')) return auditPage()
       return projectsPage()

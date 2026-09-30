@@ -9,9 +9,12 @@ export const PROVIDER_KINDS: Record<string, { name: string; cap: 'text' | 'video
   openai_compat: { name: 'OpenAI 兼容对话', cap: 'text', needs: ['base_url', 'key'], hint: 'OpenAI / DeepSeek / 豆包方舟对话 / 任意中转站 /chat/completions' },
   ark_video: { name: '火山方舟 Seedance（方舟原生格式）', cap: 'video', needs: ['base_url', 'key'], hint: '官方 https://ark.cn-beijing.volces.com 或方舟兼容中转；POST /api/v3/contents/generations/tasks' },
   openai_video: { name: 'OpenAI 风格视频中转', cap: 'video', needs: ['base_url', 'key'], hint: '中转站 POST /v1/videos/generations + 轮询' },
+  ark_image: { name: '火山方舟 Seedream 图片', cap: 'image', needs: ['base_url', 'key'], hint: 'POST /api/v3/images/generations（doubao-seedream-*）；方舟兼容中转同样适用' },
+  openai_image: { name: 'OpenAI 风格图片中转', cap: 'image', needs: ['base_url', 'key'], hint: '中转站 POST /v1/images/generations（gpt-image / flux / seedream 等）' },
   jimeng_cli: { name: '即梦 CLI（经执行节点）', cap: 'any', needs: [], hint: '常驻执行节点上安装 dreamina 并完成登录；后台只下发任务' },
   gsk: { name: 'Genspark gsk（沙箱兜底）', cap: 'any', needs: [], hint: '现有 director_worker 通道' },
-  mock_video: { name: '模拟视频（联调用，不计费）', cap: 'video', needs: [], hint: 'P1–P3 联调；返回占位任务，不产生真实视频' },
+  mock_video: { name: '模拟视频（联调用，不计费）', cap: 'video', needs: [], hint: '执行节点用 ffmpeg 生成占位视频（尾帧接力可视化），走完整流水线' },
+  mock_image: { name: '模拟图片（联调用，不计费）', cap: 'image', needs: [], hint: '执行节点生成占位设定图' },
   mock_text: { name: '模拟对话（联调用，不计费）', cap: 'text', needs: [], hint: '返回回显 JSON，用于流程联调' }
 }
 
@@ -30,16 +33,19 @@ export const AGENT_DEFAULTS = [
 ]
 
 export async function seedDefaults(env: Env) {
-  const has: any = await env.DB.prepare('SELECT COUNT(*) n FROM st_agents').first()
-  if (has.n) return
+  const has: any = await env.DB.prepare(`SELECT (SELECT COUNT(*) FROM st_agents) a, (SELECT COUNT(*) FROM st_providers WHERE id='mock_image') m`).first()
+  if (has.a >= AGENT_DEFAULTS.length && has.m) return
   const st: any[] = [
     env.DB.prepare('INSERT OR IGNORE INTO st_providers (id,name,kind,enabled,created_at,updated_at) VALUES (?,?,?,?,?,?)').bind('mock_text', '模拟对话', 'mock_text', 1, now(), now()),
     env.DB.prepare('INSERT OR IGNORE INTO st_providers (id,name,kind,enabled,created_at,updated_at) VALUES (?,?,?,?,?,?)').bind('mock_video', '模拟视频', 'mock_video', 1, now(), now()),
+    env.DB.prepare('INSERT OR IGNORE INTO st_providers (id,name,kind,enabled,created_at,updated_at) VALUES (?,?,?,?,?,?)').bind('mock_image', '模拟图片', 'mock_image', 1, now(), now()),
     // 复用玩家端已有的 OpenAI 兼容配置（引用环境变量，不入库明文）
-    env.DB.prepare('INSERT OR IGNORE INTO st_providers (id,name,kind,base_env,key_env,key_hint,enabled,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)').bind('env_openai', '平台 LLM（环境变量）', 'openai_compat', 'OPENAI_BASE_URL', 'OPENAI_API_KEY', '引用环境变量', 1, now(), now())
+    env.DB.prepare('INSERT OR IGNORE INTO st_providers (id,name,kind,base_env,key_env,key_hint,enabled,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)').bind('env_openai', '平台 LLM（环境变量）', 'openai_compat', 'OPENAI_BASE_URL', 'OPENAI_API_KEY', '引用环境变量', 1, now(), now()),
+    // 老库：设定图 Agent 以前没有默认服务商
+    env.DB.prepare(`UPDATE st_agents SET provider_id='mock_image', model='mock' WHERE code='ASSET' AND provider_id IS NULL`)
   ]
   AGENT_DEFAULTS.forEach((a, i) => st.push(env.DB.prepare('INSERT OR IGNORE INTO st_agents (code,name,duty,step,capability,provider_id,model,params,sort,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)')
-    .bind(a.code, a.name, a.duty, a.step, a.capability, a.capability === 'video' ? 'mock_video' : a.capability === 'text' ? 'env_openai' : null, a.capability === 'text' ? 'gpt-5-mini' : a.capability === 'video' ? 'mock' : '', JSON.stringify(a.capability === 'text' ? { temperature: 0.8, reasoning_effort: 'minimal' } : { ratio: '9:16', resolution: '720p', duration: 10 }), i, now())))
+    .bind(a.code, a.name, a.duty, a.step, a.capability, a.capability === 'video' ? 'mock_video' : a.capability === 'image' ? 'mock_image' : 'env_openai', a.capability === 'text' ? 'gpt-5-mini' : 'mock', JSON.stringify(a.capability === 'text' ? { temperature: 0.8, reasoning_effort: 'minimal' } : a.capability === 'video' ? { ratio: '9:16', resolution: '720p', duration: 8, audio: true } : { }), i, now())))
   await env.DB.batch(st)
 }
 
