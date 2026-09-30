@@ -7,6 +7,7 @@ import { HttpError, type Env, type User, audit } from './auth'
 import { resolveProvider } from './agents'
 import * as Gw from './gateway'
 import { errText } from './gateway'
+import * as Sl from './suanli'
 import * as G from './graph'
 import * as L from './ledger'
 import * as Steps from './steps'
@@ -143,17 +144,23 @@ async function directSubmit(env: Env, jobId: string) {
     let task = '', immediate: any = null
     const SL = pv.base.replace(/\/v1$/, '')
     if (pv.kind === 'suanli' && j.step === 6) { // 算力网图片：/v1/images/generations（wan2.7-image / wan2.7-image-pro）
-      const size = q.ratio === '3:4' ? (pv.extra.size_portrait || '1536x2048') : (pv.extra.size_landscape || '2048x1152')
-      const r = await fetch(SL + '/v1/images/generations', { method: 'POST', headers: { Authorization: 'Bearer ' + pv.key, 'Content-Type': 'application/json' }, body: JSON.stringify({ model: j.model || 'wan2.7-image-pro', prompt: q.prompt, size, n: 1, response_format: 'url', ...(pv.extra.body || {}) }) })
+      const P = q.params || {}, size = q.ratio === '3:4' ? (P.size_portrait || pv.extra.size_portrait || '1536x2048') : (P.size_landscape || pv.extra.size_landscape || '2048x1152')
+      const model = j.model || 'wan2.7-image-pro', n = Math.max(1, Math.min(4, +P.n || 1))
+      const r = await fetch(SL + '/v1/images/generations', { method: 'POST', headers: { Authorization: 'Bearer ' + pv.key, 'Content-Type': 'application/json' }, body: JSON.stringify({ model, prompt: q.prompt, size, n, response_format: 'url', ...(pv.extra.body || {}) }) })
       const d: any = await r.json().catch(() => ({})); const url = d.data?.[0]?.url, b64 = d.data?.[0]?.b64_json
       if (!r.ok || (!url && !b64)) throw new Error(`HTTP ${r.status}: ${errText(d)}`)
-      immediate = { url, b64 }
+      immediate = { url, b64, cost: Sl.costOf(Sl.find(model), { images: d.data?.length || n }) }
     } else if (pv.kind === 'suanli') { // 算力网视频：统一协议 POST /v1/video/generations（Seedance 2.0 / 2.5；角色写在 metadata.content[].role）
       const content: any[] = q.first_frame ? [{ type: 'image_url', image_url: { url: q.first_frame }, role: 'first_frame' }] : (q.reference_images || []).slice(0, 4).map((u: string) => ({ type: 'image_url', image_url: { url: u }, role: 'reference_image' }))
       const refNote = !q.first_frame && content.length ? ' ' + content.map((_: any, i: number) => `图片${i + 1}为${(q.cast || [])[i] || '角色'}的设定图`).join('，') + '，人物外貌与之保持一致。' : ''
-      const model = j.model || 'doubao-seedance-2-0-cmcc1', is25 = /2[.-]5/.test(model)
-      const res = String(q.params?.resolution || '720p'); const resolution = is25 && res === '1080p' ? '720p' : res
-      const body: any = { model, prompt: q.prompt + refNote, ratio: q.ratio || q.params?.ratio || '9:16', duration: Math.min(is25 ? 30 : 15, q.duration || 8), metadata: { generate_audio: q.params?.audio !== false, watermark: false, resolution, ...(content.length ? { content } : {}), ...(q.params?.seed !== undefined ? { seed: q.params.seed } : {}) } }
+      const model = j.model || 'doubao-seedance-2-0-cmcc1', M = Sl.find(model), is25 = /2[.-]5/.test(model), P = q.params || {}
+      const res = String(P.resolution || '720p'); const resolution = is25 && res === '1080p' ? '720p' : res
+      const ratio = P.ratio || q.ratio || '9:16', duration = Math.max(M?.proto === 'video_generic' ? 2 : 4, Math.min(is25 ? 30 : 15, q.duration || +P.duration || 8))
+      const seed = P.seed !== undefined && P.seed !== '' ? +P.seed : undefined
+      const body: any = M?.proto === 'video_generic' // 万相 / HappyHorse：通用协议（纯文生，不带参考图）
+        ? { model, prompt: q.prompt, size: Sl.sizeOf(ratio, resolution), duration }
+        : { model, prompt: q.prompt + refNote, ratio, duration, metadata: { generate_audio: P.audio !== false, watermark: P.watermark === true, resolution, ...(content.length ? { content } : {}), ...(seed !== undefined ? { seed } : {}) } }
+      await env.DB.prepare(`UPDATE st_jobs SET req=? WHERE id=?`).bind(JSON.stringify({ ...q, sent: { ratio, duration, resolution } }), jobId).run()
       const r = await fetch(SL + '/v1/video/generations', { method: 'POST', headers: { Authorization: 'Bearer ' + pv.key, 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       const d: any = await r.json().catch(() => ({})); task = d.id || d.task_id
       if (!r.ok || !task) throw new Error(`HTTP ${r.status}: ${errText(d)}`)
@@ -187,7 +194,7 @@ async function directPoll(env: Env, j: any) {
   const pv = await resolveProvider(env, j.provider_id)
   try {
     let st = '', video = '', last = '', err = ''
-    let auth = false
+    let auth = false, cost = 0
     if (pv.kind === 'suanli') { // GET /v1/videos/{id} 轮询；成片须带鉴权从 /v1/videos/{id}/content 下载
       const SL = pv.base.replace(/\/v1$/, '')
       const r = await fetch(SL + '/v1/videos/' + encodeURIComponent(j.task_id), { headers: { Authorization: 'Bearer ' + pv.key } })
@@ -196,6 +203,8 @@ async function directPoll(env: Env, j: any) {
       video = SL + '/v1/videos/' + encodeURIComponent(j.task_id) + '/content'; auth = true; err = errText(d.error ? d : {}) || d.fail_reason || ''
       const usage = d.usage?.total_tokens || d.usage?.completion_tokens || 0
       if (usage) await env.DB.prepare(`UPDATE st_jobs SET result=? WHERE id=?`).bind(JSON.stringify({ usage }), j.id).run()
+      const q = J(j.req, {}), sent = q.sent || {}
+      cost = Sl.costOf(Sl.find(j.model), { vtok: usage || undefined, sec: sent.duration || q.duration || 8, res: sent.resolution || '720p' })
     } else if (pv.kind === 'ark_video') {
       const r = await fetch(pv.base + (pv.extra.query_path || '/api/v3/contents/generations/tasks/') + encodeURIComponent(j.task_id), { headers: { Authorization: 'Bearer ' + pv.key } })
       const d: any = await r.json().catch(() => ({})); if (!r.ok) return
@@ -206,14 +215,18 @@ async function directPoll(env: Env, j: any) {
       const s = String(d.status || d.data?.status || '').toLowerCase(); st = /succe|complete|done|finish/.test(s) ? 'succeeded' : /fail|error|cancel/.test(s) ? 'failed' : 'running'
       video = d.video_url || d.data?.video_url || d.data?.output?.video_url || d.output?.[0] || ''; last = d.last_frame_url || ''; err = typeof d.error === 'string' ? d.error : d.error?.message || ''
     }
-    if (st === 'succeeded' && video) return ingest(env, j.id, { url: video, last_url: last, auth: auth ? pv.key : undefined })
+    if (st === 'succeeded' && video) { // 原子认领：并发 tick 只有一个能入库（防重复下载 / 重复计费）
+      const c = await env.DB.prepare(`UPDATE st_jobs SET status='ingesting', updated_at=? WHERE id=? AND status IN ('submitted','running')`).bind(now(), j.id).run()
+      if (!c.meta.changes) return
+      return ingest(env, j.id, { url: video, last_url: last, auth: auth ? pv.key : undefined, cost })
+    }
     if (st === 'failed' || st === 'expired' || st === 'cancelled') return failJob(env, j.id, err || st)
     await env.DB.prepare(`UPDATE st_jobs SET status='running', updated_at=? WHERE id=?`).bind(now(), j.id).run()
   } catch (e: any) { /* 网络抖动：下一轮再查 */ }
 }
 
 /** 把服务商结果搬进 R2（服务商链接通常 24 小时过期），然后交给执行节点做后处理 */
-async function ingest(env: Env, jobId: string, res: { url?: string; b64?: string; last_url?: string; auth?: string }) {
+async function ingest(env: Env, jobId: string, res: { url?: string; b64?: string; last_url?: string; auth?: string; cost?: number }) {
   const j: any = await env.DB.prepare('SELECT * FROM st_jobs WHERE id=?').bind(jobId).first(); if (!env.MEDIA) return failJob(env, jobId, 'R2 未绑定')
   const ext = j.step === 6 ? 'png' : 'mp4', key = `studio/${j.project_id}/${j.step}/${j.slot}/${jobId}.${ext}`
   let body: ArrayBuffer
@@ -222,7 +235,7 @@ async function ingest(env: Env, jobId: string, res: { url?: string; b64?: string
   await env.MEDIA.put(key, body, { httpMetadata: { contentType: ext === 'png' ? 'image/png' : 'video/mp4' } })
   let lastKey: string | null = null
   if (res.last_url) { try { const r = await fetch(res.last_url); if (r.ok) { lastKey = key.replace(/\.mp4$/, '_last.png'); await env.MEDIA.put(lastKey, await r.arrayBuffer(), { httpMetadata: { contentType: 'image/png' } }) } } catch {} }
-  await completeGen(env, jobId, { media_key: key, last_key: lastKey })
+  await completeGen(env, jobId, { media_key: key, last_key: lastKey, cost: res.cost || 0 })
 }
 
 async function failJob(env: Env, jobId: string, error: string) {
@@ -256,6 +269,7 @@ async function completeGen(env: Env, jobId: string, r: { media_key: string; last
 export async function tick(env: Env, pid: string, o: { step?: 6 | 7 | 8; start?: boolean; only?: string[]; by?: string } = {}) {
   const set = await settings(env)
   // 1) 直连任务：查询进度（每 tick 最多 12 个，避免超时）
+  await env.DB.prepare(`UPDATE st_jobs SET status='running' WHERE project_id=? AND route='direct' AND status='ingesting' AND updated_at<?`).bind(pid, now() - 5 * 60000).run() // 入库中断 5 分钟 → 重新轮询
   const polling = (await env.DB.prepare(`SELECT * FROM st_jobs WHERE project_id=? AND route='direct' AND status IN ('submitted','running') ORDER BY updated_at LIMIT 12`).bind(pid).all()).results as any[]
   await Promise.all(polling.map((j) => directPoll(env, j)))
   // 2) 回收僵死的节点任务
@@ -264,7 +278,7 @@ export async function tick(env: Env, pid: string, o: { step?: 6 | 7 | 8; start?:
   // 3) 提交就绪槽位
   const plans = await sync(env, pid)
   const rows = new Map<string, any>(((await env.DB.prepare('SELECT * FROM st_slots WHERE project_id=?').bind(pid).all()).results as any[]).map((r) => [`${r.step}:${r.slot}`, r]))
-  const active = ((await env.DB.prepare(`SELECT COUNT(*) n FROM st_jobs WHERE project_id=? AND phase='gen' AND status IN ('queued','claimed','submitted','running')`).bind(pid).first()) as any).n
+  const active = ((await env.DB.prepare(`SELECT COUNT(*) n FROM st_jobs WHERE project_id=? AND phase='gen' AND status IN ('queued','claimed','submitted','running','ingesting')`).bind(pid).first()) as any).n
   let room = Math.max(0, set.max_concurrent - active); const started: string[] = [], blocked: string[] = []
   for (const s of plans) {
     if (o.step && s.step !== o.step) continue

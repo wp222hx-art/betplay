@@ -1,6 +1,7 @@
 // Agent 配置中心：服务商（加密 Key）+ 生产 Agent（模型 / 参数 / 提示词版本 / 预算）
 import { HttpError, type Env, type User, audit } from './auth'
 import { hint, seal, unseal, uid } from './sec'
+import * as Sl from './suanli'
 
 const now = () => Date.now()
 const J = (s: any, d: any = null) => { try { return s ? JSON.parse(s) : d } catch { return d } }
@@ -89,11 +90,18 @@ export async function updateAgent(env: Env, u: User, code: string, b: any) {
   await seedDefaults(env)
   const a: any = await env.DB.prepare('SELECT * FROM st_agents WHERE code=?').bind(code).first()
   if (!a) throw new HttpError(404, 'NO_AGENT', 'Agent 不存在')
-  if (b.provider_id) {
-    const p: any = await env.DB.prepare('SELECT kind FROM st_providers WHERE id=?').bind(b.provider_id).first()
+  let fixes: string[] = []
+  const pid = b.provider_id || a.provider_id
+  if (pid) {
+    const p: any = await env.DB.prepare('SELECT kind FROM st_providers WHERE id=?').bind(pid).first()
     if (!p) throw new HttpError(400, 'NO_PROVIDER', '服务商不存在')
     const cap = PROVIDER_KINDS[p.kind].cap
     if (cap !== 'any' && cap !== a.capability) throw new HttpError(400, 'CAPABILITY_MISMATCH', `${a.name} 需要「${a.capability}」能力，该服务商只提供「${cap}」`)
+    if (p.kind === 'suanli') { // 按算力网文档校验：模型类别 / JSON 能力 / 首帧·参考图角色；参数按文档枚举与范围夹紧
+      const model = b.model ?? a.model, m = Sl.find(model)
+      const why = Sl.fitFor(code, m); if (why) throw new HttpError(400, 'MODEL_MISMATCH', `${a.name}：${why}`)
+      if (m) { const n = Sl.normalizeParams(m, b.params ?? J(a.params, {})); fixes = n.fixes; if (b.params || fixes.length) b.params = n.params }
+    }
   }
   let ver = a.prompt_version
   if (typeof b.prompt === 'string' && b.prompt !== a.prompt) {
@@ -103,7 +111,7 @@ export async function updateAgent(env: Env, u: User, code: string, b: any) {
   await env.DB.prepare(`UPDATE st_agents SET provider_id=COALESCE(?,provider_id), model=COALESCE(?,model), params=COALESCE(?,params), prompt=COALESCE(?,prompt), prompt_version=?, budget=COALESCE(?,budget), unit_price=COALESCE(?,unit_price), enabled=COALESCE(?,enabled), updated_at=?, updated_by=? WHERE code=?`)
     .bind(b.provider_id || null, b.model ?? null, b.params ? JSON.stringify(b.params) : null, typeof b.prompt === 'string' ? b.prompt : null, ver, b.budget ?? null, b.unit_price ?? null, b.enabled === undefined ? null : b.enabled ? 1 : 0, now(), u.id, code).run()
   await audit(env, u.id, 'agent_update', code, { provider: b.provider_id, model: b.model, prompt_version: ver, budget: b.budget })
-  return { code, prompt_version: ver }
+  return { code, prompt_version: ver, fixes }
 }
 
 export async function promptHistory(env: Env, code: string) {
@@ -121,13 +129,19 @@ export async function resolveProvider(env: Env, id: string) {
 
 /** 一键接入算力网：保存加密 Key → 连通测试 → 按推荐把各 Agent 指向 suanli（只改选中的 Agent；原配置写进审计便于回退） */
 export const SUANLI_PRESET: Record<string, { model: string; params?: any }> = {
-  SCREENWRITER: { model: 'deepseek-v4-pro', params: { temperature: 0.9 } }, STRUCTURE: { model: 'deepseek-v4-pro', params: { temperature: 0.7 } },
-  SCRIPT: { model: 'deepseek-v4-flash-0731', params: { temperature: 0.85 } }, PROMPT: { model: 'deepseek-v4-flash-0731', params: { temperature: 0.6 } },
-  CONTINUITY: { model: 'deepseek-v4-flash-0731', params: { temperature: 0.2 } }, REVIEWER: { model: 'deepseek-v4-pro', params: { temperature: 0.3 } },
-  COMPLIANCE: { model: 'doubao-seed-2-0-lite', params: { temperature: 0.1 } }, CONSISTENCY: { model: 'doubao-seed-2-0-pro', params: { temperature: 0.1, vision_model: 'doubao-seed-2-0-pro' } },
-  ASSET: { model: 'wan2.7-image-pro' },
-  VIDEO_MAIN: { model: 'doubao-seedance-2-0-cmcc1', params: { ratio: '9:16', resolution: '720p', duration: 8, audio: true, unit_price_sec: 1.0 } },
-  VIDEO_BRANCH: { model: 'doubao-seedance-2-0-cmcc1', params: { ratio: '9:16', resolution: '720p', duration: 8, audio: true, unit_price_sec: 1.0 } }
+  SCREENWRITER: { model: 'deepseek-v4-pro-0813', params: { temperature: 0.9, max_completion_tokens: 16384 } }, STRUCTURE: { model: 'deepseek-v4-pro-0813', params: { temperature: 0.7, max_completion_tokens: 16384 } },
+  SCRIPT: { model: 'deepseek-v4-flash-0731', params: { temperature: 0.85, max_completion_tokens: 16384 } }, PROMPT: { model: 'deepseek-v4-flash-0731', params: { temperature: 0.6, max_completion_tokens: 8192 } },
+  CONTINUITY: { model: 'deepseek-v4-flash-0731', params: { temperature: 0.2, max_completion_tokens: 8192 } }, REVIEWER: { model: 'deepseek-v4-pro-0813', params: { temperature: 0.3, max_completion_tokens: 8192 } },
+  COMPLIANCE: { model: 'doubao-seed-2-0-lite', params: { temperature: 0.1, max_completion_tokens: 4096 } }, CONSISTENCY: { model: 'doubao-seed-2-0-pro', params: { temperature: 0.1, max_completion_tokens: 2048 } },
+  ASSET: { model: 'wan2.7-image-pro', params: { size_portrait: '1536x2048', size_landscape: '2048x1152', n: 1 } },
+  VIDEO_MAIN: { model: 'doubao-seedance-2-0-cmcc1', params: { ratio: '9:16', resolution: '720p', duration: 8, audio: true, watermark: false } },
+  VIDEO_BRANCH: { model: 'doubao-seedance-2-0-cmcc1', params: { ratio: '9:16', resolution: '720p', duration: 8, audio: true, watermark: false } }
+}
+/** 算力网模型目录（按类别 + 文档参数表 + 价格 + 每个 Agent 可选列表）；有 Key 时标注该 Key 实际可用的模型 */
+export async function suanliCatalog(env: Env, force = false) {
+  const p: any = await env.DB.prepare(`SELECT id FROM st_providers WHERE kind='suanli' AND enabled=1 ORDER BY created_at LIMIT 1`).first()
+  const pv = p ? await resolveProvider(env, p.id).catch(() => null) : null
+  return { provider_id: p?.id || null, ...(await Sl.catalog(env, pv, force)) }
 }
 export async function connectSuanli(env: Env, u: User, b: { key?: string; agents?: string[]; base_url?: string }) {
   await seedDefaults(env)

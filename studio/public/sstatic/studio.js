@@ -229,7 +229,7 @@
     frame('#/config', `<h1>Agent 配置中心</h1><p class="sub">生产线上的每个 Agent 都在这里统一分配服务商、模型、参数、提示词版本和预算。<b>API Key 加密后入库，任何接口都只返回掩码。</b></p>
       ${d.master_key_ok ? '' : '<div class="banner bad">✗ 服务器未配置 STUDIO_MASTER_KEY，无法保存 API Key。请在环境变量中设置（≥16 位随机字符串）。</div>'}
       ${adm ? `<section class="card sl-card"><h2><i class="fas fa-bolt"></i> 一键接入 算力网 suanli.com</h2>
-        <p class="sub">一个 Key 覆盖全部生产线：<b>对话</b>（DeepSeek V4 / 豆包 Seed 2.0 —— 编剧、结构、剧本、提示词、连贯监管、评审、合规、视觉质检）· <b>图片</b>（Wan 2.7 Image Pro —— 设定图、封面）· <b>视频</b>（Seedance 2.0 —— 主线 + 分支，参考图 / 首帧接力，有声 720p ≈ ¥1/秒）。Key 加密入库，只显示掩码。</p>
+        <p class="sub">一个 Key 覆盖全部生产线：<b>对话</b>（DeepSeek V4 Pro 0813 / Flash 0731 / 豆包 Seed 2.0 —— 编剧、结构、剧本、提示词、连贯监管、评审、合规、视觉质检）· <b>图片</b>（万相 2.7 Image Pro ¥0.5/张 —— 设定图、封面）· <b>视频</b>（Seedance 2.0 —— 主线参考图 + 分支首帧接力，有声 720p ≈ ¥1/秒、1080p ≈ ¥2.5/秒，按 token 计费）。Key 加密入库，只显示掩码。下方「模型目录」按类别列出全部模型、文档参数和价格；每个 Agent 的模型下拉只显示适配它的模型。</p>
         ${d.providers.some((p) => p.kind === 'suanli') ? `<div class="banner ok">已接入：${esc(d.providers.find((p) => p.kind === 'suanli').key_hint)}（再次提交可更换 Key 或重新套用推荐配置）</div>` : ''}
         <form id="slf" class="sl-form"><input class="inp" name="key" type="password" autocomplete="off" placeholder="算力网 API Key（sk-…），在 suanli.com → API Keys 创建">
         <label class="chk"><input type="checkbox" name="all" checked> 同时把 11 个 Agent 切到算力网推荐模型</label><button class="btn pri" type="submit"><i class="fas fa-plug-circle-check"></i> 保存并测试</button></form><div id="slr"></div></section>` : ''}
@@ -243,6 +243,7 @@
           <input class="inp" name="model" value="${esc(a.model || '')}" placeholder="模型 ID" ${adm ? '' : 'disabled'}>
           <input class="inp" name="budget" type="number" min="0" value="${a.budget}" title="预算（0=不限）" ${adm ? '' : 'disabled'}>
           <div style="display:flex;gap:6px">${adm ? `<button class="btn sm pri" data-savea>保存</button><button class="btn sm" data-more>详细</button>` : ''}</div></div>`).join('')}</section>`)
+    if (window.SuanliUI) window.SuanliUI.enhance({ cfg: d, api, toast, reload: configPage, esc, adm })
     if (!adm) return
     $('#slf').onsubmit = async (e) => { e.preventDefault(); const fd = new FormData(e.target), btn = e.target.querySelector('button'); btn.disabled = true; $('#slr').innerHTML = '<p class="mut sm"><i class="fas fa-spinner fa-spin"></i> 保存并连通测试…</p>'
       try { const r = await api('/api/providers/suanli/connect', { key: fd.get('key') || undefined, agents: fd.get('all') ? undefined : ['__none__'] }); $('#slr').innerHTML = `<div class="banner ${r.test.ok ? 'ok' : 'bad'}">${r.test.ok ? '✓' : '✗'} ${esc(r.test.note)}${r.agents.length ? `<br>已切换 Agent：${r.agents.map(esc).join('、')}` : ''}</div>`; if (r.test.ok) setTimeout(configPage, 1800) } catch (er) { $('#slr').innerHTML = `<div class="banner bad">${esc(er.message)}</div>` } btn.disabled = false }
@@ -251,7 +252,7 @@
     document.querySelectorAll('[data-test]').forEach((b) => (b.onclick = async () => { b.disabled = true; try { const r = await api(`/api/providers/${b.dataset.test}/test`, {}); toast(`${r.ok ? '✓' : '✗'} ${r.note}${r.ms ? ` · ${r.ms}ms` : ''}`) } catch (er) { toast(er.message) } b.disabled = false }))
     document.querySelectorAll('[data-agent]').forEach((row) => {
       const code = row.dataset.agent, pick = (n) => row.querySelector(`[name=${n}]`).value
-      row.querySelector('[data-savea]').onclick = async () => { try { await api('/api/agents/' + code, { provider_id: pick('provider_id') || undefined, model: pick('model'), budget: +pick('budget') || 0 }); toast('已保存 ' + code) } catch (er) { toast(er.message) } }
+      row.querySelector('[data-savea]').onclick = async () => { try { const r = await api('/api/agents/' + code, { provider_id: pick('provider_id') || undefined, model: pick('model'), budget: +pick('budget') || 0 }); toast('已保存 ' + code + (r.fixes?.length ? '（已按文档修正参数：' + r.fixes.join('；') + '）' : '')) } catch (er) { toast(er.message) } }
       row.querySelector('[data-more]').onclick = () => agentModal(d.agents.find((a) => a.code === code))
     })
   }

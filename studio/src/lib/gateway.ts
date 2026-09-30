@@ -3,6 +3,7 @@
 import { HttpError, type Env } from './auth'
 import { resolveProvider, seedDefaults } from './agents'
 import { uid } from './sec'
+import * as Sl from './suanli'
 
 const now = () => Date.now()
 const J = (s: any, d: any = null) => { try { return s ? JSON.parse(s) : d } catch { return d } }
@@ -50,6 +51,10 @@ function mockText(code: string, prompt: string): any {
   return { mock: true, agent: code, echo: prompt.slice(0, 200) }
 }
 
+/** 算力网 /v1/chat/completions 只发文档里列出的采样参数，空值不发（避免 400） */
+const CHAT_KEYS = ['top_p', 'top_k', 'max_completion_tokens', 'max_tokens', 'presence_penalty', 'frequency_penalty', 'seed', 'stop', 'n', 'user']
+function chatParams(p: any) { const o: any = {}; for (const k of CHAT_KEYS) if (p[k] !== undefined && p[k] !== '' && p[k] !== null) o[k] = p[k]; return o }
+
 export async function chat(env: Env, code: string, o: { system?: string; prompt: string; json?: boolean; project_id?: string; step?: number; user?: string; timeoutMs?: number }) {
   const a = await agentOf(env, code)
   const pv = await resolveProvider(env, a.provider_id)
@@ -63,15 +68,16 @@ export async function chat(env: Env, code: string, o: { system?: string; prompt:
       if (!pv.base || !pv.key) throw new HttpError(409, 'PROVIDER_UNCONFIGURED', '服务商缺少 Base URL 或 Key')
       const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), o.timeoutMs || 90000)
       const { temperature, reasoning_effort, ...rest } = a.params || {}
-      const body: any = { model: a.model, messages: [...(system ? [{ role: 'system', content: system }] : []), { role: 'user', content: o.prompt }], ...rest }
-      if (/gpt-5|o\d/.test(a.model)) { if (reasoning_effort) body.reasoning_effort = reasoning_effort } else if (temperature !== undefined) body.temperature = temperature
+      const body: any = { model: a.model, messages: [...(system ? [{ role: 'system', content: system }] : []), { role: 'user', content: o.prompt }], ...(pv.kind === 'suanli' ? chatParams(rest) : rest) }
+      if (pv.kind === 'suanli') { if (temperature !== undefined && temperature !== '') body.temperature = +temperature; if (reasoning_effort) body.reasoning_effort = reasoning_effort }
+      else if (/gpt-5|o\d/.test(a.model)) { if (reasoning_effort) body.reasoning_effort = reasoning_effort } else if (temperature !== undefined) body.temperature = temperature
       if (o.json) body.response_format = { type: 'json_object' }
       const r = await fetch(chatUrl(pv), { method: 'POST', signal: ctl.signal, headers: { Authorization: 'Bearer ' + pv.key, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).finally(() => clearTimeout(tm))
       const j: any = await r.json().catch(() => ({}))
       if (!r.ok) throw new Error(`HTTP ${r.status}: ${errText(j)}`)
       text = j.choices?.[0]?.message?.content || ''; tin = j.usage?.prompt_tokens || 0; tout = j.usage?.completion_tokens || 0
     } else throw new HttpError(409, 'PROVIDER_CAPABILITY', `服务商 ${pv.kind} 不支持对话`)
-    const cost = a.unit_price ? +(((tin + tout) / 1000) * a.unit_price).toFixed(4) : 0
+    const cost = a.unit_price ? +(((tin + tout) / 1000) * a.unit_price).toFixed(4) : pv.kind === 'suanli' ? Sl.costOf(Sl.find(a.model), { tin, tout }) : 0
     let data: any = null, bad = ''
     if (o.json) { try { data = parseJson(text) } catch (pe: any) { bad = `模型输出不是合法 JSON：${String(pe?.message || pe).slice(0, 80)}` } }
     recorded = true
@@ -95,13 +101,14 @@ export async function chatVision(env: Env, code: string, o: { system: string; te
     if (pv.kind === 'mock_text') text = JSON.stringify({ face: 8, deformed: false, burned_text: false, note: '模拟质检' })
     else if (pv.kind === 'openai_compat' || pv.kind === 'suanli') {
       const body: any = { model: a.params?.vision_model || a.model, messages: [{ role: 'system', content: o.system }, { role: 'user', content: [{ type: 'text', text: o.text }, ...o.images.map((u) => ({ type: 'image_url', image_url: { url: u } }))] }], response_format: { type: 'json_object' } }
+      if (pv.kind === 'suanli') { Object.assign(body, chatParams(a.params || {})); if (a.params?.temperature !== undefined && a.params.temperature !== '') body.temperature = +a.params.temperature }
       if (/gpt-5|o\d/.test(body.model)) body.reasoning_effort = a.params?.reasoning_effort || 'minimal'
       const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 90000)
       const r = await fetch(chatUrl(pv), { method: 'POST', signal: ctl.signal, headers: { Authorization: 'Bearer ' + pv.key, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).finally(() => clearTimeout(tm))
       const j: any = await r.json().catch(() => ({})); if (!r.ok) throw new Error(`HTTP ${r.status}: ${j.error?.message || ''}`)
       text = j.choices?.[0]?.message?.content || ''; tin = j.usage?.prompt_tokens || 0; tout = j.usage?.completion_tokens || 0
     } else throw new HttpError(409, 'PROVIDER_CAPABILITY', '该服务商不支持图像理解')
-    const cost = a.unit_price ? +(((tin + tout) / 1000) * a.unit_price).toFixed(4) : 0
+    const cost = a.unit_price ? +(((tin + tout) / 1000) * a.unit_price).toFixed(4) : pv.kind === 'suanli' ? Sl.costOf(Sl.find(a.params?.vision_model || a.model), { tin, tout }) : 0
     await record(env, { id, project_id: o.project_id, step: o.step, agent: code, provider_id: pv.id, model: a.model, status: 'ok', latency_ms: now() - t0, tokens_in: tin, tokens_out: tout, cost, input: o.text, output: text, created_by: o.user })
     return { run_id: id, data: parseJson(text) }
   } catch (e: any) {

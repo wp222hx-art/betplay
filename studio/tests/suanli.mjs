@@ -31,6 +31,17 @@ try {
   ok('配置只返回 Key 掩码', !JSON.stringify(cfg).includes(KEY) && cfg.providers.find((p) => p.kind === 'suanli')?.has_key)
   const ag = Object.fromEntries(cfg.agents.map((a) => [a.code, a]))
   ok('视频 Agent → doubao-seedance-2-0-cmcc1，图片 → wan2.7-image-pro', ag.VIDEO_MAIN.model === 'doubao-seedance-2-0-cmcc1' && ag.ASSET.model === 'wan2.7-image-pro')
+  // 模型目录：按类别 + 文档参数表 + Key 实际可用标注 + 每个 Agent 可选列表
+  const cat = (await A('GET', '/api/suanli/catalog')).json
+  ok('模型目录：四类齐全且 ≥22 个', ['chat', 'vision', 'image', 'video'].every((c) => cat.models.some((m) => m.cat === c)) && cat.models.length >= 22, String(cat?.models?.length))
+  ok('目录标注 Key 可用（mock 开通 7 个）', cat.key.ok && cat.models.filter((m) => m.available).length === 7 && cat.models.find((m) => m.id === 'kimi-k3').available === false)
+  ok('主线视频下拉只含支持参考图的 Seedance', cat.agents.VIDEO_MAIN.options.length >= 6 && cat.agents.VIDEO_MAIN.options.every((id) => /seedance/.test(id)))
+  ok('一致性下拉只含能看图的模型', cat.agents.CONSISTENCY.options.every((id) => cat.models.find((m) => m.id === id).cat === 'vision'))
+  r = await A('POST', '/api/agents/VIDEO_MAIN', { model: 'wan2.7-t2v' }); ok('主线视频选纯文生模型 → 400 拒绝', r.status === 400 && /reference_image/.test(r.json?.error?.message || r.text), r.json?.error?.message)
+  r = await A('POST', '/api/agents/CONSISTENCY', { model: 'deepseek-v4-flash-0731' }); ok('一致性选不能看图的模型 → 400', r.status === 400)
+  r = await A('POST', '/api/agents/VIDEO_BRANCH', { model: 'doubao-seedance-2-5-volc1', params: { resolution: '1080p', duration: 40, audio: true } })
+  ok('参数按文档夹紧（2.5：1080p→720p，40 秒→30）', r.status === 200 && r.json.fixes.length === 2, JSON.stringify(r.json?.fixes))
+  await A('POST', '/api/agents/VIDEO_BRANCH', { model: 'doubao-seedance-2-0-cmcc1', params: { ratio: '9:16', resolution: '720p', duration: 8, audio: true, watermark: false, seed: 42 } })
   // 模拟文本走 mock_text（生成剧本不依赖外部）；视频/图片走算力网
   for (const code of ['SCREENWRITER', 'STRUCTURE', 'SCRIPT', 'PROMPT', 'CONTINUITY', 'REVIEWER', 'CONSISTENCY']) await A('POST', `/api/agents/${code}`, { provider_id: 'mock_text', model: 'mock' })
   r = await A('POST', '/api/projects', { title: '算力网接入测试' }); const pid = r.json.id
@@ -63,11 +74,14 @@ try {
   const vs = log().filter((l) => l.p === '/v1/video/generations')
   ok('视频请求：统一协议 model + prompt + metadata', vs.length >= 2 && vs.every((l) => l.auth && l.body.model === 'doubao-seedance-2-0-cmcc1' && l.body.metadata.generate_audio === true && l.body.metadata.resolution === '720p' && l.body.ratio === '9:16'))
   ok('主线：设定图作为 reference_image，并在提示词中标注「图片1为…」', vs.every((l) => (l.body.metadata.content || []).every((c) => c.role === 'reference_image')) && vs.some((l) => /图片1为/.test(l.body.prompt)))
+  const mainJobs = (await A('GET', `/api/projects/${pid}/media/7`)).json
+  ok('按上游 usage 计费（108900 token × ¥46/M ≈ ¥5.01/段）', mainJobs.summary.cost > 0 && Math.abs(mainJobs.summary.cost / mainJobs.summary.total - 5.009) < 0.01, String(mainJobs.summary.cost))
   ok('成片下载带 Authorization（/v1/videos/{id}/content）', log().some((l) => /\/content$/.test(l.p) && l.auth))
   await step(7)
   r = await A('POST', `/api/projects/${pid}/media/8/run`, {})
   for (let i = 0; i < 60; i++) { m = (await A('GET', `/api/projects/${pid}/media/8`)).json; if (m.summary.total && m.summary.ok + m.summary.failed + m.summary.qc_fail === m.summary.total) break; await new Promise((z) => setTimeout(z, 1500)) }
   const fr = log().filter((l) => l.p === '/v1/video/generations').slice(vs.length)
+  ok('分支参数来自 Agent 配置（seed=42 透传到 metadata.seed）', fr.length && fr.every((l) => l.body.metadata.seed === 42))
   ok('分支：上一段尾帧作为 first_frame（首帧接力）', fr.length >= 1 && fr.some((l) => (l.body.metadata.content || []).some((c) => c.role === 'first_frame')), JSON.stringify(fr.map((l) => (l.body.metadata.content || []).map((c) => c.role))))
   ok('分支完成', m.summary.complete, JSON.stringify(m.slots.map((x) => [x.slot, x.status, x.note])))
   const leaked = log().length && JSON.stringify((await A('GET', '/api/audit')).json).includes(KEY)

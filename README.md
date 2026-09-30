@@ -207,13 +207,18 @@ npx wrangler d1 migrations apply webapp-production                              
   - 推荐预设（11 个 Agent）：编剧/结构/评审 `deepseek-v4-pro`；剧本/提示词/连贯性 `deepseek-v4-flash-0731`；合规 `doubao-seed-2-0-lite`；一致性（视觉）`doubao-seed-2-0-pro`；设定图 `wan2.7-image-pro`（约 ¥0.2/张）；主线/分支视频 `doubao-seedance-2-0-cmcc1`（9:16 · 720p · 8 秒 · 有声，约 ¥1/秒，可在 Agent 参数里改 `unit_price_sec`）
   - 视频按统一协议提交：`POST /v1/video/generations`。主线用设定图作 `metadata.content[].role=reference_image`，提示词里自动标注「图片N为某角色」；分支用上一段的尾帧作 `first_frame` 做首帧接力。轮询 `GET /v1/videos/{id}`，成片带 Bearer 从 `/v1/videos/{id}/content` 下载，入 R2 后由执行节点做后处理和质检
   - 图片：`POST /v1/images/generations`，竖版封面 1536x2048，横版 2048x1152
+  - **模型目录**（`studio/src/lib/suanli.ts`，依据 suanli.com/api-docs + 模型广场 `/api/v1/portal/models`）：22 个模型分四类——视频 8（Seedance 2.0 ×4 通道、2.5 ×2：统一协议，支持 first_frame / reference_image / reference_video / reference_audio；万相 2.7 t2v、HappyHorse 1.1：通用协议，仅文生）· 图片 2（万相 2.7 Image ¥0.2 / Pro ¥0.5）· 对话 9 · 对话+看图 3。每个模型带文档参数表（枚举 / 范围 / 默认 / 说明）和价格；可在线同步新模型和调价；接入 Key 后会标出该账号实际开通的模型
+  - **Agent 适配规则**：主线视频必须支持 reference_image，分支视频必须支持 first_frame（纯文生模型会被拒绝）；一致性质检必须能看图；结构化 Agent 必须支持 json_mode；设定图只能选图片模型。选错返回 400 并说明原因
+  - **参数按文档校验**：非法枚举回到默认值，越界数值夹紧（例如 2.5 传 1080p 会改成 720p，时长上限 30 秒），并把修正内容返回给前端；对话请求只发送文档列出的采样参数
+  - **计价**：Seedance 按 token 计费（720p = 21,600 token/秒 → 2.0 约 ¥0.99/秒、1080p 约 ¥2.48/秒；2.5 约 ¥1.51/秒），入账时优先使用上游返回的 `usage.total_tokens`；图片按张，对话按输入/输出 token 单价。前置模拟的预算按当前所选模型实时计算。成片入库前先原子认领任务，并发轮询不会重复计费
+  - 前端（`models.js`）：配置页有分类模型目录（可展开看协议、能力、适用 Agent、参数表）；Agent 模型下拉按类别分组，只显示适配该 Agent 的模型并附价格；「参数」弹窗按文档参数表生成表单，并实时显示每段预估价格。API：`GET /api/suanli/catalog[?refresh=1]`
 - **🔮 前置模拟 · 生成流程**（项目页 → 第 3 步完成后出现入口 `#/p/:id/insight`）
   - **结构模拟**（免费）：结构图编译 + 2000 次蒙特卡洛通关 → 结局分布、付费结局触达率、均衡熵、单局时长和预警
   - **剧本评审 Agent（REVIEWER）**：合理性 0–10 分；**吸引力指数** 0–100，由七个维度加权（钩子 .2 / 悬念 .15 / 利害 .2 / 反转 .1 / 情绪 .1 / 人物 .1 / 回报 .15），分 S/A/B/C/D 五档，附雷达图、问题、改进建议和钩子台词；历史存 `st_reviews`（migration 0016）
   - **预算**：视频 + 图片 + LLM + 25% 重试缓冲
   - **生成流程视图**：所有待生成提示词可按三种方式归类查看——按类型（主线/分支/汇合/结局/时间裂隙 × 参考图/首帧接力）、按生成批次（拓扑波次，尾帧接力排在后面）、按剧情流程。每张卡片可展开看完整提示词、模式、复用情况和成本，并直达第 7/8 步开拍
   - API：`GET /api/projects/:id/insight`、`POST .../insight/review`、`GET .../insight/history`
-- 验收：`npm run test:studio` → 结构 37 + 账本 33 + **编译器 27** + 接口 91 + **算力网 20**，全部通过
+- 验收：`npm run test:studio` → 结构 37 + 账本 33 + **编译器 27** + **算力网目录 24** + 接口 91 + **算力网集成 29**，全部通过
 
 ## 📱 玩家端手机适配
 - 顶栏精简 + **底部 Tab 栏**（发现 / 漫剧 / 真人剧 / 抽象剧 / 我的，适配刘海 / 底部安全区）；播放页沉浸不显示底栏

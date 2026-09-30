@@ -192,6 +192,7 @@ app.post('/api/projects/:id/media/:n/upload', requireRole('writer'), async (c) =
 app.get('/api/media-settings', requireRole('writer'), async (c) => c.json(await Media.settings(c.env)))
 app.post('/api/media-settings', requireRole('admin'), async (c) => c.json(await Media.saveSettings(c.env, c.get('user'), await body(c))))
 // 执行节点管理（admin）
+app.get('/api/suanli/catalog', requireRole('writer'), async (c) => c.json(await Agents.suanliCatalog(c.env, c.req.query('refresh') === '1')))
 app.post('/api/providers/suanli/connect', requireRole('admin'), async (c) => { const r = await Agents.connectSuanli(c.env, c.get('user'), await body(c)); return c.json({ ...r, test: await Gw.testProvider(c.env, r.provider.id) }) })
 app.get('/api/nodes', requireRole('admin'), async (c) => c.json(await Media.listNodes(c.env)))
 app.post('/api/nodes', requireRole('admin'), async (c) => { const b = await body(c); return c.json(await Media.createNode(c.env, c.get('user'), b.name, Array.isArray(b.kinds) ? b.kinds : [])) })

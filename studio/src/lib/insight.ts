@@ -5,6 +5,7 @@
 // 生成清单：把所有要拍的片段按「主线 / 分支 / 汇合 / 结局 / 裂隙」×「参考图 / 尾帧接力」归类，拓扑分批（同一批可并行），逐项估算成本
 import { HttpError, type Env, type User, audit } from './auth'
 import * as C from './compile'
+import * as Sl from './suanli'
 import * as G from './graph'
 import * as Gw from './gateway'
 import * as L from './ledger'
@@ -114,14 +115,17 @@ export async function preview(env: Env, pid: string) {
   const brief = await Steps.doneOutput(env, pid, 1), bible = await Steps.doneOutput(env, pid, 2), graph = G.normalize(await Steps.doneOutput(env, pid, 3))
   const docs = async (kind: string) => new Map<string, any>(((await env.DB.prepare(`SELECT node_id,data FROM st_node_docs WHERE project_id=? AND kind=?`).bind(pid, kind).all()).results as any[]).map((x) => [x.node_id, J(x.data)]))
   const scripts = await docs('script'), prompts = await docs('prompt')
-  const a: any = await env.DB.prepare(`SELECT params FROM st_agents WHERE code='VIDEO_BRANCH'`).first()
-  const priceSec = +J(a?.params, {})?.unit_price_sec || PRICE.video_sec
+  const a: any = await env.DB.prepare(`SELECT a.model, a.params, p.kind FROM st_agents a LEFT JOIN st_providers p ON p.id=a.provider_id WHERE a.code='VIDEO_BRANCH'`).first()
+  const ap = J(a?.params, {}) || {}, vm = a?.kind === 'suanli' ? Sl.find(a.model) : undefined
+  const priceSec = +ap.unit_price_sec || (vm ? Sl.videoPerSec(vm, ap.resolution || '720p') : PRICE.video_sec)
+  const ai: any = await env.DB.prepare(`SELECT a.model, p.kind FROM st_agents a LEFT JOIN st_providers p ON p.id=a.provider_id WHERE a.code='ASSET'`).first()
+  const imgPrice = ai?.kind === 'suanli' ? (Sl.find(ai.model)?.price.per ?? PRICE.image) : PRICE.image
   const sim = simulate(graph, scripts), man = manifest(graph, prompts, scripts, { priceSec })
   const cast = (bible?.cast || []).length
-  const budget = { videos: man.totals.cost, images: +((cast + 1) * PRICE.image * 1.5).toFixed(2), llm: +(graph.nodes.length * 3 * PRICE.llm_call).toFixed(2), retry_buffer: +(man.totals.cost * 0.25).toFixed(2) }
+  const budget = { videos: man.totals.cost, images: +((cast + 1) * imgPrice * 1.5).toFixed(2), llm: +(graph.nodes.length * 3 * PRICE.llm_call).toFixed(2), retry_buffer: +(man.totals.cost * 0.25).toFixed(2) }
   const total = +(budget.videos + budget.images + budget.llm + budget.retry_buffer).toFixed(2)
   const last: any = await env.DB.prepare(`SELECT * FROM st_reviews WHERE project_id=? ORDER BY created_at DESC LIMIT 1`).bind(pid).first()
-  return { brief: { title: brief?.theme, format: brief?.format }, simulation: sim, manifest: man, lint: scripts.size ? lint(graph, scripts, bible) : [], budget: { ...budget, total, currency: 'CNY', note: '按算力网公开价估算（Seedance 2.0 720p 有声 ≈ ¥1/秒，图片 ¥0.2/张），含 25% 重拍缓冲' },
+  return { brief: { title: brief?.theme, format: brief?.format }, simulation: sim, manifest: man, lint: scripts.size ? lint(graph, scripts, bible) : [], budget: { ...budget, total, currency: 'CNY', note: `按算力网公开价估算：视频 ¥${priceSec}/秒${vm ? `（${vm.id} · ${ap.resolution || '720p'}）` : ''}，图片 ¥${imgPrice}/张，含 25% 重拍缓冲` }, price: { video_sec: priceSec, image: imgPrice, video_model: a?.model || null, image_model: ai?.model || null },
     review: last ? { ...last, dims: J(last.dims), issues: J(last.issues), suggestions: J(last.suggestions) } : null, stage: { scripts: scripts.size, prompts: prompts.size, nodes: graph.nodes.length } }
 }
 

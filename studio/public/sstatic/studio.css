@@ -202,3 +202,16 @@ img,video{max-width:100%}
 .sl-card{border-color:rgba(255,111,174,.45);background:linear-gradient(135deg,rgba(255,111,174,.08),rgba(125,211,252,.05))}
 .sl-form{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center}
 @media(max-width:760px){.sl-form{grid-template-columns:1fr}}
+/* 算力网模型目录 */
+.mc-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
+.mc-tab{border:1px solid var(--line);background:var(--card2);color:var(--txt,#e5e7eb);border-radius:999px;padding:6px 12px;font-size:13px;cursor:pointer}
+.mc-tab b{margin-left:4px;opacity:.7}.mc-tab.on{border-color:#ff6fae;background:rgba(255,111,174,.14)}
+.mc-row{border:1px solid var(--line);border-radius:10px;background:var(--card2);margin-bottom:6px}
+.mc-row summary{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:9px 12px;cursor:pointer;list-style:none}
+.mc-row summary::-webkit-details-marker{display:none}
+.mc-row code{font-size:13px}.mc-v{color:var(--mut);font-size:12px}.mc-p{margin-left:auto;font-size:12px;color:#f5c451}
+.mc-body{padding:4px 12px 12px}
+.mc-params{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
+.mc-params th,.mc-params td{border-top:1px solid var(--line);padding:6px;text-align:left;vertical-align:top}
+.mc-hint{color:#7dd3fc!important}
+@media(max-width:760px){.mc-p{margin-left:0;flex-basis:100%}.mc-params td:nth-child(4),.mc-params th:nth-child(4){display:none}}
