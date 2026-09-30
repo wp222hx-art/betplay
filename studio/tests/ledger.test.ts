@@ -75,5 +75,7 @@ ok('二次汇合保留「无」的可能', m2.x.firm === false && m2.x.vals!.inc
 ok('各路同一确定值 → 确定', L.merge([{ x: { v: 'A', firm: true } }, { x: { v: 'A', firm: true } }]).x.firm === true)
 const ini = L.initialState({ cast: [{ id: 'hero', look: 'black suit' }, { id: 'boss' }] })
 ok('初始账本含角色基线服装', ini['costume.hero']?.firm && !ini['costume.boss'])
+{ const e0 = L.apply(ini, [{ key: 'prop.hero', value: 'gun' }]); const a2 = L.continuityAppendix(e0, [{ key: 'injury.hero', value: 'unconscious, oxygen mask' }, { key: 'prop.hero', value: 'broken bracelet' }, { key: 'loc', value: 'rooftop' }], [{ id: 'hero', look: 'black suit' }], ['hero'])
+  ok('附录不提前写入本段结尾的伤痕/道具（用入场状态）', !a2.includes('oxygen mask') && !a2.includes('broken bracelet') && a2.includes('holding gun') && a2.includes('rooftop'), a2) }
 ok('附录：服装与外貌相同不重复', !L.continuityAppendix(ini, [], [{ id: 'hero', look: 'black suit' }], ['hero']).includes('now wearing'))
 console.log(`\n${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0)

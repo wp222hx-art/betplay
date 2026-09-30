@@ -135,8 +135,7 @@ async function submit(env: Env, pid: string, s: SlotPlan, slot: any, rows: Map<s
   await env.DB.prepare(`INSERT INTO st_jobs (id,project_id,step,slot,phase,route,agent,provider_id,provider_kind,model,status,req,attempt,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
     .bind(id, pid, s.step, s.slot, 'gen', route, s.agent, pv.id, pv.kind, a.model, 'queued', JSON.stringify({ ...req, params: a.params }), attempt, now(), now()).run()
   await env.DB.prepare(`UPDATE st_slots SET status='queued', job_id=?, attempts=?, qc=NULL, accepted_by=NULL, updated_at=? WHERE project_id=? AND step=? AND slot=?`).bind(id, attempt, now(), pid, s.step, s.slot).run()
-  if (route === 'direct') await directSubmit(env, id)
-  return id
+  return { id, direct: route === 'direct' }
 }
 
 // ───────── Worker 直连服务商 ─────────
@@ -291,6 +290,9 @@ export async function tick(env: Env, pid: string, o: { step?: 6 | 7 | 8; start?:
   const set = await settings(env)
   // 1) 直连任务：查询进度（每 tick 最多 12 个，避免超时）
   await env.DB.prepare(`UPDATE st_jobs SET status='running' WHERE project_id=? AND route='direct' AND status='ingesting' AND updated_at<?`).bind(pid, now() - 5 * 60000).run() // 入库中断 5 分钟 → 重新轮询
+  // 直连提交中断（Worker 被回收 / 重启）：queued 超过 6 分钟仍无任务号 → 判失败，自动重试接手
+  const lost = (await env.DB.prepare(`SELECT id,step,slot FROM st_jobs WHERE project_id=? AND route='direct' AND phase='gen' AND status='queued' AND updated_at<?`).bind(pid, now() - 6 * 60000).all()).results as any[]
+  for (const j of lost) { await env.DB.prepare(`UPDATE st_jobs SET status='failed', error=?, updated_at=? WHERE id=? AND status='queued'`).bind('提交超时（未拿到结果）', now(), j.id).run(); await env.DB.prepare(`UPDATE st_slots SET status='failed', note=?, updated_at=? WHERE project_id=? AND step=? AND slot=? AND job_id=?`).bind('提交超时，已自动重试', now(), pid, j.step, j.slot, j.id).run() }
   const polling = (await env.DB.prepare(`SELECT * FROM st_jobs WHERE project_id=? AND route='direct' AND status IN ('submitted','running') ORDER BY updated_at LIMIT 12`).bind(pid).all()).results as any[]
   await Promise.all(polling.map((j) => directPoll(env, j)))
   // 2) 回收僵死的节点任务
@@ -300,7 +302,7 @@ export async function tick(env: Env, pid: string, o: { step?: 6 | 7 | 8; start?:
   const plans = await sync(env, pid)
   const rows = new Map<string, any>(((await env.DB.prepare('SELECT * FROM st_slots WHERE project_id=?').bind(pid).all()).results as any[]).map((r) => [`${r.step}:${r.slot}`, r]))
   const active = ((await env.DB.prepare(`SELECT COUNT(*) n FROM st_jobs WHERE project_id=? AND phase='gen' AND status IN ('queued','claimed','submitted','running','ingesting')`).bind(pid).first()) as any).n
-  let room = Math.max(0, set.max_concurrent - active); const started: string[] = [], blocked: string[] = []
+  let room = Math.max(0, set.max_concurrent - active); const started: string[] = [], blocked: string[] = [], direct: string[] = []
   for (const s of plans) {
     if (o.step && s.step !== o.step) continue
     if (o.only && !o.only.includes(s.slot)) continue
@@ -311,8 +313,10 @@ export async function tick(env: Env, pid: string, o: { step?: 6 | 7 | 8; start?:
     const missing = s.deps.filter((d) => rows.get(d)?.status !== 'ok' || !rows.get(d)?.media_key || (d.startsWith('7:') || d.startsWith('8:') ? !rows.get(d)?.last_key : false))
     if (missing.length) { if (r.status !== 'blocked') await env.DB.prepare(`UPDATE st_slots SET status='blocked', note=?, updated_at=? WHERE project_id=? AND step=? AND slot=?`).bind(`等待：${missing.join('、')}`, now(), pid, s.step, s.slot).run(); blocked.push(s.slot); continue }
     if (room <= 0) continue // 并发已满：继续扫描，给剩余槽位标上等待依赖
-    await submit(env, pid, s, r, rows, o.by || 'system'); room--; started.push(s.slot)
+    const j = await submit(env, pid, s, r, rows, o.by || 'system'); room--; started.push(s.slot); if (j.direct) direct.push(j.id)
   }
+  // 直连提交并行：同步出图模型（nano-banana-pro 等）单张常 1–2 分钟，串行会让一次开拍卡十几分钟
+  await Promise.all(direct.map((id) => directSubmit(env, id)))
   return { started, blocked }
 }
 

@@ -80,7 +80,8 @@ export async function chat(env: Env, code: string, o: { system?: string; prompt:
       text = j.choices?.[0]?.message?.content || ''; tin = j.usage?.prompt_tokens || 0; tout = j.usage?.completion_tokens || 0
     } else if (pv.kind === 'tokenhot' || pv.kind === 'deepseek' || pv.kind === 'ark') {
       if (!pv.key) throw new HttpError(409, 'PROVIDER_UNCONFIGURED', '服务商缺少 Key')
-      const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), o.timeoutMs || 120000)
+      // 思考模式长输出常超 2 分钟；Worker 等待 fetch 不占 CPU 时间，平台通道统一给足 5 分钟
+      const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), Math.max(o.timeoutMs || 0, 300000))
       const body = Ad.chatBody(pv, a.model, [...(system ? [{ role: 'system', content: system }] : []), { role: 'user', content: o.prompt }], a.params, !!o.json)
       const r = await fetch(Ad.chatEndpoint(pv), { method: 'POST', signal: ctl.signal, headers: { Authorization: 'Bearer ' + pv.key, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).finally(() => clearTimeout(tm))
       const j: any = await r.json().catch(() => ({}))

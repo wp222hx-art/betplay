@@ -147,7 +147,9 @@ export function videoModes(g: Graph, mainline: string[]) {
 
 /** 由账本确定性地拼出视频提示词的「连贯性附录」——服装/伤痕/道具/地点不交给模型自由发挥 */
 export function continuityAppendix(entry: State, sets: Fact[], cast: { id: string; name?: string; look?: string }[], castIds: string[]) {
-  const st = apply(entry, sets.filter((f) => /^(costume|prop|injury|loc|time)\b/.test(f.key)))
+  // 附录描述的是「片段开场」：地点/时间/服装取本节点设定；伤痕/道具多为本段剧情的结果（结尾状态），
+  // 若写进附录会让角色第一帧就是结尾模样（如刚受伤却已戴氧气面罩）→ 取入场状态，由正文描述变化过程
+  const st = apply(entry, sets.filter((f) => /^(costume|loc|time)\b/.test(f.key)))
   const firm = (k: string) => (st[k]?.firm ? st[k].v : '')
   const people = castIds.map((id) => {
     const c = cast.find((x) => x.id === id); if (!c) return ''

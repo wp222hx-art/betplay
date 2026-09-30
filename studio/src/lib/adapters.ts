@@ -32,10 +32,12 @@ export const chatEndpoint = (pv: PV) => pv.kind === 'deepseek' ? R(pv) + '/chat/
 
 // ═════════ 图片 ═════════
 export type ImgOut = { url?: string; b64?: string; size?: string; n: number }
+/** 同步出图的单次上限：nano-banana-pro 2K 常 1–3 分钟；超时即失败，由自动重试接手 */
+export const IMG_TIMEOUT = 240000
 export async function image(pv: PV, m: Model | undefined, model: string, prompt: string, portrait: boolean, P: any): Promise<ImgOut> {
   const proto = m?.proto || (pv.kind === 'ark' ? 'ark_image' : 'th_images')
   if (proto === 'th_gemini_image') {
-    const r = await fetch(R(pv) + `/v1beta/models/${encodeURIComponent(model)}:generateContent`, { method: 'POST', headers: H(pv), body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { responseModalities: ['TEXT', 'IMAGE'], imageConfig: { aspectRatio: portrait ? (P.ratio_portrait || '3:4') : (P.ratio_landscape || '16:9'), imageSize: P.image_size || '2K' } } }) })
+    const r = await fetch(R(pv) + `/v1beta/models/${encodeURIComponent(model)}:generateContent`, { method: 'POST', headers: H(pv), signal: AbortSignal.timeout(IMG_TIMEOUT), body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { responseModalities: ['TEXT', 'IMAGE'], imageConfig: { aspectRatio: portrait ? (P.ratio_portrait || '3:4') : (P.ratio_landscape || '16:9'), imageSize: P.image_size || '2K' } } }) })
     const d: any = await r.json().catch(() => ({})); if (!r.ok) throw new Error(`HTTP ${r.status}: ${errMsg(d, r.status)}`)
     const parts = d.candidates?.[0]?.content?.parts || []
     const inline = parts.find((x: any) => x.inlineData?.data || x.inline_data?.data), txt = parts.map((x: any) => x.text || '').join(' ')
@@ -46,7 +48,7 @@ export async function image(pv: PV, m: Model | undefined, model: string, prompt:
   }
   if (proto === 'th_qwen_image') {
     const size = portrait ? (P.size_portrait || '1104*1472') : (P.size_landscape || '1664*928')
-    const r = await fetch(R(pv) + '/v1/images/generations', { method: 'POST', headers: H(pv), body: JSON.stringify({ model, input: { messages: [{ role: 'user', content: [{ text: prompt }] }] }, parameters: { size, n: 1, watermark: false, prompt_extend: P.prompt_extend !== false, negative_prompt: '低分辨率，低画质，肢体畸形，文字，水印' } }) })
+    const r = await fetch(R(pv) + '/v1/images/generations', { method: 'POST', headers: H(pv), signal: AbortSignal.timeout(IMG_TIMEOUT), body: JSON.stringify({ model, input: { messages: [{ role: 'user', content: [{ text: prompt }] }] }, parameters: { size, n: 1, watermark: false, prompt_extend: P.prompt_extend !== false, negative_prompt: '低分辨率，低画质，肢体畸形，文字，水印' } }) })
     const d: any = await r.json().catch(() => ({})); if (!r.ok) throw new Error(`HTTP ${r.status}: ${errMsg(d, r.status)}`)
     const url = d.output?.[0]?.content?.find((c: any) => c.type === 'image')?.text || d.output?.choices?.[0]?.message?.content?.[0]?.image || d.data?.[0]?.url
     if (!url) throw new Error('未返回图片'); return { url, size, n: 1 }
@@ -56,7 +58,7 @@ export async function image(pv: PV, m: Model | undefined, model: string, prompt:
   const body: any = { model, prompt, size, n: 1, response_format: 'url' }
   if (proto === 'ark_image' || /seedream/.test(model)) { body.watermark = false; body.sequential_image_generation = 'disabled' }
   if (/gpt-image/.test(model) && P.quality) body.quality = P.quality
-  const r = await fetch((pv.kind === 'ark' ? R(pv) + '/images/generations' : R(pv) + '/v1/images/generations'), { method: 'POST', headers: H(pv), body: JSON.stringify(body) })
+  const r = await fetch((pv.kind === 'ark' ? R(pv) + '/images/generations' : R(pv) + '/v1/images/generations'), { method: 'POST', headers: H(pv), signal: AbortSignal.timeout(IMG_TIMEOUT), body: JSON.stringify(body) })
   const d: any = await r.json().catch(() => ({})); if (!r.ok) throw new Error(`HTTP ${r.status}: ${errMsg(d, r.status)}`)
   const x = d.data?.[0]; if (!x?.url && !x?.b64_json) throw new Error('未返回图片：' + JSON.stringify(d).slice(0, 160))
   return { url: x.url, b64: x.b64_json, size: x.size || size, n: d.usage?.generated_images || 1 }
