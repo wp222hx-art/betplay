@@ -152,7 +152,7 @@ npx wrangler d1 migrations apply webapp-production                              
 - worker 新增本地烧录字幕检测（远程 AI 质检 `media-analyze` 当前上传失败，结果不可用），超过 20% 帧命中即判不通过。
 - 回归：`python3 tests/ui_series_play.py <BASE> gen_87c53a9f`（发现页卡片 → 开局 → 2 次竞猜 → 结局）。
 
-## 🏭 MoMo Studio · 短剧生产后台（前后端分离 · 新架构 P1 ✅ P2 ✅ P3 ✅）
+## 🏭 MoMo Studio · 短剧生产后台（前后端分离 · 新架构 P1 ✅ P2 ✅ P3 ✅ P4 ✅ · 手机适配 ✅）
 玩家端（端口 3000，`/`）只负责游戏与筹码博弈；**生产端是独立应用 `studio/`**（端口 3001），独立登录，共享 D1 / R2。
 
 - **独立登录与角色**：PBKDF2(10 万次) 密码、HttpOnly + SameSite=Strict 会话 Cookie（库里只存 token 的 SHA-256）、15 分钟 8 次失败锁定、写操作校验 Origin；角色 `admin / writer / reviewer`，**编剧不能审批自己的产出**（仅审核或管理员可放行）；停用账号立即踢下线；全量审计 `st_audit`
@@ -177,8 +177,27 @@ npx wrangler d1 migrations apply webapp-production                              
   - 闸门：剧本 / 提示词未全部通过不能提交（422），审批时再次校验；已通过的步骤只读，要改须「退回修改」（下游失效）
   - 实测（真实模型）：14 节点剧本 60 秒全部通过；提示词 + 监管 22 秒全部通过（参考图 10 / 尾帧 4）
   - API：`/api/projects/:id/scripts[/:node]`、`/scripts-run`、`/prompts[/:node]`、`/prompts-run`
-- 验收：`npm run test:studio` → 结构引擎 **37/37** + 剧情账本 **33/33** + 接口验收 **64/64**（模拟对话服务商离线跑通 1→6 步全流程）
-- 路线：P4 主线/分支视频（中转站 + 方舟，首尾帧链路 + 一致性检测 + 即梦 CLI 执行节点）→ P5 版本快照发布到玩家端
+- **P4 素材生产 ✅（第 6–9 步：设定图 · 主线视频 · 分支视频 · 一致性检测）**
+  - **交付槽** `st_slots`：每个交付物一行（`cast.<角色>` 三视图 16:9 + `cover` 3:4；每个结构节点 1 段视频，主线 → 第 7 步，其余 → 第 8 步），状态 pending / blocked / queued / running / post / checking / ok / qc_fail / failed / stale
+  - **依赖传播**：视频槽的指纹包含所用设定图 / 上一段视频的 media_key → **重画某张设定图，用到它的视频自动变 stale**；尾帧接力的分支必须等上一段 ok 才开拍（blocked）
+  - **两种执行路线**：① **直连**（Worker 调服务商）：火山方舟 Seedance 视频 / 图片、OpenAI 兼容中转站视频 / 图片——参考图以 **HMAC 签名的 1 小时临时链接** `/pub/<key>?exp&sig` 发给服务商（无公网域名时退化为 base64）；② **执行节点**（`scripts/studio/studio_node.py`，令牌鉴权）：gsk、即梦 dreamina CLI、后处理（统一 576p 转码、首/尾帧/海报提取）、接缝评分
+  - **没有定时任务**：调度是「惰性 tick」——前端轮询 / 节点领任务时推进，受并发上限（默认 4）控制；Cloudflare 托管部署也能跑
+  - **第 9 步一致性检测**：接缝分（上一段尾帧 vs 本段首帧，NCC 0.6 + 直方图 0.4，纯色帧用像素差兜底，≥0.55）、烧录字幕检测（≤0.2）、音轨存在、**视觉 Agent** 看首帧判人脸一致性（≥6 分）/ 畸形 / 画面文字；不合格 → `qc_fail`，原因写进下一次提示词自动重拍（≤3 次）；审核可人工「通过 / 打回（附意见，拼进重拍提示词）」或手动上传替换
+  - **审核失败自愈**：内容审核拒绝 → 自动追加柔化描述重试；版权 / 肖像拒绝 → 提示重画设定图
+  - 媒体：`/m/*` 需登录并支持 Range（视频可拖动）；执行节点 API `/node/claim`、`/node/jobs/:id/report`、`PUT /node/jobs/:id/files/:name`、`/node/media/*`
+  - 前端「素材工作台」：卡片网格 + 详情（视频 / 首尾帧 / 质检指标）+ 筛选 + 一键生产 / 重拍 / 上传 / 通过 / 打回；「执行节点」页创建节点（令牌只显示一次）+ 生产参数（阈值 / 并发 / 自动重拍 / 公网域名）
+  - API：`/api/projects/:id/media/:n[/run|/judge|/upload]`、`/api/media-settings`、`/api/nodes[/:nid]`
+  - **真拍小样** `sp_8a7631217fd4`《雨夜牌局》（gsk · nano-banana-pro 设定图 + Seedance 2.0 mini 视频）：设定图 3 张（MIRI 首张误成男性 → 打回附意见后重画正确）；主线 3 段 8 秒全部一次通过（人脸 8–9 分、0 字幕、有音轨）；分支 e2 走尾帧接力。实测成本 ≈ **3,080 积分 / 8 秒段**（设定图 ≈ 90/张）
+- **执行节点部署**：`pm2 start ecosystem.config.cjs --only studio-node`；在 Studio「执行节点」页新建节点拿令牌，写入 `.node.env`（`STUDIO=…  NODE_TOKEN=msn_…  KINDS=post,gsk,jimeng_cli  CONC=3`）。用即梦需先在节点机器上 `dreamina login --headless`
+- **手机适配**：底部固定 Tab 栏（含安全区）、十步流水线横滑并自动定位当前步、结构图双指缩放 + 大触控端口、输入框 16px 防 iOS 放大、弹窗改底部抽屉；390 / 360 / 768 宽度全部页面无横向溢出
+- 验收：`npm run test:studio` → 结构引擎 **37/37** + 剧情账本 **33/33** + 接口验收 **91/91**（模拟服务商 + 真实执行节点离线跑通 1→9 步：卡关、令牌、生成、质检打回重拍、Range、人工判定、闸门、stale 传播）
+- 路线：P5 第 10 步预检 → 版本快照发布到玩家端（替代旧导演台 / 上架中心）
+
+## 📱 玩家端手机适配
+- 顶栏精简 + **底部 Tab 栏**（发现 / 漫剧 / 真人剧 / 抽象剧 / 我的，适配刘海 / 底部安全区）；播放页沉浸不显示底栏
+- 「工作台」菜单在手机上变全宽下拉，收入「结局卡交易所」入口；点外部 / 选中 / 滚动自动收起
+- 输入控件 16px（防 iOS 聚焦放大）、点击区 ≥32px、`touch-action: manipulation` 去 300ms 延迟与点击高亮、无悬停设备不残留 hover 态
+- 体检脚本：`python3 scripts/mobile_audit.py`（14 页 × 390/360/768：横向溢出 / 溢出元素 / 小按钮 / JS 报错 + 截图）、`python3 scripts/mobile_flow.py`（交互流：详情抽屉 → 真人剧开局 → 押注确认 → 漫剧阅读 → 抉择押注 → 交易所 → 导演台，逐步校验关键按钮在屏内且未被遮挡）——当前 **全部通过**
 
 ## 🐰 品牌 · MoMocash剧场
 - **Logo**：粉色兔耳团子「MoMo」，眯眼 + ω 嘴 + 腮红，抱着爱心金币（cash = 押注筹码）；纯矢量手绘，任意尺寸清晰。
