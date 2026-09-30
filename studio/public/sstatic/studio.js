@@ -17,11 +17,11 @@
   }
   const can = (role) => S.me && ({ reviewer: 1, writer: 2, admin: 3 })[S.me.role] >= ({ reviewer: 1, writer: 2, admin: 3 })[role]
 
-  function frame(active, inner) {
+  function frame(active, inner, wide) {
     const tabs = [['#/projects', 'fa-diagram-project', '项目'], ['#/config', 'fa-robot', 'Agent 配置'], ...(can('admin') ? [['#/users', 'fa-users', '账号'], ['#/audit', 'fa-clock-rotate-left', '审计']] : [])]
     app.innerHTML = `<header class="top"><a class="logo" href="#/projects"><img src="/sstatic/momo.svg" alt=""><b>MoMo</b><span>Studio</span></a>
       <nav class="tabs">${tabs.map(([h, ic, n]) => `<a href="${h}" class="${active === h ? 'on' : ''}"><i class="fas ${ic}"></i><b>${n}</b></a>`).join('')}</nav>
-      <div class="me">${esc(S.me.name)}<span class="role">${ROLE[S.me.role]}</span><button class="btn sm" id="lo"><i class="fas fa-right-from-bracket"></i></button></div></header><main>${inner}</main>`
+      <div class="me">${esc(S.me.name)}<span class="role">${ROLE[S.me.role]}</span><button class="btn sm" id="lo"><i class="fas fa-right-from-bracket"></i></button></div></header><main class="${wide ? 'wide' : ''}">${inner}</main>`
     $('#lo').onclick = async () => { await api('/api/auth/logout', {}); S.me = null; route() }
   }
 
@@ -62,11 +62,41 @@
     const [stn, stc] = ST[s.status] || [s.status, '#888']
     frame('#/projects', `<a href="#/projects" class="mut sm"><i class="fas fa-arrow-left"></i> 全部项目</a><h1 style="margin-top:6px">${esc(d.project.title)}</h1>
       <nav class="pipe">${steps.map((x) => `<a href="#/p/${id}/${x.no}" class="st-${x.status} ${x.no === cur ? 'on' : ''}"><i class="n">第 ${x.no} 步</i><b>${esc(x.name)}</b><span class="pill" style="--c:${ST[x.status][1]}">${ST[x.status][0]}</span></a>`).join('')}</nav>
-      <section class="stepbox"><div class="card"><h2>第 ${s.no} 步 · ${esc(s.name)} <span class="pill" style="--c:${stc}">${stn}</span></h2><p class="sub">${esc(s.desc)}</p>
+      ${s.no === 3 && !blocker ? graphShell(s) : `<section class="stepbox"><div class="card"><h2>第 ${s.no} 步 · ${esc(s.name)} <span class="pill" style="--c:${stc}">${stn}</span></h2><p class="sub">${esc(s.desc)}</p>
         ${blocker ? `<div class="locked"><i class="fas fa-lock"></i>请先完成第 ${blocker.no} 步「${esc(blocker.name)}」<br><a class="btn" style="margin-top:12px" href="#/p/${id}/${blocker.no}">去第 ${blocker.no} 步</a></div>` : stepBody(s)}
       </div><aside><div class="card"><h3>步骤信息</h3><div class="kv"><b>负责 Agent</b><span>${esc(s.agent)}</span><b>版本</b><span>v${s.version}</span><b>审批</b><span>${s.approved_at ? fmtT(s.approved_at) : '—'}</span><b>备注</b><span>${esc(s.note || '—')}</span></div></div>
-        <div class="card"><h3>最近调用</h3>${d.runs.length ? d.runs.slice(0, 8).map((r) => `<div class="sm" style="margin-bottom:6px"><span class="pill" style="--c:${r.status === 'ok' || r.status === 'submitted' ? '#3ddc97' : '#ff5d73'}">${esc(r.status)}</span> 第${r.step || '-'}步 ${esc(r.agent)} · ${esc(r.model || '')} · ${r.latency_ms}ms${r.error ? `<div class="bad-t">${esc(r.error.slice(0, 90))}</div>` : ''}</div>`).join('') : '<p class="mut sm">暂无</p>'}</div></aside></section>`)
+        <div class="card"><h3>最近调用</h3>${d.runs.length ? d.runs.slice(0, 8).map((r) => `<div class="sm" style="margin-bottom:6px"><span class="pill" style="--c:${r.status === 'ok' || r.status === 'submitted' ? '#3ddc97' : '#ff5d73'}">${esc(r.status)}</span> 第${r.step || '-'}步 ${esc(r.agent)} · ${esc(r.model || '')} · ${r.latency_ms}ms${r.error ? `<div class="bad-t">${esc(r.error.slice(0, 90))}</div>` : ''}</div>`).join('') : '<p class="mut sm">暂无</p>'}</div></aside></section>`}`, s.no === 3 && !blocker)
+    if (s.no === 3 && !blocker) return bindGraph(id, s)
     bindStep(id, s)
+  }
+
+  // ─── 第 3 步：结构图画布 ───
+  function graphShell(s) {
+    const [stn, stc] = ST[s.status] || [s.status, '#888'], canW = can('writer') && s.status !== 'done', canR = S.me && (S.me.role === 'reviewer' || S.me.role === 'admin')
+    return `<section class="card gcard"><div class="gh"><h2>第 3 步 · 结构图 <span class="pill" style="--c:${stc}">${stn}</span></h2><span class="mut sm">v${s.version} · ${esc(s.desc)}</span><span class="ge-grow"></span>
+      ${canW ? `<button class="btn sm" data-gsave><i class="fas fa-floppy-disk"></i> 保存</button><button class="btn sm warn" data-gsubmit><i class="fas fa-paper-plane"></i> 提交审核</button>` : ''}
+      ${canR && ['review', 'ready', 'stale'].includes(s.status) && s.output ? `<button class="btn sm ok" data-approve><i class="fas fa-check"></i> 审核通过 · 解锁下一步</button>` : ''}
+      ${can('writer') && s.status === 'done' ? `<button class="btn sm bad" data-reopen><i class="fas fa-rotate-left"></i> 退回修改</button>` : ''}</div>
+      ${s.status === 'done' ? '<div class="banner ok" style="margin-bottom:10px">已审核通过（只读）。如需修改请「退回修改」，下游步骤将全部失效。</div>' : ''}
+      <div id="graph-editor"></div></section>`
+  }
+  function bindGraph(id, s) {
+    const ed = window.GraphEditor.mount($('#graph-editor'), {
+      graph: s.output || { start: '', nodes: [], edges: [] }, readonly: s.status === 'done' || !can('writer'), canAI: can('writer'), toast,
+      api: (kind, b) => api(`/api/projects/${id}/graph/${kind}`, b)
+    })
+    let leaving = false
+    const save = async (submit) => {
+      if (ed.pending) throw new Error('还有 AI 提案未处理：请先「采纳」或「丢弃」')
+      try { await api(`/api/projects/${id}/steps/3`, { output: ed.graph, submit }) } catch (e) { if (e.data?.issues) ed.setIssues(e.data.issues); throw e }
+      ed.saved()
+    }
+    const q = (sel) => $(sel)
+    q('[data-gsave]') && (q('[data-gsave]').onclick = async () => { try { await save(false); toast('已保存') } catch (e) { toast(e.message) } })
+    q('[data-gsubmit]') && (q('[data-gsubmit]').onclick = async () => { try { await save(true); toast('已提交审核'); leaving = true; projectPage(id, 3) } catch (e) { toast(e.message) } })
+    q('[data-approve]') && (q('[data-approve]').onclick = async () => { try { const r = await api(`/api/projects/${id}/steps/3/approve`, { note: prompt('审核意见（可空）', '') || '' }); toast(`已通过，第 ${r.next} 步已解锁`); leaving = true; location.hash = `#/p/${id}/${r.next}` } catch (e) { if (e.data?.issues) ed.setIssues(e.data.issues); toast(e.message) } })
+    q('[data-reopen]') && (q('[data-reopen]').onclick = async () => { if (!confirm('退回后，所有下游步骤都会失效，需要重新审核。确定？')) return; try { const r = await api(`/api/projects/${id}/steps/3/reopen`, { note: prompt('退回原因', '') || '' }); toast(`已退回，${r.staled} 个下游步骤失效`); leaving = true; projectPage(id, 3) } catch (e) { toast(e.message) } })
+    window.onbeforeunload = () => (!leaving && $('.ge-stat')?.textContent.includes('未保存') ? '有未保存的修改' : undefined)
   }
 
   function stepBody(s) {

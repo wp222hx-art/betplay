@@ -67,7 +67,12 @@ try {
   r = await wri('POST', `/api/projects/${pid}/steps/3`, { output: {} }); ok('第 2 步未完成，第 3 步仍 409', r.status === 409 && r.json?.blocking_step === 2)
   await wri('POST', `/api/projects/${pid}/steps/2`, { output: { logline: 'x', cast: [] }, submit: true })
   await rev('POST', `/api/projects/${pid}/steps/2/approve`)
-  await wri('POST', `/api/projects/${pid}/steps/3`, { output: { nodes: [1] }, submit: true })
+  const G3 = { start: 's', nodes: [{ id: 's', type: 'scene', title: '开局', beat: 'x' }, { id: 'c', type: 'choice', title: '下注', beat: 'x', question: 'q' }, { id: 'e1', type: 'ending', title: '赢', tier: 'gold' }, { id: 'e2', type: 'ending', title: '输', tier: 'bad' }], edges: [{ from: 's', to: 'c' }, { from: 'c', to: 'e1', label: '全押' }, { from: 'c', to: 'e2', label: '弃牌' }] }
+  r = await wri('POST', `/api/projects/${pid}/steps/3`, { output: { nodes: [{ id: 'a', type: 'scene', title: 'x' }] }, submit: true }); ok('非法结构图不能提交审核 422', r.status === 422 && r.json?.error === 'GRAPH_INVALID' && r.json?.issues?.length > 0)
+  r = await rev('POST', `/api/projects/${pid}/steps/3/approve`); ok('非法结构图不能审批通过 422', r.status === 422)
+  r = await wri('POST', `/api/projects/${pid}/steps/3`, { output: G3, submit: true }); ok('合法结构图提交审核', r.status === 200 && r.json?.status === 'review')
+  r = await wri('POST', `/api/projects/${pid}/graph/analyze`, { graph: G3 }); ok('结构分析接口：2 条路径', r.json?.stats?.paths === 2 && r.json?.ok === true)
+  r = await anon('POST', `/api/projects/${pid}/graph/analyze`, { graph: G3 }); ok('未登录不能调用结构接口 401', r.status === 401)
   await rev('POST', `/api/projects/${pid}/steps/3/approve`)
   r = await rev('GET', `/api/projects/${pid}`); let st = r.json.steps.map((s) => s.status)
   ok('1–3 done，4 ready，5+ locked', st.slice(0, 3).every((s) => s === 'done') && st[3] === 'ready' && st.slice(4).every((s) => s === 'locked'), st.join(','))

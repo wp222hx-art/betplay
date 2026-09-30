@@ -34,6 +34,7 @@ export async function chat(env: Env, code: string, o: { system?: string; prompt:
   const pv = await resolveProvider(env, a.provider_id)
   const id = uid('run_'), t0 = now()
   const system = [a.prompt, o.system].filter(Boolean).join('\n\n')
+  let recorded = false
   try {
     let text = '', tin = 0, tout = 0
     if (pv.kind === 'mock_text') text = JSON.stringify({ mock: true, agent: code, echo: o.prompt.slice(0, 200) })
@@ -50,9 +51,14 @@ export async function chat(env: Env, code: string, o: { system?: string; prompt:
       text = j.choices?.[0]?.message?.content || ''; tin = j.usage?.prompt_tokens || 0; tout = j.usage?.completion_tokens || 0
     } else throw new HttpError(409, 'PROVIDER_CAPABILITY', `服务商 ${pv.kind} 不支持对话`)
     const cost = a.unit_price ? +(((tin + tout) / 1000) * a.unit_price).toFixed(4) : 0
-    await record(env, { id, project_id: o.project_id, step: o.step, agent: code, provider_id: pv.id, model: a.model, status: 'ok', latency_ms: now() - t0, tokens_in: tin, tokens_out: tout, cost, input: o.prompt, output: text, created_by: o.user })
-    return { run_id: id, text, data: o.json ? parseJson(text) : null, latency_ms: now() - t0, model: a.model, provider: pv.kind }
+    let data: any = null, bad = ''
+    if (o.json) { try { data = parseJson(text) } catch (pe: any) { bad = `模型输出不是合法 JSON：${String(pe?.message || pe).slice(0, 80)}` } }
+    recorded = true
+    await record(env, { id, project_id: o.project_id, step: o.step, agent: code, provider_id: pv.id, model: a.model, status: bad ? 'bad_json' : 'ok', latency_ms: now() - t0, tokens_in: tin, tokens_out: tout, cost, error: bad || null, input: o.prompt, output: text, created_by: o.user })
+    if (bad) throw new HttpError(502, 'BAD_JSON', `${a.name}：${bad}，请重试`)
+    return { run_id: id, text, data, latency_ms: now() - t0, model: a.model, provider: pv.kind }
   } catch (e: any) {
+    if (recorded) throw e
     const msg = String(e?.message || e)
     await record(env, { id, project_id: o.project_id, step: o.step, agent: code, provider_id: pv.id, model: a.model, status: 'error', latency_ms: now() - t0, error: msg.slice(0, 500), input: o.prompt, created_by: o.user })
     if (e instanceof HttpError) throw e

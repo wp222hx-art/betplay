@@ -7,6 +7,8 @@ import * as Gw from './lib/gateway'
 import * as Steps from './lib/steps'
 import { uid } from './lib/sec'
 import { shell } from './page'
+import * as G from './lib/graph'
+import * as Structure from './lib/structure'
 
 type V = { Bindings: Env; Variables: { user: User } }
 const app = new Hono<V>()
@@ -72,10 +74,23 @@ app.get('/api/projects/:id', requireRole('reviewer'), async (c) => {
 })
 app.post('/api/projects/:id/archive', requireRole('admin'), async (c) => { await c.env.DB.prepare(`UPDATE st_projects SET status='archived', updated_at=? WHERE id=?`).bind(now(), c.req.param('id')).run(); await audit(c.env, c.get('user').id, 'project_archive', c.req.param('id')); return c.json({ ok: true }) })
 // 步骤：保存（writer+）/ 通过（仅 reviewer 或 admin，编剧不能自审）/ 退回（writer+）
-app.post('/api/projects/:id/steps/:n', requireRole('writer'), async (c) => { const b = await body(c); return c.json(await Steps.saveStep(c.env, c.get('user'), c.req.param('id'), +c.req.param('n'), { input: b.input, output: b.output, note: b.note, status: b.submit ? 'review' : undefined })) })
-app.post('/api/projects/:id/steps/:n/approve', requireApprover, async (c) => { const b = await body(c); return c.json(await Steps.approveStep(c.env, c.get('user'), c.req.param('id'), +c.req.param('n'), b.note || '')) })
+app.post('/api/projects/:id/steps/:n', requireRole('writer'), async (c) => {
+  const b = await body(c), n = +c.req.param('n')
+  let output = b.output
+  if (n === 3 && output !== undefined) { // 结构图：服务端清洗；提交审核时必须零错误
+    output = G.normalize(output)
+    const a = G.analyze(output)
+    if (b.submit && !a.ok) throw new HttpError(422, 'GRAPH_INVALID', `结构图还有 ${a.issues.filter((i) => i.level === 'error').length} 个错误，修复后才能提交审核`, { issues: a.issues })
+    output.meta = { ...(output.meta || {}), stats: a.stats, checked_at: now() }
+  }
+  return c.json(await Steps.saveStep(c.env, c.get('user'), c.req.param('id'), n, { input: b.input, output, note: b.note, status: b.submit ? 'review' : undefined }))
+})
+app.post('/api/projects/:id/steps/:n/approve', requireApprover, async (c) => {
+  const b = await body(c), n = +c.req.param('n')
+  if (n === 3) { const r: any = await c.env.DB.prepare('SELECT output FROM st_steps WHERE project_id=? AND step=3').bind(c.req.param('id')).first(); const a = G.analyze(G.normalize(JSON.parse(r?.output || '{}'))); if (!a.ok) throw new HttpError(422, 'GRAPH_INVALID', '结构图存在错误，不能通过', { issues: a.issues }) }
+  return c.json(await Steps.approveStep(c.env, c.get('user'), c.req.param('id'), +c.req.param('n'), b.note || '')) })
 app.post('/api/projects/:id/steps/:n/reopen', requireRole('writer'), async (c) => { const b = await body(c); return c.json(await Steps.reopenStep(c.env, c.get('user'), c.req.param('id'), +c.req.param('n'), b.note || '')) })
-// 步骤 Agent 执行（P1：第 1 步立项表单 → 第 2 步编剧 Agent 生成世界观；其余步骤在 P2–P5 逐步接入）
+// 步骤 Agent 执行（第 2 步编剧 Agent；第 3 步用 /graph/* 专用接口；其余步骤在 P3–P5 接入）
 app.post('/api/projects/:id/steps/:n/run', requireRole('writer'), async (c) => {
   const id = c.req.param('id'), n = +c.req.param('n'), u = c.get('user')
   const row: any = await Steps.assertOpen(c.env, id, n)
@@ -87,6 +102,21 @@ app.post('/api/projects/:id/steps/:n/run', requireRole('writer'), async (c) => {
     return c.json({ run_id: r.run_id, output: out, latency_ms: r.latency_ms })
   }
   throw new HttpError(501, 'NOT_YET', `第 ${n} 步「${Steps.STEPS[n - 1].name}」的 Agent 将在后续阶段接入（当前可手动填写产出并提交审核）`, { status: row.status })
+})
+
+// ─── 第 3 步 · 结构图（AI 只出提案，人工采纳后才写入）───
+const graphCtx = async (c: any) => {
+  const id = c.req.param('id'); await Steps.assertOpen(c.env, id, 3)
+  return { id, brief: await Steps.doneOutput(c.env, id, 1), bible: await Steps.doneOutput(c.env, id, 2) }
+}
+const priceOf = async (c: any) => { const a: any = await c.env.DB.prepare(`SELECT unit_price FROM st_agents WHERE code='VIDEO_MAIN'`).first(); return +a?.unit_price || 0 }
+app.post('/api/projects/:id/graph/analyze', requireRole('reviewer'), async (c) => { const b = await body(c); const g = G.normalize(b.graph); return c.json({ graph: g, ...G.analyze(g, { pricePerSec: await priceOf(c) }) }) })
+app.post('/api/projects/:id/graph/layout', requireRole('writer'), async (c) => { const b = await body(c); return c.json({ graph: G.layout(G.normalize(b.graph)) }) })
+app.post('/api/projects/:id/graph/draft', requireRole('writer'), async (c) => { const x = await graphCtx(c); const r = await Structure.draft(c.env, c.get('user'), x.id, x.bible, x.brief); await audit(c.env, c.get('user').id, 'graph_draft', x.id, { nodes: r.proposal.nodes.length, ok: r.analysis.ok }, ipOf(c)); return c.json(r) })
+app.post('/api/projects/:id/graph/extend', requireRole('writer'), async (c) => {
+  const x = await graphCtx(c), b = await body(c)
+  const r = await Structure.extend(c.env, c.get('user'), x.id, b.graph, String(b.node || ''), { mode: b.mode, hint: b.hint, count: b.count }, x.bible, x.brief)
+  await audit(c.env, c.get('user').id, 'graph_extend', x.id, { node: b.node, mode: b.mode, added: r.added.length }, ipOf(c)); return c.json(r)
 })
 
 // ─── 审计 ───

@@ -9,5 +9,6 @@ export const shell = () => `<!DOCTYPE html>
 <link href="/sstatic/studio.css" rel="stylesheet">
 </head><body>
 <div id="app"></div>
+<script src="/sstatic/graph.js"></script>
 <script src="/sstatic/studio.js"></script>
 </body></html>`
