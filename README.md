@@ -152,6 +152,18 @@ npx wrangler d1 migrations apply webapp-production                              
 - worker 新增本地烧录字幕检测（远程 AI 质检 `media-analyze` 当前上传失败，结果不可用），超过 20% 帧命中即判不通过。
 - 回归：`python3 tests/ui_series_play.py <BASE> gen_87c53a9f`（发现页卡片 → 开局 → 2 次竞猜 → 结局）。
 
+## 🏭 MoMo Studio · 短剧生产后台（前后端分离 · 新架构 P1 ✅）
+玩家端（端口 3000，`/`）只负责游戏与筹码博弈；**生产端是独立应用 `studio/`**（端口 3001），独立登录，共享 D1 / R2。
+
+- **独立登录与角色**：PBKDF2(10 万次) 密码、HttpOnly + SameSite=Strict 会话 Cookie（库里只存 token 的 SHA-256）、15 分钟 8 次失败锁定、写操作校验 Origin；角色 `admin / writer / reviewer`，**编剧不能审批自己的产出**（仅审核或管理员可放行）；停用账号立即踢下线；全量审计 `st_audit`
+- **十步卡关状态机**：立项 → 世界观·角色 → 结构图 → 剧本描述 → 提示词·连贯监管 → 设定图 → 主线视频 → 分支视频 → 一致性检测 → 预检·上架。**前一步未通过，后一步的保存/运行/审批一律 409 `STEP_LOCKED`**；修改已通过的步骤，下游全部变 `stale` 需重做
+- **Agent 配置中心**：10 个生产 Agent 统一配置服务商 / 模型 / 参数 / 提示词版本 / 预算；服务商类型：OpenAI 兼容对话、火山方舟 Seedance、OpenAI 兼容视频中转站、即梦 CLI / gsk（执行节点）、模拟；**API Key 用 AES-GCM（`STUDIO_MASTER_KEY`）加密入库，任何接口只返回掩码**，也可引用环境变量
+- **模型接入层**：`chat` / `submitVideo` / `pollVideo` / `testProvider`，每次调用记账 `st_runs`，超预算 402
+- 入口：`/#/projects`、`/#/p/:id/:step`、`/#/config`、`/#/users`、`/#/audit`；API：`/api/auth/*`、`/api/config`、`/api/providers*`、`/api/agents/:code*`、`/api/projects/:id/steps/:n[/approve|/reopen|/run]`
+- 启动：`npm run build:studio && pm2 start ecosystem.config.cjs --only momo-studio`；`STUDIO_MASTER_KEY` 写在**根目录** `.dev.vars`（wrangler 从根读取；生产用 `wrangler pages secret put`）
+- 验收：`npm run test:studio` → **38/38**（在隔离的临时 D1 上跑：跳步 409、通过解锁、改上游→下游 stale、Key 不外泄且库内为密文、401/403、跨站 403、登录锁定、登出/停用失效）
+- 路线：P2 结构图画布（锚点/汇合/回溯，AI 扩展）→ P3 剧本描述 → 提示词 → 剧情账本连贯监管 → P4 主线/分支视频（中转站 + 方舟，首尾帧链路 + 一致性检测 + 即梦 CLI 执行节点）→ P5 版本快照发布到玩家端
+
 ## 🐰 品牌 · MoMocash剧场
 - **Logo**：粉色兔耳团子「MoMo」，眯眼 + ω 嘴 + 腮红，抱着爱心金币（cash = 押注筹码）；纯矢量手绘，任意尺寸清晰。
 - **文件**（`public/static/brand/`）：`momo.svg`（图形标）· `momo-logo.svg/png`（横版组合标）· `favicon-32.png` · `apple-touch-icon.png` · `icon-192/512.png`（PWA）· `og.png`（1200×630 分享卡）；`/static/manifest.webmanifest`。

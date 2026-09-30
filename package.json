@@ -10,9 +10,15 @@
     "db:seed": "wrangler d1 execute webapp-production --local --file=./seed.sql",
     "db:reset": "rm -rf .wrangler/state/v3/d1 && npm run db:migrate:local && npm run db:seed",
     "clean-port": "fuser -k 3000/tcp 2>/dev/null || true",
-    "test": "node tests/e2e.mjs"
+    "test": "node tests/e2e.mjs",
+    "build:studio": "vite build -c studio/vite.config.ts",
+    "build:all": "vite build && vite build -c studio/vite.config.ts",
+    "dev:studio": "cd studio && wrangler pages dev dist --d1=webapp-production --local --persist-to ../.wrangler/state --ip 0.0.0.0 --port 3001",
+    "test:studio": "node studio/tests/p1.mjs"
   },
-  "dependencies": { "hono": "^4.6.0" },
+  "dependencies": {
+    "hono": "^4.6.0"
+  },
   "devDependencies": {
     "@hono/vite-build": "^1.2.0",
     "@hono/vite-dev-server": "^0.18.0",

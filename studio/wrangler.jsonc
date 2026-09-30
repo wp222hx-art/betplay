@@ -1,0 +1,10 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "momo-studio",
+  "compatibility_date": "2025-01-01",
+  "pages_build_output_dir": "./dist",
+  "compatibility_flags": ["nodejs_compat"],
+  // 与玩家端共享同一个 D1 与 R2（生产环境填同一个 database_id）
+  "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "webapp-media" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "webapp-production", "database_id": "local-dev-placeholder" }]
+}
