@@ -78,6 +78,7 @@ export async function deleteProvider(env: Env, u: User, id: string) {
 }
 
 export async function updateAgent(env: Env, u: User, code: string, b: any) {
+  await seedDefaults(env)
   const a: any = await env.DB.prepare('SELECT * FROM st_agents WHERE code=?').bind(code).first()
   if (!a) throw new HttpError(404, 'NO_AGENT', 'Agent 不存在')
   if (b.provider_id) {

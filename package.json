@@ -14,7 +14,7 @@
     "build:studio": "vite build -c studio/vite.config.ts",
     "build:all": "vite build && vite build -c studio/vite.config.ts",
     "dev:studio": "cd studio && wrangler pages dev dist --d1=webapp-production --local --persist-to ../.wrangler/state --ip 0.0.0.0 --port 3001",
-    "test:studio": "npx tsx studio/tests/graph.test.ts && node studio/tests/p1.mjs"
+    "test:studio": "npx tsx studio/tests/graph.test.ts && npx tsx studio/tests/ledger.test.ts && node studio/tests/p1.mjs"
   },
   "dependencies": {
     "hono": "^4.6.0"

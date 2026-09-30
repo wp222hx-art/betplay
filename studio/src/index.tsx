@@ -9,6 +9,7 @@ import { uid } from './lib/sec'
 import { shell } from './page'
 import * as G from './lib/graph'
 import * as Structure from './lib/structure'
+import * as Docs from './lib/docs'
 
 type V = { Bindings: Env; Variables: { user: User } }
 const app = new Hono<V>()
@@ -83,10 +84,15 @@ app.post('/api/projects/:id/steps/:n', requireRole('writer'), async (c) => {
     if (b.submit && !a.ok) throw new HttpError(422, 'GRAPH_INVALID', `结构图还有 ${a.issues.filter((i) => i.level === 'error').length} 个错误，修复后才能提交审核`, { issues: a.issues })
     output.meta = { ...(output.meta || {}), stats: a.stats, checked_at: now() }
   }
+  if (n === 4 || n === 5) { // 节点级文档：产出 = 服务端闸门摘要，只能通过 submit 生成
+    if (!b.submit) throw new HttpError(400, 'USE_NODE_API', '第 4/5 步请逐节点编辑，完成后「提交审核」')
+    output = await Docs.gate(c.env, c.req.param('id'), n)
+  }
   return c.json(await Steps.saveStep(c.env, c.get('user'), c.req.param('id'), n, { input: b.input, output, note: b.note, status: b.submit ? 'review' : undefined }))
 })
 app.post('/api/projects/:id/steps/:n/approve', requireApprover, async (c) => {
   const b = await body(c), n = +c.req.param('n')
+  if (n === 4 || n === 5) await Docs.gate(c.env, c.req.param('id'), n) // 审批时重新验证：提交后文档又被改动也拦得住
   if (n === 3) { const r: any = await c.env.DB.prepare('SELECT output FROM st_steps WHERE project_id=? AND step=3').bind(c.req.param('id')).first(); const a = G.analyze(G.normalize(JSON.parse(r?.output || '{}'))); if (!a.ok) throw new HttpError(422, 'GRAPH_INVALID', '结构图存在错误，不能通过', { issues: a.issues }) }
   return c.json(await Steps.approveStep(c.env, c.get('user'), c.req.param('id'), +c.req.param('n'), b.note || '')) })
 app.post('/api/projects/:id/steps/:n/reopen', requireRole('writer'), async (c) => { const b = await body(c); return c.json(await Steps.reopenStep(c.env, c.get('user'), c.req.param('id'), +c.req.param('n'), b.note || '')) })
@@ -117,6 +123,27 @@ app.post('/api/projects/:id/graph/extend', requireRole('writer'), async (c) => {
   const x = await graphCtx(c), b = await body(c)
   const r = await Structure.extend(c.env, c.get('user'), x.id, b.graph, String(b.node || ''), { mode: b.mode, hint: b.hint, count: b.count }, x.bible, x.brief)
   await audit(c.env, c.get('user').id, 'graph_extend', x.id, { node: b.node, mode: b.mode, added: r.added.length }, ipOf(c)); return c.json(r)
+})
+
+// ─── 第 4 步 · 剧本描述（节点级；剧情账本推演）───
+app.get('/api/projects/:id/scripts', requireRole('reviewer'), async (c) => c.json(await Docs.scriptStatus(c.env, c.req.param('id'))))
+app.get('/api/projects/:id/scripts/:node', requireRole('reviewer'), async (c) => c.json(await Docs.scriptDetail(c.env, c.req.param('id'), c.req.param('node'))))
+app.post('/api/projects/:id/scripts/:node', requireRole('writer'), async (c) => { const b = await body(c); return c.json(await Docs.saveScript(c.env, c.get('user'), c.req.param('id'), c.req.param('node'), b.doc)) })
+app.post('/api/projects/:id/scripts-run', requireRole('writer'), async (c) => {
+  const b = await body(c), id = c.req.param('id')
+  let only: string[] | undefined = Array.isArray(b.only) ? b.only.map(String).slice(0, 50) : undefined
+  if (b.errors) only = (await Docs.scriptStatus(c.env, id)).nodes.filter((n: any) => n.state === 'error').map((n: any) => n.id).slice(0, 50)
+  return c.json(await Docs.generateScripts(c.env, c.get('user'), id, { only, force: !!b.force }))
+})
+// ─── 第 5 步 · 提示词 + 连贯监管 ───
+app.get('/api/projects/:id/prompts', requireRole('reviewer'), async (c) => c.json(await Docs.promptStatus(c.env, c.req.param('id'))))
+app.get('/api/projects/:id/prompts/:node', requireRole('reviewer'), async (c) => c.json(await Docs.promptDetail(c.env, c.req.param('id'), c.req.param('node'))))
+app.post('/api/projects/:id/prompts/:node', requireRole('writer'), async (c) => { const b = await body(c); return c.json(await Docs.savePrompt(c.env, c.get('user'), c.req.param('id'), c.req.param('node'), b.doc)) })
+app.post('/api/projects/:id/prompts-run', requireRole('writer'), async (c) => {
+  const b = await body(c), id = c.req.param('id')
+  let only: string[] | undefined = Array.isArray(b.only) ? b.only.map(String).slice(0, 50) : undefined
+  if (b.errors) only = (await Docs.promptStatus(c.env, id)).nodes.filter((n: any) => n.state === 'conflict' || n.state === 'error').map((n: any) => n.id).slice(0, 50)
+  return c.json(await Docs.generatePrompts(c.env, c.get('user'), id, { only, force: !!b.force }))
 })
 
 // ─── 审计 ───

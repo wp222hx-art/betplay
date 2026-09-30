@@ -62,11 +62,12 @@
     const [stn, stc] = ST[s.status] || [s.status, '#888']
     frame('#/projects', `<a href="#/projects" class="mut sm"><i class="fas fa-arrow-left"></i> 全部项目</a><h1 style="margin-top:6px">${esc(d.project.title)}</h1>
       <nav class="pipe">${steps.map((x) => `<a href="#/p/${id}/${x.no}" class="st-${x.status} ${x.no === cur ? 'on' : ''}"><i class="n">第 ${x.no} 步</i><b>${esc(x.name)}</b><span class="pill" style="--c:${ST[x.status][1]}">${ST[x.status][0]}</span></a>`).join('')}</nav>
-      ${s.no === 3 && !blocker ? graphShell(s) : `<section class="stepbox"><div class="card"><h2>第 ${s.no} 步 · ${esc(s.name)} <span class="pill" style="--c:${stc}">${stn}</span></h2><p class="sub">${esc(s.desc)}</p>
+      ${s.no === 3 && !blocker ? graphShell(s) : (s.no === 4 || s.no === 5) && !blocker ? docsShell(s) : `<section class="stepbox"><div class="card"><h2>第 ${s.no} 步 · ${esc(s.name)} <span class="pill" style="--c:${stc}">${stn}</span></h2><p class="sub">${esc(s.desc)}</p>
         ${blocker ? `<div class="locked"><i class="fas fa-lock"></i>请先完成第 ${blocker.no} 步「${esc(blocker.name)}」<br><a class="btn" style="margin-top:12px" href="#/p/${id}/${blocker.no}">去第 ${blocker.no} 步</a></div>` : stepBody(s)}
       </div><aside><div class="card"><h3>步骤信息</h3><div class="kv"><b>负责 Agent</b><span>${esc(s.agent)}</span><b>版本</b><span>v${s.version}</span><b>审批</b><span>${s.approved_at ? fmtT(s.approved_at) : '—'}</span><b>备注</b><span>${esc(s.note || '—')}</span></div></div>
-        <div class="card"><h3>最近调用</h3>${d.runs.length ? d.runs.slice(0, 8).map((r) => `<div class="sm" style="margin-bottom:6px"><span class="pill" style="--c:${r.status === 'ok' || r.status === 'submitted' ? '#3ddc97' : '#ff5d73'}">${esc(r.status)}</span> 第${r.step || '-'}步 ${esc(r.agent)} · ${esc(r.model || '')} · ${r.latency_ms}ms${r.error ? `<div class="bad-t">${esc(r.error.slice(0, 90))}</div>` : ''}</div>`).join('') : '<p class="mut sm">暂无</p>'}</div></aside></section>`}`, s.no === 3 && !blocker)
+        <div class="card"><h3>最近调用</h3>${d.runs.length ? d.runs.slice(0, 8).map((r) => `<div class="sm" style="margin-bottom:6px"><span class="pill" style="--c:${r.status === 'ok' || r.status === 'submitted' ? '#3ddc97' : '#ff5d73'}">${esc(r.status)}</span> 第${r.step || '-'}步 ${esc(r.agent)} · ${esc(r.model || '')} · ${r.latency_ms}ms${r.error ? `<div class="bad-t">${esc(r.error.slice(0, 90))}</div>` : ''}</div>`).join('') : '<p class="mut sm">暂无</p>'}</div></aside></section>`}`, (s.no >= 3 && s.no <= 5) && !blocker)
     if (s.no === 3 && !blocker) return bindGraph(id, s)
+    if ((s.no === 4 || s.no === 5) && !blocker) return bindDocs(id, s)
     bindStep(id, s)
   }
 
@@ -99,6 +100,27 @@
     window.onbeforeunload = () => (!leaving && $('.ge-stat')?.textContent.includes('未保存') ? '有未保存的修改' : undefined)
   }
 
+  // ─── 第 4/5 步：节点级工作台 ───
+  function docsShell(s) {
+    const [stn, stc] = ST[s.status] || [s.status, '#888'], canR = S.me && (S.me.role === 'reviewer' || S.me.role === 'admin')
+    const ro = s.status === 'done' || !can('writer')
+    return `<section class="card gcard"><div class="gh"><h2>第 ${s.no} 步 · ${esc(s.name)} <span class="pill" style="--c:${stc}">${stn}</span></h2><span class="mut sm">v${s.version} · ${esc(s.desc)}</span><span class="ge-grow"></span>
+      ${!ro ? `<button class="btn sm warn" data-dsubmit><i class="fas fa-paper-plane"></i> 提交审核</button>` : ''}
+      ${canR && ['review', 'ready', 'stale'].includes(s.status) && s.output ? `<button class="btn sm ok" data-approve><i class="fas fa-check"></i> 审核通过 · 解锁下一步</button>` : ''}
+      ${can('writer') && s.status === 'done' ? `<button class="btn sm bad" data-reopen><i class="fas fa-rotate-left"></i> 退回修改</button>` : ''}</div>
+      ${s.status === 'done' ? '<div class="banner ok" style="margin-bottom:10px">已审核通过（只读）。</div>' : s.status === 'review' ? '<div class="banner warn" style="margin-bottom:10px">已提交审核。审核前如有任何节点改动，需要重新提交。</div>' : ''}
+      ${s.no === 5 ? '<p class="mut sm" style="margin:-4px 0 10px">流程：提示词 Agent 写提示词 → 连贯监管 Agent 对照剧情账本 / 上一段结尾审查 → 有硬伤自动打回重写一次 → 仍有冲突的节点留给人工处理。服装、伤痕、道具、地点由账本确定性写入「连贯性附录」。</p>' : '<p class="mut sm" style="margin:-4px 0 10px">剧本按结构图从起点逐层生成：一个节点的所有来路都写完，它的「入场剧情账本」才确定，才能开写。汇合节点只能依赖所有来路都成立的事实。</p>'}
+      <div id="docs-wb"></div></section>`
+  }
+  function bindDocs(id, s) {
+    window.DocsWorkbench.mount($('#docs-wb'), { pid: id, step: s.no, readonly: s.status === 'done' || !can('writer'), toast, api: (u, b) => api(u, b), onChange: () => { if (s.status === 'review') projectPage(id, s.no) } })
+    const q = (sel) => $(sel)
+    const showBad = (e) => { if (e.data?.bad?.length) toast(`${e.message}｜例如「${e.data.bad[0].title}」：${e.data.bad[0].state}`); else toast(e.message) }
+    q('[data-dsubmit]') && (q('[data-dsubmit]').onclick = async () => { try { await api(`/api/projects/${id}/steps/${s.no}`, { submit: true }); toast('已提交审核'); projectPage(id, s.no) } catch (e) { showBad(e) } })
+    q('[data-approve]') && (q('[data-approve]').onclick = async () => { try { const r = await api(`/api/projects/${id}/steps/${s.no}/approve`, { note: prompt('审核意见（可空）', '') || '' }); toast(`已通过，第 ${r.next} 步已解锁`); location.hash = `#/p/${id}/${r.next}` } catch (e) { showBad(e) } })
+    q('[data-reopen]') && (q('[data-reopen]').onclick = async () => { if (!confirm('退回后，所有下游步骤都会失效。确定？')) return; try { await api(`/api/projects/${id}/steps/${s.no}/reopen`, { note: prompt('退回原因', '') || '' }); projectPage(id, s.no) } catch (e) { toast(e.message) } })
+  }
+
   function stepBody(s) {
     const out = s.output, canW = can('writer'), canR = S.me && (S.me.role === 'reviewer' || S.me.role === 'admin')
     const acts = `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
@@ -115,7 +137,7 @@
         <label class="f">预算（元，0=不限）<input class="inp" name="budget" type="number" min="0" value="${esc(v.budget ?? 0)}"></label></form>${acts}`
     }
     const runnable = s.no === 2
-    return `${runnable && can('writer') && s.status !== 'done' ? `<button class="btn pri" data-run><i class="fas fa-wand-magic-sparkles"></i> 调用 ${esc(s.agent)} 生成</button>` : `<div class="banner warn">本步的 Agent 将在后续阶段接入；现在可以手动粘贴 JSON 产出 → 提交审核，用来验证卡关流程。</div>`}
+    return `${runnable && can('writer') && s.status !== 'done' ? `<button class="btn pri" data-run><i class="fas fa-wand-magic-sparkles"></i> 调用 ${esc(s.agent)} 生成</button>` : `<div class="banner warn">本步的 Agent 将在 P4/P5 接入；现在可以手动粘贴 JSON 产出 → 提交审核，用来验证卡关流程。</div>`}
       <label class="f" style="margin-top:12px">产出（JSON）<textarea class="inp code" id="so" ${s.status === 'done' || !canW ? 'readonly' : ''}>${esc(out ? JSON.stringify(out, null, 2) : '')}</textarea></label>${acts}`
   }
 

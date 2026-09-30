@@ -1,14 +1,15 @@
 // 模型接入层：Agent → 服务商适配器（OpenAI 兼容对话 / 火山方舟 Seedance / OpenAI 风格视频中转 / 即梦 CLI 执行节点 / 模拟）
 // 统一：预算闸门 → 调用 → st_runs 记账（延迟、token、费用、错误）；Key 只在本模块内存中出现
 import { HttpError, type Env } from './auth'
-import { resolveProvider } from './agents'
+import { resolveProvider, seedDefaults } from './agents'
 import { uid } from './sec'
 
 const now = () => Date.now()
 const J = (s: any, d: any = null) => { try { return s ? JSON.parse(s) : d } catch { return d } }
 
 async function agentOf(env: Env, code: string) {
-  const a: any = await env.DB.prepare('SELECT * FROM st_agents WHERE code=?').bind(code).first()
+  let a: any = await env.DB.prepare('SELECT * FROM st_agents WHERE code=?').bind(code).first()
+  if (!a) { await seedDefaults(env); a = await env.DB.prepare('SELECT * FROM st_agents WHERE code=?').bind(code).first() }
   if (!a) throw new HttpError(404, 'NO_AGENT', `Agent ${code} 不存在`)
   if (!a.enabled) throw new HttpError(409, 'AGENT_DISABLED', `${a.name} 已停用`)
   if (!a.provider_id) throw new HttpError(409, 'AGENT_UNCONFIGURED', `${a.name} 尚未配置服务商`)
@@ -29,6 +30,18 @@ export function parseJson(t: string) {
 }
 
 // ─────────── 文本 ───────────
+/** 模拟对话：按 Agent 返回结构合法的确定性产出（离线联调 / CI 验收，不花钱） */
+function mockText(code: string, prompt: string): any {
+  const ids = [...new Set([...prompt.matchAll(/(?:^|[；;\s(（])([a-z][a-z0-9_]{1,15})(?:[：:=]| ?\()/gm)].map((m) => m[1]))].filter((x) => !['costume', 'prop', 'injury', 'know', 'rel', 'loc', 'time', 'world', 'id'].includes(x))
+  const who = ids[0] || 'hero'
+  if (code === 'SCREENWRITER') return { logline: '模拟剧情', world: '模拟世界观', cast: [{ id: 'hero', name: '主角', role: '赌徒', look: 'tall man in a grey suit' }, { id: 'boss', name: '庄家', role: '庄家', look: 'older woman in a red qipao' }], mainline: ['开局', '对赌', '结局'] }
+  if (code === 'SCRIPT') return { summary: '模拟剧本概要', location: 'casino hall', time: 'night', mood: '紧张', beats: [{ who, action: `${who} 走到牌桌前` }, { who, action: `${who} 推出筹码`, line: '跟。' }], cliff: '手停在筹码上方', duration: 8, cast: [who], requires: [], sets: [{ key: 'loc', value: 'casino hall' }] }
+  if (code === 'PROMPT') return { prompt: `Night, a smoky casino hall under warm tungsten light. ${who} walks to the card table, pauses, then slides a stack of chips forward with a steady hand while the dealer watches. Slow push-in from a medium shot to a close-up on ${who}'s hand hovering above the chips. Film grain, shallow depth of field.`, shots: [{ camera: 'medium, slow push-in', visual: `${who} at the table` }], dialogue: [{ who, line: '跟。' }], negative: 'text, subtitles, watermark' }
+  if (code === 'CONTINUITY') return { ok: true, conflicts: [] }
+  if (code === 'STRUCTURE') return { start: 's1', nodes: [{ id: 's1', type: 'scene', title: '开局', beat: '入场' }, { id: 'c1', type: 'choice', title: '下注', beat: '发牌', question: '底牌未知' }, { id: 'e1', type: 'ending', title: '赢', tier: 'gold', beat: '赢' }, { id: 'e2', type: 'ending', title: '输', tier: 'bad', beat: '输' }], edges: [{ from: 's1', to: 'c1', kind: 'next', main: true }, { from: 'c1', to: 'e1', kind: 'option', label: '全押', main: true }, { from: 'c1', to: 'e2', kind: 'option', label: '弃牌' }] }
+  return { mock: true, agent: code, echo: prompt.slice(0, 200) }
+}
+
 export async function chat(env: Env, code: string, o: { system?: string; prompt: string; json?: boolean; project_id?: string; step?: number; user?: string; timeoutMs?: number }) {
   const a = await agentOf(env, code)
   const pv = await resolveProvider(env, a.provider_id)
@@ -37,7 +50,7 @@ export async function chat(env: Env, code: string, o: { system?: string; prompt:
   let recorded = false
   try {
     let text = '', tin = 0, tout = 0
-    if (pv.kind === 'mock_text') text = JSON.stringify({ mock: true, agent: code, echo: o.prompt.slice(0, 200) })
+    if (pv.kind === 'mock_text') text = JSON.stringify(mockText(code, o.prompt))
     else if (pv.kind === 'openai_compat') {
       if (!pv.base || !pv.key) throw new HttpError(409, 'PROVIDER_UNCONFIGURED', '服务商缺少 Base URL 或 Key')
       const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), o.timeoutMs || 90000)

@@ -76,3 +76,21 @@ main.wide{max-width:none;padding:18px 20px 30px}
 .ge-is{font-size:12px;padding:6px 8px;border-radius:8px;margin-bottom:5px;background:#1a0f19;cursor:default}.ge-is[data-go],.ge-is[data-goe]{cursor:pointer}.ge-is[data-go]:hover,.ge-is[data-goe]:hover{background:#2c1a2a}
 .ge-is.error{border-left:3px solid var(--bad)}.ge-is.warn{border-left:3px solid var(--warn)}
 @media(max-width:900px){.ge-main{grid-template-columns:1fr;height:auto}.ge-cv{height:62vh}}
+/* ── 节点级工作台（第 4/5 步）── */
+.dw{display:flex;flex-direction:column;gap:10px}.dw-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dw-sum{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px}.dw-sum a{text-decoration:none;color:var(--txt);padding:2px 4px;border-radius:6px}.dw-sum a.on{background:#3a2238}
+.dw-bar{width:120px;height:8px;border-radius:9px;background:#2a1828;overflow:hidden}.dw-bar i{display:block;height:100%;background:linear-gradient(90deg,#ff8cc0,#3ddc97)}
+.dw-main{display:grid;grid-template-columns:300px 1fr;gap:12px;min-height:560px}
+.dw-list{border:1px solid var(--line);border-radius:12px;overflow:auto;max-height:calc(100vh - 300px);background:#170c16}
+.dw-list a{display:flex;align-items:center;gap:6px;padding:8px 10px;border-bottom:1px solid #26152a;color:var(--txt);text-decoration:none;font-size:13px}
+.dw-list a span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dw-list a.on,.dw-list a:hover{background:#2c1a2a}
+.dw-list .pill{font-size:10.5px;flex-shrink:0}
+.mode{font-style:normal;font-size:10px;padding:1px 5px;border-radius:5px;background:#2a2f4a;color:#b6c2ff;flex-shrink:0}.mode.frames{background:#3a2d12;color:#ffd58a}.mode.man{background:#123a2a;color:#8ff0c4}
+.dw-detail{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:var(--card2);overflow:auto;max-height:calc(100vh - 300px)}
+.dw-h{display:flex;align-items:center;gap:10px}.dw-h h3{margin:0;flex:1}
+.dw-ctx{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:8px 0 10px;padding:8px 10px;border-radius:10px;background:#1a0f19}.dw-ctx b{font-size:12px;color:var(--mut)}
+.chip{font-size:11px;padding:1px 6px;border-radius:6px;background:rgba(255,92,159,.18);color:#ffb3d2}
+.dw-ledger{margin:8px 0;border:1px solid var(--line);border-radius:10px;padding:6px 10px;background:#170c16}.dw-ledger summary{cursor:pointer;font-size:13px}
+.dw-ledger pre{white-space:pre-wrap;font-size:12px;color:#e8d6e2;margin:6px 0 0;max-height:260px;overflow:auto}
+.dw-mode{margin:6px 0 8px;font-size:13px}.dw-conf{margin:8px 0}.dw-conf h4{margin:0 0 6px;font-size:13px;color:#ffb4bf}
+@media(max-width:900px){.dw-main{grid-template-columns:1fr}.dw-list{max-height:260px}}

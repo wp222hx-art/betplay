@@ -10,5 +10,6 @@ export const shell = () => `<!DOCTYPE html>
 </head><body>
 <div id="app"></div>
 <script src="/sstatic/graph.js"></script>
+<script src="/sstatic/docs.js"></script>
 <script src="/sstatic/studio.js"></script>
 </body></html>`
