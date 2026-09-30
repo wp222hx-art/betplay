@@ -35,7 +35,7 @@ export async function saveSettings(env: Env, u: User, b: any) {
 }
 
 // ───────── 上游 ─────────
-async function upstream(env: Env, pid: string) {
+export async function upstream(env: Env, pid: string) {
   const brief = await Steps.doneOutput(env, pid, 1), bible = await Steps.doneOutput(env, pid, 2), graph = G.normalize(await Steps.doneOutput(env, pid, 3))
   await Steps.doneOutput(env, pid, 5)
   const prompts = new Map<string, any>(((await env.DB.prepare(`SELECT node_id,data FROM st_node_docs WHERE project_id=? AND kind='prompt'`).bind(pid).all()).results as any[]).map((r) => [r.node_id, J(r.data)]))
@@ -360,15 +360,16 @@ export async function nodeClaim(env: Env, node: any, b: any) {
   for (const p of act) await tick(env, p.project_id).catch(() => {})
   const canPost = kinds.includes('post'), genKinds = kinds.filter((k) => k !== 'post')
   const conds: string[] = [], binds: any[] = []
-  if (canPost) conds.push(`(phase IN ('post','seam'))`)
+  if (canPost) conds.push(`(phase IN ('post','seam','pack'))`)
   if (genKinds.length) { conds.push(`(phase='gen' AND provider_kind IN (${genKinds.map(() => '?').join(',')}))`); binds.push(...genKinds) }
   if (!conds.length) return { job: null }
   for (let i = 0; i < 3; i++) {
-    const j: any = await env.DB.prepare(`SELECT * FROM st_jobs WHERE route='node' AND status='queued' AND (${conds.join(' OR ')}) ORDER BY CASE phase WHEN 'seam' THEN 0 WHEN 'post' THEN 1 ELSE 2 END, created_at LIMIT 1`).bind(...binds).first()
+    const j: any = await env.DB.prepare(`SELECT * FROM st_jobs WHERE route='node' AND status='queued' AND (${conds.join(' OR ')}) ORDER BY CASE phase WHEN 'pack' THEN 0 WHEN 'seam' THEN 1 WHEN 'post' THEN 2 ELSE 3 END, created_at LIMIT 1`).bind(...binds).first()
     if (!j) return { job: null }
     const r = await env.DB.prepare(`UPDATE st_jobs SET status='claimed', claimed_by=?, claimed_at=?, updated_at=? WHERE id=? AND status='queued'`).bind(node.id, now(), now(), j.id).run()
     if (!r.meta.changes) continue
     if (j.phase === 'gen') await env.DB.prepare(`UPDATE st_slots SET status='running', updated_at=? WHERE job_id=?`).bind(now(), j.id).run()
+    if (j.phase === 'pack') await env.DB.prepare(`UPDATE st_releases SET error=NULL WHERE job_id=?`).bind(j.id).run()
     if (j.phase === 'post' || j.phase === 'seam') await env.DB.prepare(`UPDATE st_slots SET status=?, updated_at=? WHERE job_id=?`).bind(j.phase === 'seam' ? 'checking' : 'post', now(), j.id).run()
     return { job: { id: j.id, phase: j.phase, kind: j.provider_kind, model: j.model, step: j.step, slot: j.slot, project_id: j.project_id, req: J(j.req, {}), attempt: j.attempt } }
   }
@@ -379,6 +380,10 @@ export async function nodeReport(env: Env, node: any, jobId: string, b: any) {
   const j: any = await env.DB.prepare('SELECT * FROM st_jobs WHERE id=?').bind(jobId).first()
   if (!j || j.claimed_by !== node.id) throw new HttpError(409, 'NOT_YOURS', '任务不属于该节点')
   if (j.status !== 'claimed') return { ok: true, ignored: true }
+  if (j.phase === 'pack') { // 第 10 步打包：结果交给 release 组装快照
+    await env.DB.prepare(`UPDATE st_jobs SET status=?, error=?, result=?, updated_at=? WHERE id=?`).bind(b.ok ? 'succeeded' : 'failed', b.ok ? null : String(b.error || '').slice(0, 400), JSON.stringify(b).slice(0, 20000), now(), jobId).run()
+    const R = await import('./release'); return R.packDone(env, j, b)
+  }
   if (!b.ok) { await failJob(env, jobId, String(b.error || '节点执行失败')); return { ok: true } }
   if (j.phase === 'gen') { await completeGen(env, jobId, { media_key: b.media_key, last_key: b.last_key || null, cost: +b.cost || 0 }); return { ok: true } }
   await env.DB.prepare(`UPDATE st_jobs SET status='succeeded', result=?, updated_at=? WHERE id=?`).bind(JSON.stringify(b), now(), jobId).run()
@@ -432,6 +437,13 @@ export async function recheck(env: Env, u: User, pid: string, step: number, slot
 export async function nodeUploadKey(env: Env, node: any, jobId: string, name: string) {
   const j: any = await env.DB.prepare('SELECT * FROM st_jobs WHERE id=?').bind(jobId).first()
   if (!j || j.claimed_by !== node.id) throw new HttpError(409, 'NOT_YOURS', '任务不属于该节点')
+  if (j.phase === 'pack') { // 打包产物写到玩家端媒体路径：只允许写本任务声明过的输出键（白名单）
+    const q = J(j.req, {}), img = (k: string) => k.replace(/^([^/]+)\//, '$1/img/')
+    const allow = new Set<string>([...q.segments.flatMap((x: any) => [x.out + '.mp4', img(x.out) + '_poster.webp', img(x.out) + '_last.webp']), ...q.cast.map((c: any) => c.out), q.cover.out])
+    const key = decodeURIComponent(name)
+    if (!allow.has(key)) throw new HttpError(403, 'BAD_KEY', '不允许写入该路径')
+    return key
+  }
   const safe = String(name).replace(/[^\w.-]/g, '_').slice(0, 60)
   return `studio/${j.project_id}/${j.step}/${j.slot}/${jobId}_${safe}`
 }

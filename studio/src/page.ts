@@ -12,6 +12,6 @@ export const shell = () => `<!DOCTYPE html>
 <div id="app"></div>
 <script src="/sstatic/graph.js"></script>
 <script src="/sstatic/docs.js"></script>
-<script src="/sstatic/media.js"></script>
+<script src="/sstatic/media.js"></script><script src="/sstatic/release.js"></script>
 <script src="/sstatic/studio.js"></script>
 </body></html>`

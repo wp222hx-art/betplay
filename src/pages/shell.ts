@@ -22,8 +22,8 @@ const nav = (active: string) => `
     <a href="/" class="${active === 'discover' ? 'on' : ''}"><i class="fas fa-compass"></i><b>发现</b></a>
     ${FMT.map(([k, ic, n]) => `<a href="/?cat=${k}" class="${act(active) === k ? 'on' : ''}"><i class="fas ${ic}"></i><b>${n}</b></a>`).join('')}
     <a href="/market" class="${active === 'market' ? 'on' : ''}"><i class="fas fa-gem"></i><b>结局卡</b></a>
-    <details class="nav-more ${['voice', 'console', 'agents', 'studio', 'arch', 'director', 'publish'].includes(active) ? 'on' : ''}"><summary><i class="fas fa-toolbox"></i><b>工作台</b></summary>
-      <div class="more-menu"><a href="/market" class="m-only"><i class="fas fa-gem"></i> 结局卡交易所</a><a href="/director"><i class="fas fa-video"></i> 导演台 · 一键生成</a><a href="/publish"><i class="fas fa-rocket"></i> 上架中心 · 提交上线</a><a href="/studio"><i class="fas fa-clapperboard"></i> 制作平台</a><a href="/arch"><i class="fas fa-sitemap"></i> 技术架构</a><a href="/voice"><i class="fas fa-microphone-lines"></i> 声线工作室</a><a href="/console"><i class="fas fa-gauge-high"></i> 运营后台</a><a href="/agents"><i class="fas fa-robot"></i> 7-Agent</a></div>
+    <details class="nav-more ${['voice', 'console', 'agents', 'arch'].includes(active) ? 'on' : ''}"><summary><i class="fas fa-toolbox"></i><b>工作台</b></summary>
+      <div class="more-menu"><a href="/market" class="m-only"><i class="fas fa-gem"></i> 结局卡交易所</a><a href="/studio"><i class="fas fa-clapperboard"></i> MoMo Studio · 生产与上架</a><a href="/arch"><i class="fas fa-sitemap"></i> 技术架构</a><a href="/voice"><i class="fas fa-microphone-lines"></i> 声线工作室</a><a href="/console"><i class="fas fa-gauge-high"></i> 运营后台</a><a href="/agents"><i class="fas fa-robot"></i> 7-Agent</a></div>
     </details>
   </div>
 </nav>
@@ -141,32 +141,11 @@ ${nav('market')}
 <script src="/static/market.js"></script>
 </body></html>`
 
-export const studioPage = () => `${head('制作平台 · MoMocash Studio', '<link href="/static/studio.css" rel="stylesheet">')}
-<body class="studio-body">
-${nav('studio')}
-<main id="studio" class="studio"></main>
-<script src="/static/studio.js"></script>
-</body></html>`
-
 export const archPage = () => `${head('技术架构 · MoMocash剧场', '<link href="/static/studio.css" rel="stylesheet">')}
 <body class="studio-body">
 ${nav('arch')}
 <main id="arch" class="arch"></main>
 <script src="/static/arch.js"></script>
-</body></html>`
-
-export const directorPage = () => `${head('导演台 · 主题一键生成互动剧 | MoMocash剧场', '<link href="/static/studio.css" rel="stylesheet"><link href="/static/director.css" rel="stylesheet">')}
-<body class="studio-body">
-${nav('director')}
-<main id="director" class="studio"></main>
-<script src="/static/director.js"></script>
-</body></html>`
-
-export const publishPage = () => `${head('上架中心 · 提交上线 | MoMocash剧场', '<link href="/static/studio.css" rel="stylesheet"><link href="/static/director.css" rel="stylesheet"><link href="/static/publish.css" rel="stylesheet">')}
-<body class="studio-body">
-${nav('publish')}
-<main id="publish" class="studio"></main>
-<script src="/static/publish.js"></script>
 </body></html>`
 
 export const seriesPage = (sid: string, title: string, cat0: string) => { const cat = cat0 === 'anime' ? 'love' : cat0; const theme = cat === 'love' ? 'love' : cat === 'abstract' ? 'abstract' : ''; return `${head(title + ' | MoMocash剧场', '<link href="/static/comic.css" rel="stylesheet"><link href="/static/film.css" rel="stylesheet">' + (cat === 'love' ? '<link href="/static/love.css" rel="stylesheet">' : ''))}

@@ -62,7 +62,7 @@
     const [stn, stc] = ST[s.status] || [s.status, '#888']
     frame('#/projects', `<a href="#/projects" class="mut sm"><i class="fas fa-arrow-left"></i> 全部项目</a><h1 style="margin-top:6px">${esc(d.project.title)}</h1>
       <nav class="pipe">${steps.map((x) => `<a href="#/p/${id}/${x.no}" class="st-${x.status} ${x.no === cur ? 'on' : ''}"><i class="n">第 ${x.no} 步</i><b>${esc(x.name)}</b><span class="pill" style="--c:${ST[x.status][1]}">${ST[x.status][0]}</span></a>`).join('')}</nav>
-      ${s.no === 3 && !blocker ? graphShell(s) : (s.no === 4 || s.no === 5) && !blocker ? docsShell(s) : s.no >= 6 && s.no <= 9 && !blocker ? mediaShell(s) : `<section class="stepbox"><div class="card"><h2>第 ${s.no} 步 · ${esc(s.name)} <span class="pill" style="--c:${stc}">${stn}</span></h2><p class="sub">${esc(s.desc)}</p>
+      ${s.no === 3 && !blocker ? graphShell(s) : (s.no === 4 || s.no === 5) && !blocker ? docsShell(s) : s.no >= 6 && s.no <= 9 && !blocker ? mediaShell(s) : s.no === 10 && !blocker ? releaseShell(s) : `<section class="stepbox"><div class="card"><h2>第 ${s.no} 步 · ${esc(s.name)} <span class="pill" style="--c:${stc}">${stn}</span></h2><p class="sub">${esc(s.desc)}</p>
         ${blocker ? `<div class="locked"><i class="fas fa-lock"></i>请先完成第 ${blocker.no} 步「${esc(blocker.name)}」<br><a class="btn" style="margin-top:12px" href="#/p/${id}/${blocker.no}">去第 ${blocker.no} 步</a></div>` : stepBody(s)}
       </div><aside><div class="card"><h3>步骤信息</h3><div class="kv"><b>负责 Agent</b><span>${esc(s.agent)}</span><b>版本</b><span>v${s.version}</span><b>审批</b><span>${s.approved_at ? fmtT(s.approved_at) : '—'}</span><b>备注</b><span>${esc(s.note || '—')}</span></div></div>
         <div class="card"><h3>最近调用</h3>${d.runs.length ? d.runs.slice(0, 8).map((r) => `<div class="sm" style="margin-bottom:6px"><span class="pill" style="--c:${r.status === 'ok' || r.status === 'submitted' ? '#3ddc97' : '#ff5d73'}">${esc(r.status)}</span> 第${r.step || '-'}步 ${esc(r.agent)} · ${esc(r.model || '')} · ${r.latency_ms}ms${r.error ? `<div class="bad-t">${esc(r.error.slice(0, 90))}</div>` : ''}</div>`).join('') : '<p class="mut sm">暂无</p>'}</div></aside></section>`}`, (s.no >= 3 && s.no <= 9) && !blocker)
@@ -70,6 +70,7 @@
     if (s.no === 3 && !blocker) return bindGraph(id, s)
     if ((s.no === 4 || s.no === 5) && !blocker) return bindDocs(id, s)
     if (s.no >= 6 && s.no <= 9 && !blocker) return bindMedia(id, s)
+    if (s.no === 10 && !blocker) return bindRelease(id, s)
     bindStep(id, s)
   }
 
@@ -141,6 +142,25 @@
     q('[data-dsubmit]') && (q('[data-dsubmit]').onclick = async () => { try { await api(`/api/projects/${id}/steps/${s.no}`, { submit: true }); toast('已提交审核'); projectPage(id, s.no) } catch (e) { showBad(e) } })
     q('[data-approve]') && (q('[data-approve]').onclick = async () => { try { const r = await api(`/api/projects/${id}/steps/${s.no}/approve`, { note: prompt('审核意见（可空）', '') || '' }); toast(r.next ? `已通过，第 ${r.next} 步已解锁` : '全部完成'); if (r.next) location.hash = `#/p/${id}/${r.next}`; else projectPage(id, s.no) } catch (e) { showBad(e) } })
     q('[data-reopen]') && (q('[data-reopen]').onclick = async () => { if (!confirm('退回后，所有下游步骤都会失效。确定？')) return; try { await api(`/api/projects/${id}/steps/${s.no}/reopen`, { note: prompt('退回原因', '') || '' }); projectPage(id, s.no) } catch (e) { toast(e.message) } })
+  }
+
+  // ─── 第 10 步：预检 · 上架 ───
+  function releaseShell(s) {
+    const [stn, stc] = ST[s.status] || [s.status, '#888'], canR = S.me && (S.me.role === 'reviewer' || S.me.role === 'admin')
+    return `<section class="card gcard"><div class="gh"><h2>第 10 步 · ${esc(s.name)} <span class="pill" style="--c:${stc}">${stn}</span></h2><span class="mut sm hide-m">${esc(s.desc)}</span><span class="ge-grow"></span>
+      ${can('writer') && s.status !== 'done' && s.status !== 'running' ? `<button class="btn sm warn" data-dsubmit><i class="fas fa-paper-plane"></i> 提交审核</button>` : ''}
+      ${canR && s.status === 'review' ? `<button class="btn sm ok" data-approve><i class="fas fa-rocket"></i> 审核通过 · 发布</button>` : ''}
+      ${can('writer') && s.status === 'done' ? `<button class="btn sm" data-reopen><i class="fas fa-code-branch"></i> 迭代新版本</button>` : ''}</div>
+      ${s.status === 'done' ? '<div class="banner ok" style="margin-bottom:10px">已发布到玩家端。要更新内容：点「迭代新版本」→ 改上游步骤或上架信息 → 重新打包 → 审核发布（线上版本在新版发布前不受影响）。</div>' : ''}
+      <div id="release-p"></div></section>`
+  }
+  function bindRelease(id, s) {
+    const canR = S.me && (S.me.role === 'reviewer' || S.me.role === 'admin')
+    window.ReleasePanel.mount($('#release-p'), { pid: id, readonly: s.status === 'done' || !can('writer'), canJudge2: canR, playerOrigin: S.state?.player_origin || '', toast, api: (u, b) => api(u, b), onChange: () => projectPage(id, 10) })
+    const q = (sel) => $(sel)
+    q('[data-dsubmit]') && (q('[data-dsubmit]').onclick = async () => { try { await api(`/api/projects/${id}/steps/10`, { submit: true }); toast('已提交审核'); projectPage(id, 10) } catch (e) { toast(e.message) } })
+    q('[data-approve]') && (q('[data-approve]').onclick = async () => { if (!confirm('审核通过后立即发布到玩家端。确定？')) return; try { const r = await api(`/api/projects/${id}/steps/10/approve`, { note: prompt('审核意见（可空）', '') || '' }); toast(`已发布 ${r.published?.series_id} v${r.published?.version}`); projectPage(id, 10) } catch (e) { toast(e.message) } })
+    q('[data-reopen]') && (q('[data-reopen]').onclick = async () => { try { await api(`/api/projects/${id}/steps/10/reopen`, { note: '迭代新版本' }); projectPage(id, 10) } catch (e) { toast(e.message) } })
   }
 
   // ─── 执行节点（admin）───

@@ -152,7 +152,7 @@ npx wrangler d1 migrations apply webapp-production                              
 - worker 新增本地烧录字幕检测（远程 AI 质检 `media-analyze` 当前上传失败，结果不可用），超过 20% 帧命中即判不通过。
 - 回归：`python3 tests/ui_series_play.py <BASE> gen_87c53a9f`（发现页卡片 → 开局 → 2 次竞猜 → 结局）。
 
-## 🏭 MoMo Studio · 短剧生产后台（前后端分离 · 新架构 P1 ✅ P2 ✅ P3 ✅ P4 ✅ · 手机适配 ✅）
+## 🏭 MoMo Studio · 短剧生产后台（前后端分离 · 新架构 P1 ✅ P2 ✅ P3 ✅ P4 ✅ P5 ✅ · 手机适配 ✅）
 玩家端（端口 3000，`/`）只负责游戏与筹码博弈；**生产端是独立应用 `studio/`**（端口 3001），独立登录，共享 D1 / R2。
 
 - **独立登录与角色**：PBKDF2(10 万次) 密码、HttpOnly + SameSite=Strict 会话 Cookie（库里只存 token 的 SHA-256）、15 分钟 8 次失败锁定、写操作校验 Origin；角色 `admin / writer / reviewer`，**编剧不能审批自己的产出**（仅审核或管理员可放行）；停用账号立即踢下线；全量审计 `st_audit`
@@ -191,7 +191,17 @@ npx wrangler d1 migrations apply webapp-production                              
 - **执行节点部署**：`pm2 start ecosystem.config.cjs --only studio-node`；在 Studio「执行节点」页新建节点拿令牌，写入 `.node.env`（`STUDIO=…  NODE_TOKEN=msn_…  KINDS=post,gsk,jimeng_cli  CONC=3`）。用即梦需先在节点机器上 `dreamina login --headless`
 - **手机适配**：底部固定 Tab 栏（含安全区）、十步流水线横滑并自动定位当前步、结构图双指缩放 + 大触控端口、输入框 16px 防 iOS 放大、弹窗改底部抽屉；390 / 360 / 768 宽度全部页面无横向溢出
 - 验收：`npm run test:studio` → 结构引擎 **37/37** + 剧情账本 **33/33** + 接口验收 **91/91**（模拟服务商 + 真实执行节点离线跑通 1→9 步：卡关、令牌、生成、质检打回重拍、Range、人工判定、闸门、stale 传播）
-- 路线：P5 第 10 步预检 → 版本快照发布到玩家端（替代旧导演台 / 上架中心）
+- **P5 预检 · 上架 ✅（第 10 步，已替代旧导演台 / 上架中心 / 制作平台）**
+  - **编译器** `compile.ts`：结构图 → 玩家端对弈引擎 DATA。序章 = 起点到第一个抉择点；每条选项边 → 一个下注选项，片段 = 沿场景/汇合走到下一个抉择点或结局（多段视频拼接，汇合节点视频复用）；≥2 出口的时间裂隙 → 悔棋「时间裂隙」fork；结局等级透传
+  - **预检**（确定性）：可编译、所有用到的视频已通过、非模拟素材、封面、设定图、台词、上架信息（标题/简介/题材/受众/分级/角标/标签）、在线执行节点
+  - **合规审核 Agent（COMPLIANCE）**：审标题、简介、选项、全部台词；阻断级问题或高风险直接拦截，警告写进快照供审核人查看
+  - **打包**：执行节点（`pack` 阶段）按计划拼接片段（统一 576p/24fps/AAC）、抽海报/末帧、OpenCV 人脸检测裁角色头像，只能写服务端白名单里的玩家端媒体路径；文件名带版本号 → 旧版素材永不覆盖
+  - **不可变版本快照** `st_releases`（migration 0015）+ 编译指纹：打包后上游任何改动 → 快照过期，不能发布；**审核通过第 10 步 = 发布**到 `published_series`（发现页 + `/s/<id>` 立即可玩）；历史版本一键**回滚**；**下架 / 恢复**；上架日志
+  - 旧入口 `/studio`、`/director`、`/publish` → 302 到 Studio；旧 API `/api/studio/*`、`/api/director/*`、`/api/admin/publish/*`、`/api/admin/series/*` → 410 GONE；旧代码已删除
+  - API：`GET /api/projects/:id/release`、`POST .../release/{meta|pack|cancel|rollback|live}`；节点 `PUT /node/jobs/:id/out?key=`
+  - **真拍首发**：《雨夜牌局》`ms_8a7631217f` v1（1 抉择点 · 2 结局 · 3 片段 · 32 秒 · 5.2MB，合规低风险）；手机端实测开局 → 序章 → 下注 → 揭晓 → 结局卡铸造全链路通过
+- 环境变量（可选）：Studio `PLAYER_ORIGIN`（「打开玩家端」链接）、玩家端 `STUDIO_ORIGIN`（旧入口跳转）、`STUDIO_ALLOW_MOCK_PUBLISH=1`（允许模拟素材上架，仅测试用）
+- 验收：`npm run test:studio` → 结构 37 + 账本 33 + **编译器 27** + 接口 91，全部通过
 
 ## 📱 玩家端手机适配
 - 顶栏精简 + **底部 Tab 栏**（发现 / 漫剧 / 真人剧 / 抽象剧 / 我的，适配刘海 / 底部安全区）；播放页沉浸不显示底栏

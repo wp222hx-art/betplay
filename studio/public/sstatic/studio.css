@@ -160,3 +160,20 @@ img,video{max-width:100%}
   .stepbox{gap:10px}
 }
 @media(max-width:760px){.auth{margin:max(6vh,env(safe-area-inset-top)) 14px;padding:22px 18px}}
+/* ─── 第 10 步：预检 · 上架 ─── */
+.rl-live{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.rl-grid{display:grid;grid-template-columns:1.1fr 1fr;gap:14px}
+.rl-form{display:grid;gap:10px}.rl-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.rl-checks{list-style:none;margin:0 0 12px;padding:0;display:grid;gap:6px}
+.rl-checks li{display:flex;gap:8px;font-size:13px;line-height:1.5}.rl-checks li i{margin-top:3px}
+.rl-checks li.ok i{color:#3ddc97}.rl-checks li.block{color:#ffb4bf}.rl-checks li.block i{color:#ff5d73}.rl-checks li.warn i{color:#f5a524}
+.rl-act{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:8px}
+.warn-t{color:#f5a524}
+.rl-tree{display:grid;gap:10px}
+.rl-seg.pro{display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:12px;background:rgba(255,111,174,.08);border:1px dashed rgba(255,111,174,.35);font-size:13px}
+.rl-node{padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid var(--line)}
+.rl-node .q{margin-bottom:8px;font-size:14px}
+.rl-node .opts{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
+.rl-node .op{display:grid;gap:4px;padding:8px 10px;border-radius:10px;background:rgba(0,0,0,.25);font-size:13px}.rl-node .op .pill{justify-self:start}
+.rl-logs{margin-top:10px}.rl-logs div{padding:3px 0}
+@media(max-width:760px){.rl-grid{grid-template-columns:1fr}.rl-row{grid-template-columns:1fr 1fr}.rl-node .opts{grid-template-columns:1fr}}

@@ -9,7 +9,7 @@ import { modelHealth, predictiveQueue, rankVideoModels, submitVideo, buildVideoP
 import { branches, overview, scriptTree } from './agents/console'
 import { applyClipPlan, approveExtension, clipPairs, derive, generatePoems, ingestSignals, regulate } from './agents/deriver'
 import type { Bindings } from './gateway/llm'
-import { playerPage, consolePage, agentsPage, comicPage, filmPage, voicePage, lovePage, discoverPage, marketPage, studioPage, archPage, directorPage, seriesPage, publishPage } from './pages/shell'
+import { playerPage, consolePage, agentsPage, comicPage, filmPage, voicePage, lovePage, discoverPage, marketPage, archPage, seriesPage } from './pages/shell'
 import CATALOG from './catalog/data.json'
 import * as Tax from './catalog/taxonomy'
 import * as Growth from './growth/growth'
@@ -19,9 +19,6 @@ import * as Love from './love/engine'
 import * as Voice from './voice/studio'
 import { authUid, checkTicket, ipKey, issueDevice, rateLimit, riskEvent } from './core/guard'
 import * as Market from './market/cards'
-import * as Studio from './studio/pipeline'
-import * as Director from './studio/director'
-import * as Publish from './studio/publish'
 import * as Tiers from './market/tiers'
 import { createEngine } from './comic/factory'
 
@@ -45,6 +42,7 @@ const body = async (c: any) => { try { return await c.req.json() } catch { retur
 // 身份只来自服务端签发的令牌；body/header 里的 user_id 一律忽略（旧逻辑可被任意冒充）
 // uidOf(c) = 可选身份；uidOf(c, b) = 必须登录
 const uidOf = (c: any, b?: any) => { const u = c.get('uid') || ''; if (b !== undefined && !u) throw new GameError('UNAUTHORIZED', '身份无效，请刷新页面'); return u }
+const studioUrl = (c: any) => (c.env as any).STUDIO_ORIGIN || (() => { const u = new URL(c.req.url); return /^(localhost|127\.)/.test(u.hostname) ? 'http://localhost:3001' : u.origin.replace(/\/\/3000-/, '//3001-') })()
 const ADMIN_PREFIX = ['/api/console', '/api/agents', '/api/studio', '/api/admin', '/api/director']
 app.use('/api/*', async (c, next) => {
   const path = c.req.path
@@ -167,47 +165,12 @@ app.post('/api/admin/ban', async (c) => {
   return c.json({ ok: true })
 })
 
-// ─────────────── 制作平台（管理） ───────────────
-app.get('/api/studio/projects', async (c) => c.json({ projects: await Studio.listProjects(c.env), stages: Studio.STAGES, credits: Studio.CREDITS }))
-app.get('/api/studio/projects/:id', async (c) => c.json(await Studio.projectDetail(c.env, c.req.param('id'))))
-app.post('/api/studio/projects', async (c) => {
-  const b = await body(c)
-  const it = b.item_id ? (CATALOG as any).items.find((x: any) => x.id === b.item_id) : null
-  const src = it || b
-  if (!src?.title) throw new GameError('BAD_INPUT', '缺少标题')
-  return c.json(await Studio.scriptProject(c.env, { title: src.title, logline: src.logline || '', cat: src.cat || 'anime', tags: src.tags, source_item: it?.id, parent: b.parent, kind: b.parent ? 'sequel' : 'series' }))
-})
-app.post('/api/studio/projects/:id/validate', async (c) => { const d: any = await Studio.projectDetail(c.env, c.req.param('id')); return c.json(d.validation) })
-app.post('/api/studio/projects/:id/repair', async (c) => c.json(await Studio.repairProject(c.env, c.req.param('id'))))
-app.post('/api/studio/projects/:id/render', async (c) => c.json(await Studio.queueRender(c.env, c.req.param('id'))))
-app.post('/api/studio/jobs/claim', async (c) => { const b = await body(c); return c.json({ job: await Studio.claimJob(c.env, b.worker || 'worker') }) })
-app.post('/api/studio/jobs/:id/report', async (c) => { const b = await body(c); return c.json(await Studio.reportJob(c.env, { id: c.req.param('id'), ok: !!b.ok, url: b.url, qc: b.qc })) })
-app.post('/api/studio/jobs/:id/review', async (c) => { const b = await body(c); return c.json(await Studio.reviewJob(c.env, { id: c.req.param('id'), approve: !!b.approve })) })
-// ── 后台指挥：主题 → 剧本(自动植入博弈) → 预算 → 开拍 → worker 生成 → 自动质检/审核 → 自动上架 ──
-app.get('/api/director/meta', async (c) => c.json(await Director.creditReport(c.env)))
-app.post('/api/director/brief', async (c) => {
-  const b = await body(c)
-  const it = b.item_id ? (CATALOG as any).items.find((x: any) => x.id === b.item_id) : null
-  if (!b.theme && !it) throw new GameError('BAD_INPUT', '请输入主题')
-  return c.json(await Director.direct(c.env, { theme: b.theme || `${it.title}：${it.logline}`, cat: b.cat || it?.cat || 'anime', genre: b.genre || it?.genre, scale: b.scale || 'standard', budget: +b.budget || 0, auto: !!b.auto, item_id: it?.id, title: it?.title || b.title, logline: it?.logline, tags: it?.tags, outline: b.outline, mech: b.mech }))
-})
-app.post('/api/director/projects/:id/greenlight', async (c) => c.json(await Director.greenlight(c.env, c.req.param('id'))))
-app.post('/api/director/projects/:id/bonus', async (c) => c.json(await Director.addBonus(c.env, c.req.param('id'))))
+// ─────────────── 旧生产线已下线（P5）：制作平台 / 导演台 / 上架中心 → MoMo Studio 十步流水线 ───────────────
+// 生产与上架只能在 Studio 完成（独立登录 + 卡关 + 合规审核 + 版本快照）；玩家端只读 published_series
+const GONE = (c: any) => c.json({ error: 'GONE', message: '旧生产线已下线：请在 MoMo Studio 中完成生产与上架（第 10 步「预检 · 上架」）', studio: studioUrl(c) }, 410)
+for (const p of ['/api/studio/*', '/api/director/*', '/api/admin/publish/*', '/api/admin/series/*']) app.all(p, GONE)
 app.post('/api/admin/pool/seed', async (c) => { const b = await body(c); await Tiers.feedPool(c.env as any, b.series, +b.amount || 5000, 'platform:house', 'seed:' + Date.now()); return c.json(await Tiers.tierBoard(c.env as any, b.series)) })
 app.get('/api/fate/:series', async (c) => c.json(await Tiers.tierBoard(c.env as any, c.req.param('series'))))
-app.post('/api/director/projects/:id/publish', async (c) => c.json(await Director.publish(c.env, c.req.param('id'))))
-app.post('/api/director/projects/:id/pause', async (c) => { await c.env.DB.prepare(`UPDATE studio_projects SET status=CASE status WHEN 'rendering' THEN 'paused' WHEN 'paused' THEN 'rendering' ELSE status END WHERE id=?`).bind(c.req.param('id')).run(); return c.json(await Director.progress(c.env, c.req.param('id'))) })
-app.post('/api/director/projects/:id/retry', async (c) => c.json(await Director.retryFailed(c.env, c.req.param('id'))))
-// ── 上架中心：预检 → 提交上线 / 更新版本 → 下架 / 恢复 → 元数据 → 审计 ──
-app.get('/api/admin/publish/board', async (c) => c.json(await Publish.board(c.env as any)))
-app.get('/api/admin/publish/:pid/preflight', async (c) => c.json(await Publish.preflight(c.env as any, c.req.param('pid'))))
-app.post('/api/admin/publish/:pid/submit', async (c) => { const b = await body(c); return c.json(await Publish.submit(c.env as any, c.req.param('pid'), b)) })
-app.post('/api/admin/series/:sid/takedown', async (c) => { const b = await body(c); return c.json(await Publish.setLive(c.env as any, c.req.param('sid'), false, b.note || '')) })
-app.post('/api/admin/series/:sid/restore', async (c) => { const b = await body(c); return c.json(await Publish.setLive(c.env as any, c.req.param('sid'), true, b.note || '')) })
-app.post('/api/admin/series/:sid/meta', async (c) => c.json(await Publish.updateMeta(c.env as any, c.req.param('sid'), await body(c))))
-app.post('/api/director/claim', async (c) => { const b = await body(c); return c.json({ job: await Director.claim(c.env, b.worker || 'worker', b.balance) }) })
-app.post('/api/director/jobs/:id/report', async (c) => { const b = await body(c); return c.json(await Director.report(c.env, { id: c.req.param('id'), ok: !!b.ok, url: b.url, spent: b.spent, meta: b.meta, qc: b.qc })) })
-app.post('/api/director/jobs/:id/review', async (c) => { const b = await body(c); return c.json(await Director.review(c.env, c.req.param('id'), !!b.approve)) })
 
 // ── 动态作品：/s/:sid 播放页 + /api/s/:sid/* 引擎 ──
 app.get('/api/s/:sid/meta', async (c) => { const E = await engineOf(c.env, c.req.param('sid')); const id = uidOf(c); return c.json({ series: E.COMIC.series, nodes: E.COMIC.nodes.length, total_endings: E.totalEndings(), my_endings: id ? await E.myEndings(c.env, id) : [], config: await E.getConfig(c.env) }) })
@@ -245,7 +208,6 @@ app.post('/api/s/:sid/rounds/:id/rewind', async (c) => { const b = await body(c)
 app.post('/api/s/:sid/rounds/:id/next', async (c) => { const b = await body(c); const E = await engineOf(c.env, c.req.param('sid')); return c.json(await onEnd(c, E.SERIES, E.COMIC.series.cat, await E.advance(c.env, { roundId: c.req.param('id'), userId: uidOf(c, b) }))) })
 app.get('/api/s/:sid/rounds/:id/verify', async (c) => c.json(await (await engineOf(c.env, c.req.param('sid'))).verify(c.env, c.req.param('id'))))
 
-app.get('/api/studio/next', async (c) => c.json(await Studio.nextUp(c.env, (CATALOG as any).items)))
 
 // ─────────────── 页面 ───────────────
 // 首页 = 发现页（漫剧 / 真人剧 / 抽象剧 三大形态 × 十大题材）；旧“剧场”下沉到 /theater，漫剧保留直链不进导航
@@ -253,10 +215,9 @@ app.get('/', (c) => c.html(discoverPage()))
 app.get('/discover', (c) => c.html(discoverPage()))
 app.get('/theater', (c) => c.html(playerPage()))
 app.get('/market', (c) => c.html(marketPage()))
-app.get('/studio', (c) => c.html(studioPage()))
 app.get('/arch', (c) => c.html(archPage()))
-app.get('/director', (c) => c.html(directorPage()))
-app.get('/publish', (c) => c.html(publishPage()))
+// 旧入口 → Studio（302）；Studio 地址：环境变量 STUDIO_ORIGIN，沙箱内按端口推断
+for (const p of ['/studio', '/director', '/publish']) app.get(p, (c) => c.redirect(studioUrl(c), 302))
 app.get('/s/:sid', async (c) => { const r: any = await c.env.DB.prepare(`SELECT title, cat FROM published_series WHERE id=? AND status='live'`).bind(c.req.param('sid')).first(); if (!r) return c.notFound(); return c.html(seriesPage(c.req.param('sid'), r.title, r.cat)) })
 // 生成作品的公开海报/末帧/角色图（R2：<sid>/img/<name>.webp）
 app.get('/gimg/:sid/:name', async (c) => { const o = await (c.env as any).MEDIA?.get(`${c.req.param('sid')}/img/${c.req.param('name')}`); if (!o) return c.notFound(); return new Response(o.body, { headers: { 'Content-Type': o.httpMetadata?.contentType || 'image/webp', 'Cache-Control': 'public, max-age=600' } }) })

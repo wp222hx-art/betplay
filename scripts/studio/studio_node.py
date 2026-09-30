@@ -8,7 +8,7 @@
 #     gsk         Genspark gsk CLI：nano-banana-pro 设定图、Seedance 2.0 视频（参考图 / 首帧）
 #     jimeng_cli  即梦 dreamina CLI：text2image、multimodal2video（全能参考）、image2video（首帧接力）
 # 用法：STUDIO=http://localhost:3001 NODE_TOKEN=msn_xxx KINDS=post,mock_image,mock_video python3 studio_node.py [--once]
-import json, os, re, sys, time, glob, shutil, subprocess, urllib.request as U, urllib.error, concurrent.futures as cf, threading
+import json, os, re, sys, time, glob, shutil, subprocess, urllib.request as U, urllib.error, urllib.parse, concurrent.futures as cf, threading
 BASE = os.environ.get('STUDIO', 'http://localhost:3001').rstrip('/'); TOKEN = os.environ.get('NODE_TOKEN', '')
 KINDS = [k.strip() for k in os.environ.get('KINDS', 'post,mock_image,mock_video').split(',') if k.strip()]
 CONC = int(os.environ.get('CONC', '2')); ONCE = '--once' in sys.argv; VERSION = 'node-1.0'
@@ -206,10 +206,67 @@ def seam(job):
         out['ref_keys'] = refs
     return out
 
+# ─────────── 第 10 步打包：拼接片段 → 玩家端媒体路径 ───────────
+def put_out(job, path, key, ctype):
+    with open(path, 'rb') as f: return req('PUT', f"/node/jobs/{job['id']}/out?key=" + urllib.parse.quote(key, safe=''), data=f.read(), ctype=ctype, timeout=900)['key']
+def webp(src, dst, w=480, q=78):
+    from PIL import Image
+    im = Image.open(src).convert('RGB'); im.thumbnail((w, w * 2)); im.save(dst, 'WEBP', quality=q); return dst
+def face_crop(src, dst, size=256):
+    """设定图 → 圆形头像：OpenCV 人脸检测取最大的一张脸；失败则取画面左 1/3 上部（三视图的正面视图）"""
+    import cv2
+    from PIL import Image
+    im = Image.open(src).convert('RGB'); W, H = im.size
+    try:
+        import numpy as np
+        g = cv2.cvtColor(np.array(im), cv2.COLOR_RGB2GRAY)
+        det = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+        fs = sorted(det.detectMultiScale(g, 1.1, 5, minSize=(int(H * 0.06), int(H * 0.06))), key=lambda f: -f[2] * f[3])
+    except Exception: fs = []
+    if len(fs):
+        x, y, w, h = fs[0]; cx, cy, r = x + w / 2, y + h / 2, max(w, h) * 0.95
+    else:
+        cx, cy, r = W / 6, H * 0.28, min(W / 6, H * 0.22)
+    box = (int(max(0, cx - r)), int(max(0, cy - r)), int(min(W, cx + r)), int(min(H, cy + r)))
+    im.crop(box).resize((size, size), Image.LANCZOS).save(dst, 'WEBP', quality=85); return dst
+def pack(job):
+    """按编译计划拼接：每个片段 = 若干节点视频顺接（统一 576p/24fps/AAC 立体声重编码，保证播放器无缝）"""
+    q = job['req']; out = {'segments': {}, 'cast': {}}; total = 0; cache = {}
+    def clip(key):
+        if key not in cache: cache[key] = get_media(key, f"{TMP}/{job['id']}_src{len(cache)}.mp4")
+        return cache[key]
+    for s in q['segments']:
+        srcs = [clip(p['key']) for p in s['parts']]; durs = [round(ffdur(x), 2) for x in srcs]
+        mp4 = f"{TMP}/{job['id']}_{s['id']}.mp4"
+        args = []
+        for x in srcs: args += ['-i', x]
+        norm = ''.join(f"[{i}:v]scale=576:1024:force_original_aspect_ratio=decrease,pad=576:1024:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=24,format=yuv420p[v{i}];" + (f"[{i}:a]aresample=44100,aformat=channel_layouts=stereo[a{i}];" if has_audio(x) else f"anullsrc=r=44100:cl=stereo,atrim=0:{durs[i]}[a{i}];") for i, x in enumerate(srcs))
+        cat = ''.join(f"[v{i}][a{i}]" for i in range(len(srcs))) + f"concat=n={len(srcs)}:v=1:a=1[v][a]"
+        o = sh('ffmpeg', '-loglevel', 'error', '-y', *args, '-filter_complex', norm + cat, '-map', '[v]', '-map', '[a]', '-c:v', 'libx264', '-crf', '23', '-preset', 'veryfast', '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', mp4, timeout=1200)
+        if not os.path.exists(mp4) or os.path.getsize(mp4) < 1000: raise RuntimeError(f"拼接失败 {s['id']}: {(o.stderr or '')[-200:]}")
+        dur = round(ffdur(mp4), 2); total += os.path.getsize(mp4)
+        img_base = s['out'].replace('/', '/img/', 1)
+        pp, lp = f"{TMP}/{job['id']}_{s['id']}_p.png", f"{TMP}/{job['id']}_{s['id']}_l.png"
+        sh('ffmpeg', '-loglevel', 'error', '-y', '-ss', str(min(1.0, dur / 3)), '-i', mp4, '-frames:v', '1', pp)
+        sh('ffmpeg', '-loglevel', 'error', '-y', '-sseof', '-0.1', '-i', mp4, '-frames:v', '1', lp)
+        if not os.path.exists(lp): sh('ffmpeg', '-loglevel', 'error', '-y', '-ss', str(max(0, dur - 0.2)), '-i', mp4, '-frames:v', '1', lp)
+        out['segments'][s['id']] = {'key': put_out(job, mp4, s['out'] + '.mp4', 'video/mp4'), 'poster': put_out(job, webp(pp, pp + '.webp'), img_base + '_poster.webp', 'image/webp'),
+                                    'last': put_out(job, webp(lp, lp + '.webp'), img_base + '_last.webp', 'image/webp'), 'dur': dur, 'durs': durs}
+        os.remove(mp4)
+    for c in q.get('cast') or []:
+        if not c.get('key'): continue
+        src = get_media(c['key'], f"{TMP}/{job['id']}_cast{c['idx']}.png")
+        out['cast'][c['id']] = put_out(job, face_crop(src, src + '.webp'), c['out'], 'image/webp')
+    cv = get_media(q['cover']['key'], f"{TMP}/{job['id']}_cover.png")
+    out['cover'] = put_out(job, webp(cv, cv + '.webp', 720, 82), q['cover']['out'], 'image/webp')
+    out['bytes'] = total
+    return out
+
 def run(job):
     ph, kind, img = job['phase'], job.get('kind'), job['step'] == 6
     if ph == 'post': return post(job)
     if ph == 'seam': return seam(job)
+    if ph == 'pack': return pack(job)
     if kind == 'mock_image' or (kind == 'mock_video' and img): return mock_image(job)
     if kind == 'mock_video': return mock_video(job)
     if kind == 'gsk': return gsk_image(job) if img else gsk_video(job)
