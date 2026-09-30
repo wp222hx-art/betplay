@@ -42,7 +42,7 @@ const body = async (c: any) => { try { return await c.req.json() } catch { retur
 // 身份只来自服务端签发的令牌；body/header 里的 user_id 一律忽略（旧逻辑可被任意冒充）
 // uidOf(c) = 可选身份；uidOf(c, b) = 必须登录
 const uidOf = (c: any, b?: any) => { const u = c.get('uid') || ''; if (b !== undefined && !u) throw new GameError('UNAUTHORIZED', '身份无效，请刷新页面'); return u }
-const studioUrl = (c: any) => (c.env as any).STUDIO_ORIGIN || (() => { const u = new URL(c.req.url); return /^(localhost|127\.)/.test(u.hostname) ? 'http://localhost:3001' : u.origin.replace(/\/\/3000-/, '//3001-') })()
+const studioUrl = (c: any) => (c.env as any).STUDIO_ORIGIN || (() => { const u = new URL(c.req.url); return /^(localhost|127\.)/.test(u.hostname) ? 'http://localhost:3001' : u.origin.replace(/^http:/, 'https:').replace(/\/\/3000-/, '//3001-') })()
 const ADMIN_PREFIX = ['/api/console', '/api/agents', '/api/studio', '/api/admin', '/api/director']
 app.use('/api/*', async (c, next) => {
   const path = c.req.path

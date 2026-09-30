@@ -31,7 +31,7 @@ app.use('*', async (c, next) => {
 app.use('/sstatic/*', serveStatic({ root: './' }))
 
 // ─── 认证 ───
-app.get('/api/auth/state', async (c) => c.json({ player_origin: c.env.PLAYER_ORIGIN || (/^(localhost|127\.)/.test(new URL(c.req.url).hostname) ? 'http://localhost:3000' : new URL(c.req.url).origin.replace(/\/\/3001-/, '//3000-')), initialized: (await userCount(c.env)) > 0, user: await currentUser(c.env, c), bootstrap_token_required: !!c.env.STUDIO_BOOTSTRAP_TOKEN, master_key_ok: !!(c.env.STUDIO_MASTER_KEY && c.env.STUDIO_MASTER_KEY.length >= 16) }))
+app.get('/api/auth/state', async (c) => c.json({ player_origin: c.env.PLAYER_ORIGIN || (/^(localhost|127\.)/.test(new URL(c.req.url).hostname) ? 'http://localhost:3000' : new URL(c.req.url).origin.replace(/^http:/, 'https:').replace(/\/\/3001-/, '//3000-')), initialized: (await userCount(c.env)) > 0, user: await currentUser(c.env, c), bootstrap_token_required: !!c.env.STUDIO_BOOTSTRAP_TOKEN, master_key_ok: !!(c.env.STUDIO_MASTER_KEY && c.env.STUDIO_MASTER_KEY.length >= 16) }))
 app.post('/api/auth/bootstrap', async (c) => c.json(await bootstrap(c.env, c, await body(c))))
 app.post('/api/auth/login', async (c) => c.json(await login(c.env, c, await body(c))))
 app.post('/api/auth/logout', async (c) => c.json(await logout(c.env, c)))
