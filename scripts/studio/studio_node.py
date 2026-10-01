@@ -233,18 +233,79 @@ def face_crop(src, dst, size=256):
         cx, cy, r = W / 6, H * 0.28, min(W / 6, H * 0.22)
     box = (int(max(0, cx - r)), int(max(0, cy - r)), int(min(W, cx + r)), int(min(H, cy + r)))
     im.crop(box).resize((size, size), Image.LANCZOS).save(dst, 'WEBP', quality=85); return dst
+VOICE_LEAD, VOICE_GAP, VOICE_TAIL, MAX_TEMPO, MAX_SLOW = 0.35, 0.2, 0.35, 1.3, 1.8
+def voice_fit(lines, dur):
+    """台词放进一个节点视频：先提速（≤1.3x）；仍放不下 → 视频慢放（≤1.8x）；再不够 → 定格尾帧补足。
+    返回 tempo, slow, hold, final（最终节点时长）"""
+    if not lines: return 1.0, 1.0, 0.0, dur
+    speech = sum(l['dur'] for l in lines); gaps = VOICE_GAP * (len(lines) - 1)
+    room = max(0.5, dur - VOICE_LEAD - VOICE_TAIL - gaps)
+    tempo = min(MAX_TEMPO, max(1.0, speech / room))
+    need = VOICE_LEAD + speech / tempo + gaps + VOICE_TAIL
+    if need <= dur: return round(tempo, 3), 1.0, 0.0, dur
+    slow = min(MAX_SLOW, need / dur); hold = max(0.0, need - dur * slow)
+    return round(tempo, 3), round(slow, 3), round(hold, 2), round(dur * slow + hold, 2)
+def voice_plan(lines, final, tempo):
+    """排期：从 lead 起顺排；富余时间均匀分到句间（不全挤在开头）。返回 [(idx, start, end)]"""
+    seg = [l['dur'] / tempo for l in lines]
+    spare = max(0.0, final - VOICE_LEAD - VOICE_TAIL - sum(seg) - VOICE_GAP * (len(lines) - 1))
+    g = VOICE_GAP + min(1.2, spare / max(1, len(lines)))
+    out, t = [], VOICE_LEAD
+    for l, d in zip(lines, seg):
+        st = min(t, max(0.0, final - d - 0.05)); out.append((l['idx'], round(st, 2), round(st + d, 2))); t = st + d + g
+    return out
+def voice_track(job, part, dur, i):
+    vs = [v for v in (part.get('voice') or []) if v.get('key')]
+    if not vs: return None
+    files = []
+    for v in vs:
+        # 缓存按 R2 键命名：同一次打包里不同片段的「第 i 段第 idx 句」会撞名（曾导致 e13 播放 s1 的台词）
+        pth = f"{TMP}/{job['id']}_voice_{re.sub(r'[^\w.-]', '_', v['key'])[-120:]}"
+        if not os.path.exists(pth): get_media(v['key'], pth)
+        v['dur'] = ffdur(pth) or v.get('dur') or 1.5; files.append(pth)
+    tempo, slow, hold, final = voice_fit(vs, dur)
+    return {'files': files, 'plan': voice_plan(vs, final, tempo), 'tempo': tempo, 'slow': slow, 'hold': hold, 'final': final}
 def pack(job):
-    """按编译计划拼接：每个片段 = 若干节点视频顺接（统一 576p/24fps/AAC 立体声重编码，保证播放器无缝）"""
+    """按编译计划拼接：每个片段 = 若干节点视频顺接（统一 576p/24fps/AAC 立体声重编码，保证播放器无缝）；
+    有配音时：每个节点的台词按排期混入，原声（环境音）压低到 duck 倍，回报每句真实起止供字幕同步"""
     q = job['req']; out = {'segments': {}, 'cast': {}}; total = 0; cache = {}
+    vcfg = q.get('voice') or {}; duck = float(vcfg.get('duck', 0.25)); von = bool(vcfg.get('enabled'))
     def clip(key):
         if key not in cache: cache[key] = get_media(key, f"{TMP}/{job['id']}_src{len(cache)}.mp4")
         return cache[key]
     for s in q['segments']:
         srcs = [clip(p['key']) for p in s['parts']]; durs = [round(ffdur(x), 2) for x in srcs]
+        vt = [voice_track(job, p, durs[i], i) if von else None for i, p in enumerate(s['parts'])]
+        outd = [t['final'] if t else durs[i] for i, t in enumerate(vt)]  # 节点在成片里的最终时长（可能被慢放 / 定格加长）
+        extra, vfilt, vtimes = [], '', []
+        nin = len(srcs)
+        for i, t in enumerate(vt):
+            if not t: vtimes.append([]); continue
+            labs = []
+            for (idx, st, en), f in zip(t['plan'], t['files']):
+                extra += ['-i', f]; k = nin; nin += 1
+                vfilt += f"[{k}:a]aresample=44100,aformat=channel_layouts=stereo,atempo={t['tempo']},volume=1.6,adelay={int(st * 1000)}|{int(st * 1000)},apad,atrim=0:{outd[i]}[vl{i}_{idx}];"
+                labs.append(f"[vl{i}_{idx}]")
+            vfilt += ''.join(labs) + f"amix=inputs={len(labs)}:normalize=0:duration=longest,atrim=0:{outd[i]}[vm{i}];"
+            vtimes.append([{'idx': idx, 'start': st, 'end': en} for idx, st, en in t['plan']])
         mp4 = f"{TMP}/{job['id']}_{s['id']}.mp4"
         args = []
         for x in srcs: args += ['-i', x]
-        norm = ''.join(f"[{i}:v]scale=576:1024:force_original_aspect_ratio=decrease,pad=576:1024:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=24,format=yuv420p[v{i}];" + (f"[{i}:a]aresample=44100,aformat=channel_layouts=stereo[a{i}];" if has_audio(x) else f"anullsrc=r=44100:cl=stereo,atrim=0:{durs[i]}[a{i}];") for i, x in enumerate(srcs))
+        args += extra
+        def aud(i, x):
+            t = vt[i]
+            base = f"[{i}:a]aresample=44100,aformat=channel_layouts=stereo" if has_audio(x) else f"anullsrc=r=44100:cl=stereo,atrim=0:{durs[i]}"
+            if not t: return base + f"[a{i}];"
+            # 有台词：原声随视频慢放、压低垫底（环境音）+ 人声叠加；时长锁定在节点最终长度，保证 concat 对齐
+            slow = f",atempo={round(1 / t['slow'], 4)}" if t['slow'] > 1 else ''
+            return base + f"{slow},volume={duck},apad,atrim=0:{outd[i]}[bg{i}];[bg{i}][vm{i}]amix=inputs=2:normalize=0:duration=first,alimiter=limit=0.95[a{i}];"
+        def vid(i):
+            t = vt[i]; fx = ''
+            if t and t['slow'] > 1: fx += f",setpts={t['slow']}*PTS"
+            # 定格补足放在 fps 之后、并多补 0.5 秒再 trim：保证视频轨不短于音轨（否则 concat 后尾帧缺失）
+            pad = f",tpad=stop_mode=clone:stop_duration={round((t['hold'] if t else 0) + 0.5, 2)}" if t else ''
+            return f"[{i}:v]scale=576:1024:force_original_aspect_ratio=decrease,pad=576:1024:(ow-iw)/2:(oh-ih)/2,setsar=1{fx},fps=24{pad},trim=0:{outd[i]},setpts=PTS-STARTPTS,format=yuv420p[v{i}];"
+        norm = vfilt + ''.join(vid(i) + aud(i, x) for i, x in enumerate(srcs))
         cat = ''.join(f"[v{i}][a{i}]" for i in range(len(srcs))) + f"concat=n={len(srcs)}:v=1:a=1[v][a]"
         o = sh('ffmpeg', '-loglevel', 'error', '-y', *args, '-filter_complex', norm + cat, '-map', '[v]', '-map', '[a]', '-c:v', 'libx264', '-crf', '23', '-preset', 'veryfast', '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', mp4, timeout=1200)
         if not os.path.exists(mp4) or os.path.getsize(mp4) < 1000: raise RuntimeError(f"拼接失败 {s['id']}: {(o.stderr or '')[-200:]}")
@@ -254,8 +315,9 @@ def pack(job):
         sh('ffmpeg', '-loglevel', 'error', '-y', '-ss', str(min(1.0, dur / 3)), '-i', mp4, '-frames:v', '1', pp)
         sh('ffmpeg', '-loglevel', 'error', '-y', '-sseof', '-0.1', '-i', mp4, '-frames:v', '1', lp)
         if not os.path.exists(lp): sh('ffmpeg', '-loglevel', 'error', '-y', '-ss', str(max(0, dur - 0.2)), '-i', mp4, '-frames:v', '1', lp)
+        if not os.path.exists(lp): sh('ffmpeg', '-loglevel', 'error', '-y', '-sseof', '-1.5', '-i', mp4, '-update', '1', '-q:v', '2', lp)  # 兜底：取最后 1.5 秒里的最后一帧
         out['segments'][s['id']] = {'key': put_out(job, mp4, s['out'] + '.mp4', 'video/mp4'), 'poster': put_out(job, webp(pp, pp + '.webp'), img_base + '_poster.webp', 'image/webp'),
-                                    'last': put_out(job, webp(lp, lp + '.webp'), img_base + '_last.webp', 'image/webp'), 'dur': dur, 'durs': durs}
+                                    'last': put_out(job, webp(lp, lp + '.webp'), img_base + '_last.webp', 'image/webp'), 'dur': dur, 'durs': outd, 'voice': vtimes}
         os.remove(mp4)
     for c in q.get('cast') or []:
         if not c.get('key'): continue

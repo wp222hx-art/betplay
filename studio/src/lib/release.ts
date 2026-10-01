@@ -8,6 +8,7 @@ import * as Gw from './gateway'
 import * as L from './ledger'
 import * as Media from './media'
 import * as Steps from './steps'
+import * as Voice from './voice'
 import { uid } from './sec'
 
 const now = () => Date.now()
@@ -40,12 +41,12 @@ async function gather(env: Env, pid: string) {
 }
 
 /** 编译指纹：结构图 + 剧本台词 + 每个用到的素材（media_key）+ 上架信息 → 任何一项变了都必须重新打包 */
-function fingerprint(g: any, meta: any) {
+function fingerprint(g: any, meta: any, voice?: string) {
   const clips = [...new Set(Object.values<C.SegPlan>(g.plan.segments).flatMap((s) => s.parts.map((p) => p.node)))].sort()
   return L.fnv(L.stable({
     n: g.u.graph.nodes.map((n: any) => [n.id, n.type, n.title, n.question, n.tier]), e: g.u.graph.edges.map((e: any) => [e.from, e.to, e.kind, e.label, e.hint]),
     c: clips.map((id) => [id, g.clip(id)?.media_key || '', (g.u.scripts.get(id)?.beats || []).map((b: any) => b.line || '')]),
-    cast: (g.u.bible?.cast || []).map((c: any) => [c.id, c.name, g.slots.get(`6:cast.${c.id}`)?.media_key || '']), cover: g.slots.get('6:cover')?.media_key || '', meta
+    cast: (g.u.bible?.cast || []).map((c: any) => [c.id, c.name, g.slots.get(`6:cast.${c.id}`)?.media_key || '']), cover: g.slots.get('6:cover')?.media_key || '', meta, ...(voice ? { voice } : {})
   }))
 }
 
@@ -92,9 +93,11 @@ export async function preflight(env: Env, pid: string) {
   add('lines', noLines.length < need.length, 'warn', noLines.length ? `${noLines.length} 段没有台词（播放时无字幕）` : '全部片段有台词字幕')
   add('meta', !!meta.title && !!meta.logline && !!meta.genre, 'block', !meta.title || !meta.logline ? '缺少标题或简介' : !meta.genre ? '请选择题材（发现页分类用）' : `「${meta.title}」· ${meta.genre} · ${meta.aud} · ${meta.rating}+`)
   if (!(await env.DB.prepare(`SELECT 1 FROM st_exec_nodes WHERE enabled=1 AND last_seen>? AND kinds LIKE '%post%'`).bind(now() - 10 * 60000).first())) add('node', false, 'block', '没有在线的执行节点（需要 post 能力，负责拼接片段）')
+  const vs = await Voice.status(env, pid).catch(() => null), vp = await Voice.forPack(env, pid).catch(() => null)
+  if (vs) add('voice', !vs.enabled || vs.summary.complete, 'warn', !vs.enabled ? '配音已关闭（只播放视频原声）' : vs.summary.complete ? `配音就绪：${vs.summary.total} 句台词 · ${vs.summary.seconds} 秒（${vs.model}）` : `配音未完成：${vs.summary.ok}/${vs.summary.total} 句（未配的台词只显示字幕）——请先「生成配音」`)
   const p = await project(env, pid), sid = p.series_id
   const live: any = sid ? await env.DB.prepare('SELECT version, status FROM published_series WHERE id=?').bind(sid).first() : null
-  const fp = fingerprint(g, meta)
+  const fp = fingerprint(g, meta, vp?.enabled ? vp.hash : undefined)
   const last: any = await env.DB.prepare(`SELECT id, version, status, src_hash FROM st_releases WHERE project_id=? ORDER BY created_at DESC LIMIT 1`).bind(pid).first()
   const blockers = checks.filter((c) => !c.ok && c.level === 'block')
   return { checks, can_pack: !blockers.length, blockers: blockers.map((b) => b.msg), meta, stats: g.plan.stats, plan: { nodes: g.plan.nodes.map((n) => ({ id: n.id, depth: n.depth, question: n.question, fork: !!n.fork, options: n.options.map((o) => ({ label: o.label, next: o.next || null, ending: o.ending_title || null, tier: o.ending_tier || null, seg: o.id })) })), segments: Object.values(g.plan.segments).map((s) => ({ id: s.id, kind: s.kind, title: s.title, parts: s.parts.map((x) => x.node) })) },
@@ -131,10 +134,11 @@ export async function pack(env: Env, u: User, pid: string) {
   const pub: any = await env.DB.prepare('SELECT version FROM published_series WHERE id=?').bind(sid).first()
   const version = Math.max(vr?.v || 0, pub?.version || 0) + 1
   // 打包任务：每个片段 = 按顺序拼接的若干节点视频；角色头像 = 设定图裁切
-  const segs = Object.values<C.SegPlan>(g.plan.segments).map((s) => ({ id: s.id, out: `${sid}/v${version}_${s.id}`, parts: s.parts.map((x) => ({ node: x.node, key: g.clip(x.node)!.media_key })) }))
+  const vp = await Voice.forPack(env, pid)
+  const segs = Object.values<C.SegPlan>(g.plan.segments).map((s) => ({ id: s.id, out: `${sid}/v${version}_${s.id}`, parts: s.parts.map((x) => ({ node: x.node, key: g.clip(x.node)!.media_key, voice: (vp.nodes[x.node] || []).map((v) => ({ idx: v.idx, key: v.key, dur: v.dur })) })) }))
   const cast = (g.u.bible?.cast || []).map((c: any, i: number) => ({ id: c.id, idx: i, key: g.slots.get(`6:cast.${c.id}`)?.status === 'ok' ? g.slots.get(`6:cast.${c.id}`).media_key : null, out: `${sid}/img/v${version}_c${i}.webp` }))
   const rid = uid('rel_'), jid = uid('job_')
-  const req = { series_id: sid, version, segments: segs, cast, cover: { key: g.slots.get('6:cover').media_key, out: `${sid}/img/v${version}_cover.webp` } }
+  const req = { series_id: sid, version, voice: { enabled: vp.enabled, duck: vp.duck }, segments: segs, cast, cover: { key: g.slots.get('6:cover').media_key, out: `${sid}/img/v${version}_cover.webp` } }
   await env.DB.batch([
     env.DB.prepare(`INSERT INTO st_releases (id,project_id,series_id,version,status,src_hash,plan,meta,checks,stats,job_id,created_by,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`)
       .bind(rid, pid, sid, version, 'packing', pf.fingerprint, JSON.stringify({ nodes: g.plan.nodes, segments: g.plan.segments }), JSON.stringify(meta), JSON.stringify({ preflight: pf.checks, compliance: comp }), JSON.stringify(g.plan.stats), jid, u.id, now()),
@@ -160,7 +164,15 @@ export async function packDone(env: Env, j: any, b: any) {
   const segments: any = {}
   for (const s of Object.values<C.SegPlan>(plan.segments)) {
     const o = out[s.id]; if (!o) throw new HttpError(500, 'PACK_MISSING', `打包结果缺少片段 ${s.id}`)
-    const lines = C.timeline(s.parts.map((x, i) => ({ dur: +(o.durs?.[i] || 8), lines: (u.scripts.get(x.node)?.beats || []).filter((bt: any) => bt.line && bt.line.replace(/[.。…\s]/g, '')).map((bt: any) => ({ speaker: nameOf(u, bt.who), text: String(bt.line).slice(0, 60) })) })))
+    // 字幕时间：有配音的片段用执行节点回报的真实起止（与人声同步）；没配音的按时长均分
+    const lines: any[] = []; let off = 0
+    s.parts.forEach((x, i) => {
+      const d = +(o.durs?.[i] || 8), beats = (u.scripts.get(x.node)?.beats || []).filter((bt: any) => bt.line && Voice.speakable(bt.line))
+      const vt: any[] = o.voice?.[i] || []
+      if (vt.length) for (const v of vt) { const bt = beats[v.idx]; if (bt) lines.push({ speaker: nameOf(u, bt.who), text: String(bt.line).slice(0, 60), start: +(off + v.start).toFixed(2), end: +(off + v.end).toFixed(2), voiced: true }) }
+      else for (const l of C.timeline([{ dur: d, lines: beats.map((bt: any) => ({ speaker: nameOf(u, bt.who), text: String(bt.line).slice(0, 60) })) }])) lines.push({ ...l, start: +(off + l.start).toFixed(2), end: +(off + l.end).toFixed(2) })
+      off += d
+    })
     const last = s.parts[s.parts.length - 1], sc = u.scripts.get(last.node) || {}
     // 玩家端媒体约定：视频 R2 键 <sid>/<clip>.mp4 → video_url /static/<sid>/<clip>.mp4（播放时换成签名票据 /m/<sid>/<clip>.mp4）；图片 <sid>/img/<name> → /gimg/<sid>/<name>
     segments[s.id] = { title: s.title, meme: '', mood: sc.mood || '', image_url: gimg(rel.series_id, o.poster), video_url: `/static/${rel.series_id}/${base(o.key)}`, last_url: gimg(rel.series_id, o.last), dur: +(+o.dur).toFixed(2), lines, film: true, ambience: null, sfx: null, sfx_at: 0, src: s.parts.map((x) => x.node) }

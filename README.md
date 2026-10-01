@@ -201,6 +201,7 @@ npx wrangler d1 migrations apply webapp-production                              
   - API：`GET /api/projects/:id/release`、`POST .../release/{meta|pack|cancel|rollback|live}`；节点 `PUT /node/jobs/:id/out?key=`
   - **真拍首发**：《雨夜牌局》`ms_8a7631217f` v1（1 抉择点 · 2 结局 · 3 片段 · 32 秒 · 5.2MB，合规低风险）；手机端实测开局 → 序章 → 下注 → 揭晓 → 结局卡铸造全链路通过
   - **真拍第二部**：《第十三层的外卖》`ms_a463ddeb68` v1（项目 `sp_a463ddeb680a`；2 抉择点 · 6 选项 · 4 结局 · 7 播放片段 · 12 段视频；合规低风险 16+）
+  - **配音（第 10 步）**：视频模型原声几乎只有环境音 → 新增逐句 TTS（TokenHot `mimo-v2.5-tts`，目前限时免费）。自动选角（苏打/白桦/冰糖/茉莉，按性别年龄），风格 = 角色 + 节点情绪 + 动作；打包时执行节点把人声混入成片（原声压到 0.25 垫底），台词放不下时先提速 ≤1.3x、再慢放视频 ≤1.8x、最后定格补足；字幕按真实人声起止对齐。API：`GET /api/projects/:id/voice`、`POST …/voice/config`、`POST …/voice/run`；表 `st_voice_lines`（迁移 0018）
     - 文字：TokenHot deepseek-v4-pro / v4.1-flash，68 次调用 ¥1.72；剧本评审逻辑 7/10、吸引力 80
     - 设定图：TokenHot nano-banana-pro 2K，5 张 ¥1.05
     - 视频：TokenHot **wan3.0-video** 720P 8 秒带音频，12 段 ¥60.48（¥5.04/段）；人脸 8–9、接缝 0.98+、0 字幕

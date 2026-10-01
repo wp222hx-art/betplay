@@ -14,6 +14,7 @@ import * as Media from './lib/media'
 import * as Release from './lib/release'
 import * as Insight from './lib/insight'
 import * as Health from './lib/health'
+import * as Voice from './lib/voice'
 
 type V = { Bindings: Env; Variables: { user: User } }
 const app = new Hono<V>()
@@ -182,6 +183,10 @@ app.get('/api/projects/:id/insight', requireRole('reviewer'), async (c) => c.jso
 app.post('/api/projects/:id/insight/review', requireRole('writer'), async (c) => c.json(await Insight.review(c.env, c.get('user'), c.req.param('id'))))
 app.get('/api/projects/:id/insight/history', requireRole('reviewer'), async (c) => c.json(await Insight.history(c.env, c.req.param('id'))))
 // ─── 第 10 步：预检 · 上架 · 版本快照 ───
+// ─── 第 10 步 · 配音（逐句 TTS → 打包时混入成片）───
+app.get('/api/projects/:id/voice', requireRole('reviewer'), async (c) => c.json(await Voice.status(c.env, c.req.param('id'))))
+app.post('/api/projects/:id/voice/config', requireRole('writer'), async (c) => c.json(await Voice.saveConfig(c.env, c.get('user'), c.req.param('id'), await body(c))))
+app.post('/api/projects/:id/voice/run', requireRole('writer'), async (c) => { const b = await body(c); return c.json(await Voice.generate(c.env, c.get('user'), c.req.param('id'), { only: Array.isArray(b.only) ? b.only.map(String).slice(0, 200) : undefined, force: !!b.force })) })
 app.get('/api/projects/:id/release', requireRole('reviewer'), async (c) => c.json(await Release.board(c.env, c.req.param('id'))))
 app.post('/api/projects/:id/release/meta', requireRole('writer'), async (c) => c.json(await Release.saveMeta(c.env, c.get('user'), c.req.param('id'), await body(c))))
 app.post('/api/projects/:id/release/pack', requireRole('writer'), async (c) => c.json(await Release.pack(c.env, c.get('user'), c.req.param('id'))))
