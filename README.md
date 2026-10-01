@@ -200,6 +200,11 @@ npx wrangler d1 migrations apply webapp-production                              
   - 旧入口 `/studio`、`/director`、`/publish` → 302 到 Studio；旧 API `/api/studio/*`、`/api/director/*`、`/api/admin/publish/*`、`/api/admin/series/*` → 410 GONE；旧代码已删除
   - API：`GET /api/projects/:id/release`、`POST .../release/{meta|pack|cancel|rollback|live}`；节点 `PUT /node/jobs/:id/out?key=`
   - **真拍首发**：《雨夜牌局》`ms_8a7631217f` v1（1 抉择点 · 2 结局 · 3 片段 · 32 秒 · 5.2MB，合规低风险）；手机端实测开局 → 序章 → 下注 → 揭晓 → 结局卡铸造全链路通过
+  - **真拍第二部**：《第十三层的外卖》`ms_a463ddeb68` v1（项目 `sp_a463ddeb680a`；2 抉择点 · 6 选项 · 4 结局 · 7 播放片段 · 12 段视频；合规低风险 16+）
+    - 文字：TokenHot deepseek-v4-pro / v4.1-flash，68 次调用 ¥1.72；剧本评审逻辑 7/10、吸引力 80
+    - 设定图：TokenHot nano-banana-pro 2K，5 张 ¥1.05
+    - 视频：TokenHot **wan3.0-video** 720P 8 秒带音频，12 段 ¥60.48（¥5.04/段）；人脸 8–9、接缝 0.98+、0 字幕
+    - 踩坑：火山 Seedance 2.0 把写实 AI 原创人像判为「真人」拒绝（InputImageSensitiveContentDetected.PrivacyInformation）；gsk 视频队列拥堵（排队 ~7800）——均已绕开并修复相关逻辑
 - 环境变量（可选）：Studio `PLAYER_ORIGIN`（「打开玩家端」链接）、玩家端 `STUDIO_ORIGIN`（旧入口跳转）、`STUDIO_ALLOW_MOCK_PUBLISH=1`（允许模拟素材上架，仅测试用）
 - **⚡ 算力网 suanli.com 接入**（对话 + 图片 + 视频一个 Key 全搞定）
   - 入口：Studio → Agent 配置 →「一键接入 算力网」→ 粘贴 Key → 保存并测试（`POST /api/providers/suanli/connect`，Key 用 AES-GCM 加密，界面与审计日志只显示掩码）
