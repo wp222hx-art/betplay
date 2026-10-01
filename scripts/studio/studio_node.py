@@ -123,6 +123,10 @@ def gsk_video(job):
         if os.path.exists(raw) and os.path.getsize(raw) > 100000: break
         os.makedirs("/tmp/gsklogs", exist_ok=True); open(f"/tmp/gsklogs/{job['id']}_{tries}.log", "w").write((o.stdout or '') + '\n---stderr---\n' + (o.stderr or ''))
         if 'Could not find a file URL' not in (o.stdout or '') + (o.stderr or ''): break
+        # 服务端仍在排队/渲染（PENDING）：gsk 明确要求不要重复提交，否则会重复排队、重复扣费
+        if re.search(r'"status"\s*:\s*"(PENDING|PROCESSING|RUNNING)"', o.stdout or ''):
+            qp = re.search(r'"queue_position"\s*:\s*(\d+)', o.stdout or '')
+            raise RuntimeError(f"gsk 视频仍在服务端排队（队列位置 {qp.group(1) if qp else '?'}），15 分钟未出片；未重复提交")
         print(f"[node] gsk video 无文件返回，重试 {tries + 1}", flush=True); time.sleep(15)
     if not (os.path.exists(raw) and os.path.getsize(raw) > 100000):
         tail = (o.stdout or '')[-600:]
