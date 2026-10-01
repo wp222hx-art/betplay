@@ -13,3 +13,9 @@ media_src/
 
 core
 core.*
+__pycache__/
+*.pyc
+# 原始/历史媒体不进源码（托管打包上限 500MB）——归档在 /home/user/webapp_media_archive
+public/static/comic/v3/
+public/static/comic/voice/
+public/static/comic/audio/
