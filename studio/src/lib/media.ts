@@ -202,7 +202,10 @@ async function directSubmit(env: Env, jobId: string) {
   } catch (e: any) { await failJob(env, jobId, String(e?.message || e)) }
 }
 
+/** 直连视频任务的硬上限：正常 4–6 分钟出片；上游偶发卡在某个进度不动 → 超时判失败，交给自动重试 */
+export const DIRECT_VIDEO_TIMEOUT_MS = 20 * 60000
 async function directPoll(env: Env, j: any) {
+  if (j.created_at && now() - j.created_at > DIRECT_VIDEO_TIMEOUT_MS) return failJob(env, j.id, `上游 ${Math.round(DIRECT_VIDEO_TIMEOUT_MS / 60000)} 分钟未出片，判定卡死（自动重试）`)
   const pv = await resolveProvider(env, j.provider_id)
   try {
     let st = '', video = '', last = '', err = ''
