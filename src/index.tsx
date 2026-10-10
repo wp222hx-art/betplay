@@ -9,7 +9,7 @@ import { modelHealth, predictiveQueue, rankVideoModels, submitVideo, buildVideoP
 import { branches, overview, scriptTree } from './agents/console'
 import { applyClipPlan, approveExtension, clipPairs, derive, generatePoems, ingestSignals, regulate } from './agents/deriver'
 import type { Bindings } from './gateway/llm'
-import { playerPage, consolePage, agentsPage, comicPage, filmPage, voicePage, lovePage, discoverPage, marketPage, archPage, seriesPage } from './pages/shell'
+import { playerPage, consolePage, agentsPage, comicPage, filmPage, voicePage, lovePage, discoverPage, marketPage, archPage, seriesPage, thrillHubPage, thrillPage } from './pages/shell'
 import CATALOG from './catalog/data.json'
 import * as Tax from './catalog/taxonomy'
 import * as Growth from './growth/growth'
@@ -21,6 +21,8 @@ import { authUid, checkTicket, ipKey, issueDevice, rateLimit, riskEvent } from '
 import * as Market from './market/cards'
 import * as Tiers from './market/tiers'
 import { createEngine } from './comic/factory'
+import { createThrill, ladderRtp, MAX_RTP } from './thrill/engine'
+import { DEMO_THRILL } from './thrill/demo'
 
 const app = new Hono<{ Bindings: Bindings & { MEDIA?: R2Bucket; AUTH_SECRET?: string; ADMIN_KEY?: string }; Variables: { uid: string } }>()
 app.use('/api/*', cors())
@@ -209,6 +211,61 @@ app.post('/api/s/:sid/rounds/:id/next', async (c) => { const b = await body(c); 
 app.get('/api/s/:sid/rounds/:id/verify', async (c) => c.json(await (await engineOf(c.env, c.req.param('sid'))).verify(c.env, c.req.param('id'))))
 
 
+// ─────────────── 惊心 1 分钟（Thrill 60s）：真人剧 · 5 关连猜 · 阶梯倍率 · 剧集奖池 ───────────────
+// 剧本存 thrill_series（独立表）；首次访问自动写入演示剧本；按版本缓存引擎
+const THR: Record<string, { v: number; E: ReturnType<typeof createThrill> }> = {}
+let thrSeeded = false
+async function thrillSeed(env: any) {
+  if (thrSeeded) return; thrSeeded = true
+  const d = DEMO_THRILL as any
+  await env.DB.prepare(`INSERT OR IGNORE INTO thrill_series (id,title,logline,tension,cover,data,version,status,created_at,updated_at) VALUES (?,?,?,?,?,?,1,'demo',?,?)`)
+    .bind(d.series.id, d.series.title, d.series.logline, d.series.tension, d.segments[d.prologue].poster, JSON.stringify(d), Date.now(), Date.now()).run()
+}
+async function thrillOf(env: any, sid: string) {
+  await thrillSeed(env)
+  const r: any = await env.DB.prepare(`SELECT data, version, status FROM thrill_series WHERE id=? AND status IN ('live','demo')`).bind(sid).first()
+  if (!r) throw new GameError('NOT_FOUND', '该「惊心 1 分钟」剧集不存在或未上架')
+  if (!THR[sid] || THR[sid].v !== r.version) THR[sid] = { v: r.version, E: createThrill(JSON.parse(r.data)) }
+  return THR[sid].E
+}
+const isSybil = async (env: any, u: string) => !!(await env.DB.prepare(`SELECT 1 FROM risk_events WHERE uid=? AND kind='sybil' LIMIT 1`).bind(u).first())
+app.get('/api/thrill', async (c) => {
+  await thrillSeed(c.env)
+  const rows = (await c.env.DB.prepare(`SELECT id,title,logline,tension,cover,status,data FROM thrill_series WHERE status IN ('live','demo') ORDER BY tension DESC, updated_at DESC`).all()).results as any[]
+  const out = []
+  for (const r of rows) {
+    const E = await thrillOf(c.env, r.id).catch(() => null); if (!E) continue
+    await E.ensurePool(c.env)
+    const agg: any = await c.env.DB.prepare(`SELECT COUNT(*) n, SUM(CASE WHEN hits=5 THEN 1 ELSE 0 END) p FROM thrill_runs WHERE series_id=? AND status='ended'`).bind(r.id).first()
+    const rt = ladderRtp(E.CFG.ladder, E.ARITY)
+    out.push({ id: r.id, title: r.title, logline: r.logline, tension: r.tension, cover: r.cover, demo: r.status === 'demo', pool: await E.poolBalance(c.env), plays: agg?.n || 0, perfect: agg?.p || 0, ladder: E.CFG.ladder, arity: E.ARITY, jackpot_odds: Math.round(rt.jackpot_odds), url: '/t/' + r.id })
+  }
+  return c.json({ items: out })
+})
+app.get('/api/thrill/:sid/meta', async (c) => { const E = await thrillOf(c.env, c.req.param('sid')); const u = uidOf(c); const m: any = await E.meta(c.env, u || undefined); m.demo = !!(E.DATA.series as any).demo; return c.json(m) })
+app.post('/api/thrill/:sid/start', async (c) => {
+  const b = await body(c), u = uidOf(c, b), E = await thrillOf(c.env, c.req.param('sid'))
+  await rateLimit(c.env as any, 'thr:' + u, 40, 3600000)
+  return c.json(await E.start(c.env, { userId: u, stake: +b.stake, ipHash: await ipKey(c), sybil: await isSybil(c.env, u) }))
+})
+app.get('/api/thrill/:sid/resume', async (c) => { const E = await thrillOf(c.env, c.req.param('sid')); return c.json({ run: await E.resume(c.env, uidOf(c, {})) }) })
+app.post('/api/thrill/:sid/runs/:id/arm', async (c) => { const b = await body(c); return c.json(await (await thrillOf(c.env, c.req.param('sid'))).arm(c.env, { runId: c.req.param('id'), userId: uidOf(c, b) })) })
+app.post('/api/thrill/:sid/runs/:id/pick', async (c) => { const b = await body(c); return c.json(await (await thrillOf(c.env, c.req.param('sid'))).pick(c.env, { runId: c.req.param('id'), userId: uidOf(c, b), optionId: b.option_id || null, gate: +b.gate })) })
+app.get('/api/thrill/:sid/runs/:id/verify', async (c) => c.json(await (await thrillOf(c.env, c.req.param('sid'))).verify(c.env, c.req.param('id'))))
+// 管理：经济沙盘 / Jackpot 审核 / 剧本上架
+app.get('/api/admin/thrill/:sid/simulate', async (c) => { const E = await thrillOf(c.env, c.req.param('sid')); const r = ladderRtp(E.CFG.ladder, E.ARITY); return c.json({ ladder: E.CFG.ladder, arity: E.ARITY, ladder_rtp: r.rtp, rake: E.CFG.rake, max_rtp: MAX_RTP, jackpot_odds: r.jackpot_odds, mc: E.simulate(+(c.req.query('n') || 20000), +(c.req.query('stake') || 10)) }) })
+app.get('/api/admin/thrill/holds', async (c) => c.json((await c.env.DB.prepare(`SELECT id,user_id,series_id,ip_hash,stake,hits,jackpot,hold_reason,ended_at FROM thrill_runs WHERE jackpot_status='held' ORDER BY ended_at DESC LIMIT 100`).all()).results))
+app.post('/api/admin/thrill/holds/:id', async (c) => { const b = await body(c); const r: any = await c.env.DB.prepare('SELECT series_id FROM thrill_runs WHERE id=?').bind(c.req.param('id')).first(); if (!r) throw new GameError('RUN_NOT_FOUND', '局不存在'); return c.json(await (await thrillOf(c.env, r.series_id)).resolveHold(c.env, c.req.param('id'), b.approve === true)) })
+app.post('/api/admin/thrill/series', async (c) => {
+  const b = await body(c), d = b.data
+  try { createThrill(d) } catch (e: any) { throw new GameError('THRILL_INVALID', e.message) }
+  const status = ['draft', 'demo', 'live', 'offline'].includes(b.status) ? b.status : 'draft', t = Date.now()
+  await c.env.DB.prepare(`INSERT INTO thrill_series (id,title,logline,tension,cover,data,version,status,created_at,updated_at) VALUES (?,?,?,?,?,?,1,?,?,?)
+    ON CONFLICT(id) DO UPDATE SET title=excluded.title, logline=excluded.logline, tension=excluded.tension, cover=excluded.cover, data=excluded.data, version=thrill_series.version+1, status=excluded.status, updated_at=excluded.updated_at`)
+    .bind(d.series.id, d.series.title, d.series.logline || '', d.series.tension || 3, b.cover || d.segments?.[d.prologue]?.poster || null, JSON.stringify(d), status, t, t).run()
+  return c.json({ ok: true, id: d.series.id, status })
+})
+
 // ─────────────── 页面 ───────────────
 // 首页 = 发现页（漫剧 / 真人剧 / 抽象剧 三大形态 × 十大题材）；旧“剧场”下沉到 /theater，漫剧保留直链不进导航
 app.get('/', (c) => c.html(discoverPage()))
@@ -226,6 +283,8 @@ app.get('/console', (c) => c.html(consolePage()))
 app.get('/agents', (c) => c.html(agentsPage()))
 app.get('/comic', (c) => c.html(comicPage()))
 app.get('/film', (c) => c.html(filmPage()))
+app.get('/thrill', (c) => c.html(thrillHubPage()))
+app.get('/t/:sid', async (c) => { await thrillSeed(c.env); const r: any = await c.env.DB.prepare(`SELECT title FROM thrill_series WHERE id=? AND status IN ('live','demo')`).bind(c.req.param('sid')).first(); if (!r) return c.notFound(); return c.html(thrillPage(c.req.param('sid'), r.title)) })
 app.get('/love', (c) => c.html(lovePage()))
 app.get('/voice', (c) => c.html(voicePage()))
 

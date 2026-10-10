@@ -21,6 +21,7 @@ const nav = (active: string) => `
   <div class="nav-links">
     <a href="/" class="${active === 'discover' ? 'on' : ''}"><i class="fas fa-compass"></i><b>发现</b></a>
     ${FMT.map(([k, ic, n]) => `<a href="/?cat=${k}" class="${act(active) === k ? 'on' : ''}"><i class="fas ${ic}"></i><b>${n}</b></a>`).join('')}
+    <a href="/thrill" class="thrill-tab ${active === 'thrill' ? 'on' : ''}"><i class="fas fa-bolt"></i><b>惊心1分钟</b></a>
     <a href="/market" class="${active === 'market' ? 'on' : ''}"><i class="fas fa-gem"></i><b>结局卡</b></a>
     <details class="nav-more ${['voice', 'console', 'agents', 'arch'].includes(active) ? 'on' : ''}"><summary><i class="fas fa-toolbox"></i><b>工作台</b></summary>
       <div class="more-menu"><a href="/market" class="m-only"><i class="fas fa-gem"></i> 结局卡交易所</a><a href="/studio"><i class="fas fa-clapperboard"></i> MoMo Studio · 生产与上架</a><a href="/arch"><i class="fas fa-sitemap"></i> 技术架构</a><a href="/voice"><i class="fas fa-microphone-lines"></i> 声线工作室</a><a href="/console"><i class="fas fa-gauge-high"></i> 运营后台</a><a href="/agents"><i class="fas fa-robot"></i> 7-Agent</a></div>
@@ -30,6 +31,7 @@ const nav = (active: string) => `
 <nav id="tab-bar" class="tab-bar">
   <a href="/" class="${active === 'discover' ? 'on' : ''}"><i class="fas fa-compass"></i><span>发现</span></a>
   ${FMT.map(([k, ic, n]) => `<a href="/?cat=${k}" class="${act(active) === k ? 'on' : ''}"><i class="fas ${ic}"></i><span>${n}</span></a>`).join('')}
+  <a href="/thrill" class="thrill-tab ${active === 'thrill' ? 'on' : ''}"><i class="fas fa-bolt"></i><span>惊心1分钟</span></a>
   <a href="/?tab=mine" class="${active === 'mine' ? 'on' : ''}"><i class="fas fa-bookmark"></i><span>我的</span></a>
 </nav>`
 
@@ -163,3 +165,39 @@ ${nav(cat)}
 <div id="modal-root"></div>
 <script>window.DF_MODE="film";window.DF_API="/api/s/${sid}";window.DF_THEME="${theme}"</script><script src="/static/comic.js"></script>
 </body></html>` }
+
+// 惊心 1 分钟：板块页（按紧张度排序）+ 一分钟连猜播放页（无暂停 / 无回看 / 无悔棋）
+export const thrillHubPage = () => `${head('惊心1分钟 · 5 关连猜真人剧 | MoMocash剧场', '<link href="/static/thrill.css" rel="stylesheet">')}
+<body class="thrill-body">
+${nav('thrill')}
+<main id="thrill-hub" class="thrill-hub">
+  <header id="thrill-hero" class="thrill-hero">
+    <p class="kicker"><i class="fas fa-bolt"></i> 新板块 · 真人剧</p>
+    <h1>惊心<em>1</em>分钟</h1>
+    <p class="sub">60 秒一口气演完 · 5 关连猜 · 连中 ×2 ×3 ×4 ×5 ×6 · 全中瓜分本剧奖池</p>
+    <ul class="rules"><li><i class="fas fa-dice"></i>每关结果开局即锁定，完全随机，可公开复算</li><li><i class="fas fa-forward"></i>不能暂停、不能回看、不能悔棋</li><li><i class="fas fa-user-shield"></i>一人一局，多开拦截，Jackpot 风控审核</li></ul>
+  </header>
+  <section id="thrill-list" class="thrill-list"></section>
+</main>
+<script src="/static/thrill.js"></script>
+<script>ThrillHub()</script>
+</body></html>`
+
+export const thrillPage = (sid: string, title: string) => `${head(title + ' · 惊心1分钟 | MoMocash剧场', '<link href="/static/thrill.css" rel="stylesheet">')}
+<body class="thrill-body play">
+${nav('thrill')}
+<main id="thrill-play" class="thrill-play" data-sid="${sid}">
+  <section id="thrill-stage" class="thrill-stage">
+    <img id="thrill-poster" class="t-poster" alt="">
+    <video id="thrill-video" class="t-video" playsinline></video>
+    <div id="thrill-lines" class="t-lines"></div>
+    <div id="thrill-hud" class="t-hud"></div>
+    <div id="thrill-gate" class="t-gate hidden"></div>
+    <div id="thrill-flash" class="t-flash"></div>
+  </section>
+  <aside id="thrill-side" class="thrill-side"></aside>
+</main>
+<div id="thrill-modal" class="t-modal hidden"></div>
+<script src="/static/thrill.js"></script>
+<script>ThrillPlay(${JSON.stringify(sid)})</script>
+</body></html>`

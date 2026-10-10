@@ -339,3 +339,15 @@ npx wrangler d1 migrations apply webapp-production                              
 抽象剧开局 → 通关 → 做梗图 → 分享 → 邀请新人 → 看到真人剧推荐 → 点击 → 真人剧开局；K 因子、邀请奖励、独行侠支出
 - 数据：`migrations/0009_growth.sql`（funnel_events / referrals / comic_rounds.contrarian）· `src/growth/growth.ts`
 - 测试：`python3 tests/ui_abstract.py`（邀请进场 → 截梗 → 人格 → 梗图 → 导流，errors=[]）
+
+## ⚡ 惊心1分钟（Thrill 60s）· 真人剧 5 关连猜
+- **入口**：`/thrill`（板块，按紧张度排序）· `/t/:sid`（播放页）· 导航「惊心1分钟」
+- **玩法**：序章 → 5 关（每关 2~3 选 1）→ 结局；连续命中按 ×2/×3/×4/×5/×6 赔付，未中连击清零；5 关全中瓜分本剧奖池 50%（上限 = 每关注金×200）
+- **公平**：开局一次性生成 5 关结果（HMAC 种子）并公开 commit，通关公开种子 → `/api/thrill/:sid/runs/:id/verify` 复算；交叉剧情只改情境不改概率（各情境选项数强制一致）
+- **无悔棋**：开局托管 5 关注金；无暂停/回看/撤注；抉择窗口服务端计时（6s），超时弃权（退注、断连击）；离开 10 分钟剩余关自动弃权
+- **防多开**：同账号同时 1 局 · 同 IP 同时 ≤2 局（超出记 `thrill_multi_open`）· Jackpot 遇女巫号/新号<24h/同 IP 24h 内已中 → 冻结 `hold:thrill:<run>` 待审核
+- **经济红线**：阶梯 RTP + 抽成 ≤ 94%，否则拒绝上架。默认 2/3/3/3/3 选项：阶梯 86.7% + 奖池 5% ≈ 91.7%（20 万局 MC 实测 91%），全中 1/162
+- **API**：`GET /api/thrill` · `GET /api/thrill/:sid/meta|resume` · `POST /api/thrill/:sid/start {stake}` · `POST …/runs/:id/arm` · `POST …/runs/:id/pick {gate,option_id}` · 管理：`GET /api/admin/thrill/:sid/simulate` · `GET /api/admin/thrill/holds` · `POST /api/admin/thrill/holds/:id {approve}` · `POST /api/admin/thrill/series {data,status}`
+- **数据**：`thrill_series`（剧本，draft/demo/live/offline）· `thrill_runs` · `thrill_picks` · `thrill_gate_slots`（迁移 0019）
+- **测试**：`npx tsx tests/thrill.test.ts`
+- **状态**：架构 ✅；演示剧《零点拆弹》（占位素材）✅；正式剧本待选定后用 gsk Seedance 2.0 生产
