@@ -1,0 +1,47 @@
+/* 致命13 · 监狱地下室：冷绿顶灯 + 红色警示 */
+.red{color:#ff3b4f}
+.l13-cover{background:radial-gradient(circle at 50% 40%,#3a0d12,#050304 70%)!important;display:flex;align-items:center;justify-content:center}
+.l13-logo{position:relative;z-index:1;font-family:'Noto Serif SC',serif;font-size:44px;font-weight:900;letter-spacing:6px;color:#e8d6d9;text-shadow:0 0 30px rgba(255,59,79,.6)}
+.l13-logo em{font-style:normal;color:#ff3b4f;font-family:'Fredoka'}
+.l13-stage{position:relative;aspect-ratio:1/1;max-height:calc(100vh - 110px);margin:0 auto;width:100%;background:radial-gradient(circle at 50% 50%,#1c2420 0%,#0a0d0c 55%,#030404 100%);border-radius:18px;overflow:hidden;border:1px solid #2a1a1d;transition:filter .2s}
+.l13-stage::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 50% 48%,rgba(190,230,210,.16),transparent 45%);pointer-events:none}
+.l13-stage.shake{animation:l13shake .5s}
+@keyframes l13shake{0%,100%{transform:none}20%{transform:translate(-6px,3px)}40%{transform:translate(5px,-4px)}60%{transform:translate(-3px,2px)}80%{transform:translate(2px,-1px)}}
+.l13-stage.flashbang{filter:brightness(2.4) contrast(1.3)}
+.l13-ring{position:absolute;inset:0}
+.p{position:absolute;transform:translate(-50%,-50%);width:13%;text-align:center;transition:opacity .6s,filter .6s}
+.p .head{position:relative;width:62%;aspect-ratio:1;margin:0 auto;border-radius:50%;background:radial-gradient(circle at 35% 30%,#9a9087,#4c4640 70%);border:2px solid #6b6259;box-shadow:0 6px 14px rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center}
+.p .head span{font-family:'Fredoka';font-size:clamp(10px,1.6vw,16px);color:#1b1715;font-weight:700}
+.p b{display:block;margin-top:4px;font-size:clamp(10px,1.3vw,13px);color:#cfd9d3;font-weight:700;text-shadow:0 1px 4px #000}
+.p .gun{position:absolute;left:50%;top:31%;width:110%;height:5px;background:linear-gradient(90deg,#2b2b2b,#5a5a5a 60%,#111);border-radius:2px;transform-origin:0 50%;opacity:.9}
+.p.fire .head{box-shadow:0 0 0 4px #ffb020,0 0 40px #ff6a00}
+.p.fire .gun{background:linear-gradient(90deg,#2b2b2b,#ffcf5a 70%,#fff);box-shadow:0 0 18px #ffb020}
+.p.dry .gun{background:linear-gradient(90deg,#2b2b2b,#8fa59a)}
+.p.dead{opacity:.35;filter:grayscale(1)}
+.p.dead .head{background:#2a1517;border-color:#7a1f2a}
+.p.dead .head::after{content:'✕';position:absolute;color:#ff3b4f;font-size:26px;font-weight:900}
+.p.dead .gun{opacity:0}
+.p.falling{animation:fall .6s ease-in}
+@keyframes fall{0%{transform:translate(-50%,-50%)}30%{transform:translate(-50%,-40%) rotate(-12deg)}100%{transform:translate(-50%,-50%) rotate(0)}}
+.p.winner .head{box-shadow:0 0 0 4px var(--coin),0 0 60px rgba(255,197,61,.7);animation:beat 1s infinite}
+.p.winner b{color:var(--coin)}
+.l13-center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none}
+.alive-n{font-family:'Fredoka';font-size:clamp(48px,10vw,110px);line-height:1;color:#e8efe9;text-shadow:0 0 40px rgba(180,255,220,.25)}
+.alive-t{color:#7f958a;letter-spacing:6px;font-size:13px}
+.cyl{display:flex;gap:6px;justify-content:center;margin-top:10px}
+.cyl i{width:14px;height:14px;border-radius:50%;border:2px solid #556;display:block}
+.cyl i.on{background:radial-gradient(circle,#ffcf5a,#a8650a);border-color:#ffb020;box-shadow:0 0 8px #ffb020}
+.l13-dark{position:absolute;inset:0;background:#000;opacity:0;transition:opacity .25s;pointer-events:none}
+.l13-dark.on{opacity:.94}
+.l13-caption{position:absolute;left:0;right:0;top:9%;text-align:center;padding:0 6%;font-size:clamp(14px,1.8vw,18px);color:#d8e2dc;text-shadow:0 2px 8px #000;opacity:0;z-index:3}
+.l13-caption.in{animation:up .35s forwards}
+.l13-caption.dim{color:#8a9a92}.l13-caption.warn{color:#ffb4bd}.l13-caption.gold b{font-size:1.3em}
+.l13-caption b.gold{color:var(--coin)}
+body.pulse .l13-stage{box-shadow:inset 0 0 80px rgba(255,30,50,.25)}
+.l13-bet{z-index:4;bottom:12%}
+.l13-tiers{grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}
+.l13-tiers .g-opt{align-items:center;text-align:center}
+.l13-tiers .odds{font-family:'Fredoka';color:var(--t-amber);font-size:20px}
+.tier-row{display:grid;grid-template-columns:1fr auto auto;gap:10px;font-size:13px;padding:6px 0;border-bottom:1px dashed #2c161d}
+.tier-row em{color:#9c7c83;font-style:normal}.tier-row b{color:var(--t-amber);font-family:'Fredoka'}
+@media(max-width:900px){.l13-stage{aspect-ratio:1/1.05}.p .head span{font-size:10px}.l13-bet{bottom:3%}}

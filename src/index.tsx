@@ -9,7 +9,7 @@ import { modelHealth, predictiveQueue, rankVideoModels, submitVideo, buildVideoP
 import { branches, overview, scriptTree } from './agents/console'
 import { applyClipPlan, approveExtension, clipPairs, derive, generatePoems, ingestSignals, regulate } from './agents/deriver'
 import type { Bindings } from './gateway/llm'
-import { playerPage, consolePage, agentsPage, comicPage, filmPage, voicePage, lovePage, discoverPage, marketPage, archPage, seriesPage, thrillHubPage, thrillPage } from './pages/shell'
+import { playerPage, consolePage, agentsPage, comicPage, filmPage, voicePage, lovePage, discoverPage, marketPage, archPage, seriesPage, thrillHubPage, thrillPage, lethal13Page } from './pages/shell'
 import CATALOG from './catalog/data.json'
 import * as Tax from './catalog/taxonomy'
 import * as Growth from './growth/growth'
@@ -23,6 +23,7 @@ import * as Tiers from './market/tiers'
 import { createEngine } from './comic/factory'
 import { createThrill, ladderTable, MAX_RTP } from './thrill/engine'
 import { THRILL_SCRIPTS } from './thrill/scripts'
+import * as L13 from './thrill/lethal13'
 
 const app = new Hono<{ Bindings: Bindings & { MEDIA?: R2Bucket; AUTH_SECRET?: string; ADMIN_KEY?: string }; Variables: { uid: string } }>()
 app.use('/api/*', cors())
@@ -232,7 +233,7 @@ const isSybil = async (env: any, u: string) => !!(await env.DB.prepare(`SELECT 1
 app.get('/api/thrill', async (c) => {
   await thrillSeed(c.env)
   const rows = (await c.env.DB.prepare(`SELECT id,title,logline,tension,cover,status FROM thrill_series WHERE status IN ('live','demo','draft') ORDER BY tension DESC, updated_at DESC`).all()).results as any[]
-  const out: any[] = []
+  const out: any[] = [{ id: L13.L13_SERIES, title: '致命13', logline: '监狱里最流行的游戏：13 人围成一圈，枪口顶住前一个人的后脑。六孔左轮，每轮多装一发。灯亮，扣扳机。押活下来几个人。', tension: 5, cover: null, pool: await (async () => { await L13.l13Meta(c.env as any); const r: any = await c.env.DB.prepare(`SELECT COALESCE(SUM(CASE WHEN direction='C' THEN amount ELSE -amount END),0) b FROM ledger WHERE account=?`).bind('pool:thrill:' + L13.L13_SERIES).first(); return r?.b || 0 })(), special: 'l13', url: '/l13' }]
   for (const r of rows) {
     if (r.status === 'draft') { out.push({ id: r.id, title: r.title, logline: r.logline, tension: r.tension, cover: r.cover, soon: true }); continue }
     const E = await thrillOf(c.env, r.id).catch(() => null); if (!E) continue
@@ -244,6 +245,13 @@ app.get('/api/thrill', async (c) => {
   }
   return c.json({ items: out })
 })
+// ── 致命13（监狱俄罗斯轮盘 · 模拟演出版）──
+app.get('/api/l13/meta', async (c) => c.json(await L13.l13Meta(c.env as any, uidOf(c) || undefined)))
+app.post('/api/l13/start', async (c) => { const b = await body(c), u = uidOf(c, b); await rateLimit(c.env as any, 'l13:' + u, 60, 3600000); return c.json(await L13.l13Start(c.env as any, { userId: u, stake: +b.stake, ipHash: await ipKey(c), sybil: await isSybil(c.env, u) })) })
+app.post('/api/l13/runs/:id/arm', async (c) => { const b = await body(c); return c.json(await L13.l13Arm(c.env as any, { runId: c.req.param('id'), userId: uidOf(c, b) })) })
+app.post('/api/l13/runs/:id/act', async (c) => { const b = await body(c); return c.json(await L13.l13Act(c.env as any, { runId: c.req.param('id'), userId: uidOf(c, b), k: +b.k, tier: b.tier || null, cashout: b.cashout === true })) })
+app.get('/api/l13/runs/:id/verify', async (c) => c.json(await L13.l13Verify(c.env as any, c.req.param('id'))))
+app.get('/api/admin/l13/simulate', (c) => c.json([1, 2, 3, 9].map((t) => L13.l13Simulate(+(c.req.query('n') || 20000), t))))
 app.get('/api/thrill/:sid/meta', async (c) => { const E = await thrillOf(c.env, c.req.param('sid')); const u = uidOf(c); const m: any = await E.meta(c.env, u || undefined); m.demo = !!(E.DATA.series as any).demo; return c.json(m) })
 app.post('/api/thrill/:sid/start', async (c) => {
   const b = await body(c), u = uidOf(c, b), E = await thrillOf(c.env, c.req.param('sid'))
@@ -286,6 +294,7 @@ app.get('/agents', (c) => c.html(agentsPage()))
 app.get('/comic', (c) => c.html(comicPage()))
 app.get('/film', (c) => c.html(filmPage()))
 app.get('/thrill', (c) => c.html(thrillHubPage()))
+app.get('/l13', (c) => c.html(lethal13Page()))
 app.get('/t/:sid', async (c) => { await thrillSeed(c.env); const r: any = await c.env.DB.prepare(`SELECT title FROM thrill_series WHERE id=? AND status IN ('live','demo')`).bind(c.req.param('sid')).first(); if (!r) return c.notFound(); return c.html(thrillPage(c.req.param('sid'), r.title)) })
 app.get('/love', (c) => c.html(lovePage()))
 app.get('/voice', (c) => c.html(voicePage()))

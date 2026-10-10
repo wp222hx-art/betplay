@@ -201,3 +201,22 @@ ${nav('thrill')}
 <script src="/static/thrill.js"></script>
 <script>ThrillPlay(${JSON.stringify(sid)})</script>
 </body></html>`
+
+// 致命13：监狱俄罗斯轮盘（模拟演出版：程序化舞台 + 合成音效；真人片拍完后替换为视频模块）
+export const lethal13Page = () => `${head('致命13 · 监狱俄罗斯轮盘 | 惊心1分钟 | MoMocash剧场', '<link href="/static/thrill.css" rel="stylesheet"><link href="/static/lethal13.css" rel="stylesheet">')}
+<body class="thrill-body l13-body">
+${nav('thrill')}
+<main id="l13-play" class="thrill-play">
+  <section id="l13-stage" class="l13-stage">
+    <div id="l13-ring" class="l13-ring"></div>
+    <div id="l13-center" class="l13-center"></div>
+    <div id="l13-dark" class="l13-dark"></div>
+    <div id="l13-caption" class="l13-caption"></div>
+    <div id="l13-hud" class="t-hud"></div>
+    <div id="thrill-flash" class="t-flash"></div>
+  </section>
+  <aside id="l13-side" class="thrill-side"></aside>
+</main>
+<div id="thrill-modal" class="t-modal hidden"></div>
+<script src="/static/lethal13.js"></script>
+</body></html>`

@@ -354,3 +354,11 @@ npx wrangler d1 migrations apply webapp-production                              
 - **测试**：`npx tsx tests/thrill.test.ts`（21 项）
 - **生产管线**：`python3 scripts/thrill/produce.py <sid…>`（nano-banana-2.1 定妆照/场景 → Seedance 2.0 参考模式 9:16 720p 带同期声 → R2 → 上架 live；幂等、可 `--only=` 重拍单片）；素材归档 `/home/user/webapp_media_archive/thrill/`
 - **已上线**：《坠梯》《人质谈判》《最后一把》各 22 片（66 片，约 6.3 万积分）
+
+## 💀 致命13（监狱俄罗斯轮盘 · 模拟演出版）
+- **入口**：`/l13`（「惊心1分钟」板块置顶）
+- **规则**：13 人围圈，每人枪顶前一人后脑；六孔左轮，第 k 轮装 min(k,5) 发（永远留 1 空膛）；灯灭统一上弹 → 灯亮齐射；全员会死的一轮吹哨作废重来 → 必有唯一幸存者
+- **下注**：每轮押「本轮后剩几人」（按真实概率切 2~3 档，赔率=94%/档概率）；猜中倍率相乘；连中 3 把 = 连环大奖（奖池 30%，≤注金×300）；猜错出局但演到最后一人；开枪前可收手；超时自动收手
+- **公平**：整局只由种子决定：第 k 轮第 t 次尝试第 i 把枪响 ⇔ HMAC(seed,"r:k:t:i") < b/6；`/api/l13/runs/:id/verify` 复算整局
+- **演出**：程序化 13 人围圈舞台 + WebAudio 合成心跳/上弹/枪声/哨声；真人片待拍（约 52 个模块）
+- **API**：`GET /api/l13/meta` · `POST /api/l13/start {stake}` · `POST /api/l13/runs/:id/arm` · `POST /api/l13/runs/:id/act {k, tier}|{k, cashout:true}` · `GET /api/l13/runs/:id/verify` · `GET /api/admin/l13/simulate`
