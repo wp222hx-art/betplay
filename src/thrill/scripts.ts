@@ -32,7 +32,7 @@ const ELEVATOR = {
     { id: 'e_x3', q: '空电梯的楼层灯最后停在？', a: { label: '13', seg: 'e_x3a' }, b: { label: '17', seg: 'e_x3b' } }
   ],
   segments: {
-    e_m0: S('23:40 · 17 层', 6, ['linxia', 'man'], 'medium wide from inside the elevator facing the doors', 'The elevator doors slide open; exhausted Lin Xia steps in holding her phone, presses a button and leans on the wall. In the back corner the man in the black cap stands motionless, head down. The doors close. Red floor indicator reads 17.', ['林夏（看表）：……又是最后一个。']),
+    e_m0: S('23:40 · 17 层', 6, ['linxia', 'man'], 'medium wide from inside the elevator facing the doors', 'The man in the black cap is ALREADY INSIDE the elevator, standing motionless in the back-left corner, head down. The doors slide open from the dark corridor; exhausted Lin Xia steps in holding her phone, presses a button and leans on the right-side wall with her back half-turned to him. The doors close behind her, both of them inside. Red floor indicator reads 17.', ['林夏（看表）：……又是最后一个。']),
     e_c1a: S('他抬头了', 4, ['linxia', 'man'], 'close-up over Lin Xia shoulder', 'The man slowly lifts his head and stares straight at Lin Xia from under the cap brim, unblinking. She freezes.', []),
     e_c1b: S('他没抬头', 4, ['linxia', 'man'], 'close-up profile of the man', 'The man keeps his head down, cap brim hiding his eyes; only his jaw tightens. Lin Xia glances at him and quickly looks away.', []),
     e_m1: S('钢缆', 6, ['linxia', 'man'], 'handheld medium shot, violent camera shake', 'A deafening metallic bang. The elevator drops sharply and slams to a halt. The fluorescent light dies and a dim red emergency light comes on. Lin Xia is thrown against the steel wall, gasping. The floor indicator flickers between 12 and 13.', ['林夏：啊——！']),

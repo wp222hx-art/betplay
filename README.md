@@ -352,3 +352,5 @@ npx wrangler d1 migrations apply webapp-production                              
 - **剧本**：`src/thrill/scripts.ts`（坠梯 / 人质谈判 / 最后一把；每部 6 段主线 + 5 剧情卡 + 3 加时卡 = 22 片段，含定妆表/场景/镜头/提示词）
 - **数据**：`thrill_series` · `thrill_runs` · `thrill_picks` · `thrill_gate_slots`（迁移 0019、0020）
 - **测试**：`npx tsx tests/thrill.test.ts`（21 项）
+- **生产管线**：`python3 scripts/thrill/produce.py <sid…>`（nano-banana-2.1 定妆照/场景 → Seedance 2.0 参考模式 9:16 720p 带同期声 → R2 → 上架 live；幂等、可 `--only=` 重拍单片）；素材归档 `/home/user/webapp_media_archive/thrill/`
+- **已上线**：《坠梯》《人质谈判》《最后一把》各 22 片（66 片，约 6.3 万积分）
