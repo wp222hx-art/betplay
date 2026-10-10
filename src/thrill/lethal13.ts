@@ -1,32 +1,33 @@
 // 致命13 —— 监狱俄罗斯轮盘（六孔左轮）· 押存活人数 · 连中三把拿连环大奖
 // ─────────────────────────────────────────────────────────────────────────────
-// 规则（开局公开、种子可复算）：
-// · 13 名囚犯围成一圈，每人用枪顶住前一个人的后脑：alive[i-1] 的枪 → alive[i]
-// · 六孔左轮：第 k 轮装 min(k,5) 发（永远留 1 个空膛），每把枪独立转轮 → 每人本轮中枪概率 b/6
-// · 灯灭 → 统一上弹 → 灯亮 → 同时扣扳机；某人死亡 ⇔ 他身后那把枪响了
-// · 若某一轮会让全员死亡：狱警吹哨，本轮作废，重新上弹（保证最后必有唯一幸存者）
+// 规则（致敬《13 Tzameti》结构；开局公开、种子可复算）：
+// · 环形三轮：13 人围成一圈，枪口对准前一个人；六孔左轮第 1/2/3 轮各装 1/2/3 发；灯亮同时扣扳机，某人死亡 ⇔ 他身后那把枪响了
+// · 三轮之后：若仍有 ≥3 人，主持人按种子抽出 2 人进入「决斗」，其余人活着离场；恰好 2 人直接决斗；只剩 1 人即为赢家
+// · 决斗：两人面对面，枪口对准对方；第 d 枪各装 min(d,5) 发，同时扣扳机，直到一人倒下
+// · 任何一枪若会让全员死亡：主持人敲杖，本枪作废，重新上弹（保证最后必有唯一幸存者）
 // · 整局结果只由种子决定，与任何人的下注无关：第 k 轮第 t 次尝试第 i 把枪 fired ⇔ HMAC(seed,"r:k:t:i") < b/6
-// 下注：开局托管一注；每轮开枪前押「本轮过后剩几人」（按真实概率切成 2~3 档）；
-//      猜中 → 累计倍率 × 该档赔率；连中 3 把 → 连环大奖（瓜分本剧奖池）；猜错 → 自动出局，但剧情照常演到最后一人
+// 下注：开局托管一注；环形三轮每轮押「本轮过后剩几人」（按真实概率切成 2~3 档）；决斗押「哪个号码活下来」（两人对称，各 50%）
+//      猜中 → 累计倍率 × 该档赔率；环形三轮全中 → 连环大奖（瓜分本剧奖池）；猜错 → 自动出局，但剧情照常演到最后一人
 //      每轮开枪前也可以「收手」带走当前倍率；超时 = 自动收手
 import { randomHex, seedFloat, sha256, uid } from '../core/crypto'
 import { ensureUser, GameError, post } from '../core/engine'
-import { riskEvent } from '../core/guard'
+import { mediaTicket, riskEvent } from '../core/guard'
 
 type Env = { DB: D1Database }
 const now = () => Date.now()
 const J = (s: any, d: any = null) => { try { return s ? JSON.parse(s) : d } catch { return d } }
 
 export const L13_SERIES = 'l13_deadly13'
-export const PRISONERS = ['老鬼', '刀疤', '眼镜', '小四', '和尚', '阿彪', '哑巴', '老K', '黑皮', '书生', '二愣', '胖虎', '白毛'].map((name, i) => ({ id: i + 1, name }))
+export const PRISONERS = ['老鬼', '刀疤', '眼镜', '小四', '和尚', '阿彪', '哑巴', '老K', '黑皮', '书生', '二愣', '胖虎', '阿森'].map((name, i) => ({ id: i + 1, name }))
 export const L13_CFG = {
   step_rtp: 0.94,          // 每档赔率 = step_rtp / 该档概率 → 任何押法单轮期望恒为 94%
   rake: 0.02,              // 注金 2% 注入奖池
   stakes: [10, 20, 50, 100, 200],
   pick_sec: 8,
   chain: 3,                // 连中 3 把触发连环大奖
-  jackpot_share: 0.3,
-  jackpot_cap_mult: 300,
+  jackpot_share: 0.2,
+  jackpot_cap_mult: 200,
+  champ_rtp: 0.92,        // 押冠军（开局押最后活下来的号码，1/13）赔率 = 0.92 × 13
   max_mult: 2000,
   seed_pool: 30000,
   max_open_per_ip: 2,
@@ -70,12 +71,15 @@ export function tiersFor(n: number, b: number, rtp = L13_CFG.step_rtp) {
 }
 
 // ─────────── 整局（只由种子决定） ───────────
-export type Round = { k: number; bullets: number; before: number[]; voids: number; fired: number[]; dead: number[]; after: number[] }
+export const RING_ROUNDS = 3
+export type Shot = { d: number; bullets: number; voids: number; fired: number[]; dead: number[] }
+export type Round = { k: number; type: 'ring' | 'duel'; bullets: number; before: number[]; voids: number; fired: number[]; dead: number[]; after: number[]; pair?: number[]; released?: number[]; shots?: Shot[] }
 export async function fullGame(seed: string) {
   let alive = PRISONERS.map((p) => p.id)
   const rounds: Round[] = []
-  for (let k = 1; alive.length > 1 && k <= 60; k++) {
-    const b = bulletsAt(k), n = alive.length
+  // 环形三轮
+  for (let k = 1; k <= RING_ROUNDS && alive.length > 1; k++) {
+    const b = k, n = alive.length
     let t = 0, fired: number[] = [], dead: number[] = []
     for (; t < 50; t++) {
       fired = []; dead = []
@@ -84,12 +88,37 @@ export async function fullGame(seed: string) {
       if (dead.length < n) break
     }
     const after = alive.filter((x) => !dead.includes(x))
-    rounds.push({ k, bullets: b, before: alive, voids: t, fired, dead, after })
+    rounds.push({ k, type: 'ring', bullets: b, before: alive, voids: t, fired, dead, after })
     alive = after
+  }
+  // 决斗
+  if (alive.length >= 2) {
+    const before = alive
+    let pair = alive
+    if (alive.length > 2) {
+      const order = await Promise.all(alive.map(async (id) => ({ id, r: await seedFloat(seed, `pick:${id}`) })))
+      pair = order.sort((a, b) => a.r - b.r).slice(0, 2).map((x) => x.id).sort((a, b) => a - b)
+    }
+    const released = alive.filter((x) => !pair.includes(x))
+    const shots: Shot[] = []
+    let winner = 0
+    for (let d = 1; d <= 60 && !winner; d++) {
+      const b = Math.min(d, 5)
+      let t = 0, fired: number[] = [], dead: number[] = []
+      for (; t < 50; t++) {
+        fired = []
+        for (let i = 0; i < 2; i++) if ((await seedFloat(seed, `d:${d}:${t}:${i}`)) < b / 6) fired.push(pair[i])
+        dead = pair.filter((_, i) => fired.includes(pair[1 - i]))
+        if (dead.length < 2) break
+      }
+      shots.push({ d, bullets: b, voids: t, fired, dead })
+      if (dead.length === 1) winner = pair.find((x) => !dead.includes(x))!
+    }
+    const allDead = shots.flatMap((x) => x.dead)
+    rounds.push({ k: rounds.length + 1, type: 'duel', bullets: 0, before, voids: 0, fired: [], dead: allDead, after: [winner], pair, released, shots })
   }
   return rounds
 }
-
 // ─────────── 资金 ───────────
 async function poolBalance(env: Env) {
   const r: any = await env.DB.prepare(`SELECT COALESCE(SUM(CASE WHEN direction='C' THEN amount ELSE -amount END),0) b FROM ledger WHERE account=?`).bind(POOL).first()
@@ -100,11 +129,31 @@ async function ensurePool(env: Env) {
   if (!r) await post(env, '致命13奖池·上线注资', L13_SERIES, [['platform:house', 'D', L13_CFG.seed_pool], [POOL, 'C', L13_CFG.seed_pool]])
 }
 
+/** 每一步的押注选项：环形 = 存活人数分档；决斗 = 押哪个号码活（对称 50%） */
+export function optionsFor(r: Round) {
+  if (r.type === 'duel') return r.pair!.map((id) => ({ id: 'n' + id, label: `${id} 号 · ${PRISONERS[id - 1].name}`, lo: id, hi: id, p: 0.5, odds: Math.floor((L13_CFG.step_rtp / 0.5) * 100) / 100 }))
+  return tiersFor(r.before.length, r.bullets)
+}
 const roundCard = (r: Round, mult: number, hits: number) => ({
-  k: r.k, bullets: r.bullets, alive: r.before, tiers: tiersFor(r.before.length, r.bullets),
+  k: r.k, type: r.type, bullets: r.bullets, alive: r.before, pair: r.pair || null, released: r.released || null, tiers: optionsFor(r),
   mult, hits, chain_left: Math.max(0, L13_CFG.chain - hits)
 })
-const reveal = (r: Round) => ({ k: r.k, bullets: r.bullets, voids: r.voids, before: r.before, fired: r.fired, dead: r.dead, after: r.after })
+const reveal = (r: Round) => ({ k: r.k, type: r.type, bullets: r.bullets, voids: r.voids, before: r.before, fired: r.fired, dead: r.dead, after: r.after, pair: r.pair || null, released: r.released || null, shots: r.shots || null })
+
+/** 真人片媒体清单（KV 风格存 D1 settings 表；没有则为 null → 前端用模拟舞台） */
+export async function l13Media(env: any, userId: string) {
+  const r: any = await env.DB.prepare(`SELECT data FROM thrill_series WHERE id=?`).bind('l13_media').first()
+  if (!r) return null
+  const clips: Record<string, number> = J(r.data, {}).clips || {}
+  const out: Record<string, { url: string; dur: number }> = {}
+  for (const [k, dur] of Object.entries(clips)) out[k] = { url: userId ? await mediaTicket(env, userId, L13_SERIES, k, 30 * 60000) : '', dur }
+  return { clips: out, faces: PRISONERS.map((p) => `/gimg/${L13_SERIES}/p${p.id}.webp`), cover: `/gimg/${L13_SERIES}/cover.webp` }
+}
+export async function l13SaveMedia(env: Env, clips: Record<string, number>) {
+  await env.DB.prepare(`INSERT INTO thrill_series (id,title,logline,tension,cover,data,version,status,created_at,updated_at) VALUES ('l13_media','致命13·媒体清单','',5,NULL,?,1,'offline',?,?)
+    ON CONFLICT(id) DO UPDATE SET data=excluded.data, version=thrill_series.version+1, updated_at=excluded.updated_at`).bind(JSON.stringify({ clips }), now(), now()).run()
+  return { ok: true, clips: Object.keys(clips).length }
+}
 
 export async function l13Meta(env: Env, userId?: string) {
   await ensurePool(env)
@@ -112,20 +161,24 @@ export async function l13Meta(env: Env, userId?: string) {
   const recent = (await env.DB.prepare(`SELECT user_id,hits,mult,payout,jackpot,end_reason FROM thrill_runs WHERE series_id=? AND status='ended' ORDER BY ended_at DESC LIMIT 8`).bind(L13_SERIES).all()).results as any[]
   const open: any = userId ? await env.DB.prepare(`SELECT id FROM thrill_runs WHERE user_id=? AND series_id=? AND status='playing' LIMIT 1`).bind(userId, L13_SERIES).first() : null
   return {
-    prisoners: PRISONERS, cfg: L13_CFG, pool: await poolBalance(env), first: tiersFor(13, 1),
+    prisoners: PRISONERS, cfg: L13_CFG, champ_odds: CHAMP_ODDS, ring_rounds: RING_ROUNDS, pool: await poolBalance(env), first: tiersFor(13, 1),
     stats: { plays: agg?.n || 0, best: agg?.best || 0, top_mult: agg?.top || 0 },
     recent: recent.map((x) => ({ who: '玩家' + String(x.user_id).slice(-4), hits: x.hits, mult: x.mult, win: x.payout, jackpot: x.jackpot, reason: x.end_reason })),
-    open_run: open?.id || null
+    open_run: open?.id || null,
+    media: userId ? await l13Media(env, userId) : null
   }
 }
 
-export async function l13Start(env: Env, p: { userId: string; stake: number; ipHash: string; sybil?: boolean }) {
+export const CHAMP_ODDS = Math.floor(L13_CFG.champ_rtp * 13 * 100) / 100
+export async function l13Start(env: Env, p: { userId: string; stake: number; ipHash: string; sybil?: boolean; champ?: number; champStake?: number }) {
   const stake = Math.floor(+p.stake)
   if (!L13_CFG.stakes.includes(stake)) throw new GameError('BAD_STAKE', `注金只能是 ${L13_CFG.stakes.join(' / ')}`)
+  const champ = p.champ ? Math.floor(+p.champ) : 0, champStake = champ ? Math.floor(+(p.champStake || 0)) : 0
+  if (champ && (champ < 1 || champ > 13 || !L13_CFG.stakes.includes(champStake))) throw new GameError('BAD_CHAMP', '押冠军：号码 1~13，注金同档位')
   const u: any = await ensureUser(env, p.userId)
   if (u.self_excluded) throw new GameError('SELF_EXCLUDED', '您已加入自我排除名单，仅可观战')
   if (u.cooloff_until && new Date(u.cooloff_until).getTime() > now()) throw new GameError('COOLOFF', '冷静期中')
-  if (u.chips < stake) throw new GameError('INSUFFICIENT', `需要 ${stake} Chips`)
+  if (u.chips < stake + champStake) throw new GameError('INSUFFICIENT', `需要 ${stake + champStake} Chips`)
   await l13Expire(env)
   const mine: any = await env.DB.prepare(`SELECT id FROM thrill_runs WHERE user_id=? AND status='playing' LIMIT 1`).bind(p.userId).first()
   if (mine) throw new GameError('ONE_AT_A_TIME', '你还有一局没结束')
@@ -134,14 +187,14 @@ export async function l13Start(env: Env, p: { userId: string; stake: number; ipH
   await ensurePool(env)
   const rid = uid('tr_'), seed = randomHex(32), commit = await sha256(`${seed}|${rid}`)
   const rake = Math.max(1, Math.round(stake * L13_CFG.rake))
-  await post(env, '致命13·开局托管', rid, [[`user:${p.userId}:available`, 'D', stake], [`escrow:thrill:${rid}`, 'C', stake - rake], [POOL, 'C', rake]])
+  await post(env, '致命13·开局托管', rid, [[`user:${p.userId}:available`, 'D', stake + champStake], [`escrow:thrill:${rid}`, 'C', stake - rake], [POOL, 'C', rake], ...(champStake ? [[`escrow:thrill:${rid}:champ`, 'C', champStake] as [string, 'C', number]] : [])])
   await env.DB.batch([
-    env.DB.prepare('UPDATE users SET chips=chips-? WHERE id=?').bind(stake, p.userId),
+    env.DB.prepare('UPDATE users SET chips=chips-? WHERE id=?').bind(stake + champStake, p.userId),
     env.DB.prepare(`INSERT INTO thrill_runs (id,user_id,series_id,ip_hash,stake,gates,seed,commit_hash,outcomes,cfg,status,gate,mult,started_at) VALUES (?,?,?,?,?,0,?,?,'[]',?,'playing',0,1,?)`)
-      .bind(rid, p.userId, L13_SERIES, p.ipHash, stake, seed, commit, JSON.stringify({ ...L13_CFG, sybil: !!p.sybil, rake_amt: rake }), now())
+      .bind(rid, p.userId, L13_SERIES, p.ipHash, stake, seed, commit, JSON.stringify({ ...L13_CFG, sybil: !!p.sybil, rake_amt: rake, champ, champ_stake: champStake }), now())
   ])
   const g = await fullGame(seed)
-  return { run_id: rid, commit, stake, pool: await poolBalance(env), round: roundCard(g[0], 1, 0), balance: u.chips - stake }
+  return { run_id: rid, commit, stake, champ, champ_stake: champStake, champ_odds: CHAMP_ODDS, pool: await poolBalance(env), round: roundCard(g[0], 1, 0), balance: u.chips - stake - champStake }
 }
 
 async function load(env: Env, rid: string, userId: string) {
@@ -167,7 +220,7 @@ export async function l13Act(env: Env, p: { runId: string; userId: string; k: nu
   if (+p.k !== idx + 1) throw new GameError('STALE_ROUND', `当前是第 ${idx + 1} 轮`)
   const g = await fullGame(r.seed), rd = g[idx]
   const late = !r.armed_at || now() > r.lock_at
-  const tiers = tiersFor(rd.before.length, rd.bullets)
+  const tiers = optionsFor(rd)
   const tier = p.tier ? tiers.find((t) => t.id === p.tier) : null
   if (p.tier && !tier) throw new GameError('BAD_TIER', '无效选项')
   if (p.cashout || late || !tier) {
@@ -176,16 +229,17 @@ export async function l13Act(env: Env, p: { runId: string; userId: string; k: nu
     await env.DB.prepare(`INSERT INTO thrill_picks (run_id,gate,option_id,outcome_id,hit,streak,mult,payout,picked_at) VALUES (?,?,?,?,0,?,?,0,?)`).bind(r.id, idx, p.cashout ? 'cashout' : 'timeout', '-', r.hits, r.mult, now()).run()
     return { action: p.cashout ? 'cashout' : 'timeout', ...(await settle(env, r.id, p.cashout ? 'cashout' : 'timeout')), rest: g.slice(idx).map(reveal) }
   }
-  const surv = rd.after.length, hit = surv >= tier.lo && surv <= tier.hi
+  const surv = rd.type === 'duel' ? rd.after[0] : rd.after.length
+  const hit = surv >= tier.lo && surv <= tier.hi
   const mult = hit ? Math.min(L13_CFG.max_mult, Math.floor(r.mult * tier.odds * 100) / 100) : 0
   const u = hit
     ? await env.DB.prepare(`UPDATE thrill_runs SET gate=gate+1, hits=hits+1, streak=streak+1, mult=?, armed_at=NULL, lock_at=NULL WHERE id=? AND gate=? AND status='playing'`).bind(mult, r.id, idx).run()
     : await env.DB.prepare(`UPDATE thrill_runs SET status='settling', armed_at=NULL WHERE id=? AND gate=? AND status='playing'`).bind(r.id, idx).run()
   if (!u.meta.changes) throw new GameError('DUPLICATE', '已结算')
   await env.DB.prepare(`INSERT INTO thrill_picks (run_id,gate,option_id,outcome_id,hit,streak,mult,payout,picked_at) VALUES (?,?,?,?,?,?,?,0,?)`).bind(r.id, idx, tier.id, String(surv), hit ? 1 : 0, hit ? r.hits + 1 : r.hits, mult, now()).run()
-  const res: any = { k: rd.k, tier: tier.id, hit, survivors: surv, mult, hits: hit ? r.hits + 1 : r.hits, round: reveal(rd) }
+  const res: any = { k: rd.k, type: rd.type, tier: tier.id, hit, survivors: rd.after.length, winner: rd.type === 'duel' ? rd.after[0] : null, mult, hits: hit ? r.hits + 1 : r.hits, round: reveal(rd) }
   if (!hit) return Object.assign(res, await settle(env, r.id, 'miss'), { rest: g.slice(idx + 1).map(reveal) })
-  if (res.hits === L13_CFG.chain) res.chain_jp = await jackpot(env, r)
+  if (rd.type === 'ring' && res.hits === L13_CFG.chain) res.chain_jp = await jackpot(env, r)
   const last = idx + 1 >= g.length
   if (last || mult >= L13_CFG.max_mult) return Object.assign(res, await settle(env, r.id, last ? 'final' : 'cap'), { rest: g.slice(idx + 1).map(reveal) })
   res.next = roundCard(g[idx + 1], mult, res.hits)
@@ -221,9 +275,20 @@ async function settle(env: Env, rid: string, reason: string) {
     await post(env, `致命13·${reason === 'final' ? '押到最后一人' : reason === 'cashout' ? '收手' : reason === 'timeout' ? '超时收手' : '封顶'} ×${mult}`, rid, lines)
     await env.DB.prepare('UPDATE users SET chips=chips+? WHERE id=?').bind(payout, r.user_id).run()
   } else await post(env, '致命13·押错出局', rid, [[`escrow:thrill:${rid}`, 'D', net], ['platform:house', 'C', net]])
+  // 押冠军：整局结果已由种子决定，结束时一并结算
+  let champ: any = null
+  if (cfg.champ && cfg.champ_stake) {
+    const g = await fullGame(r.seed), winner = g[g.length - 1].after[0], win = winner === cfg.champ
+    const cp = win ? Math.floor(cfg.champ_stake * CHAMP_ODDS) : 0
+    if (win) {
+      await post(env, `致命13·押冠军 ${cfg.champ} 号命中`, rid, [[`escrow:thrill:${rid}:champ`, 'D', cfg.champ_stake], ['platform:house', 'D', cp - cfg.champ_stake], [`user:${r.user_id}:available`, 'C', cp]])
+      await env.DB.prepare('UPDATE users SET chips=chips+? WHERE id=?').bind(cp, r.user_id).run()
+    } else await post(env, `致命13·押冠军 ${cfg.champ} 号未中`, rid, [[`escrow:thrill:${rid}:champ`, 'D', cfg.champ_stake], ['platform:house', 'C', cfg.champ_stake]])
+    champ = { pick: cfg.champ, stake: cfg.champ_stake, winner, hit: win, payout: cp }
+  }
   await env.DB.prepare(`UPDATE thrill_runs SET status='ended', payout=?, mult=?, end_reason=?, ended_at=? WHERE id=?`).bind(payout, mult, reason, now(), rid).run()
   const u: any = await env.DB.prepare('SELECT chips FROM users WHERE id=?').bind(r.user_id).first()
-  return { ended: true, reason, hits: r.hits, mult, payout, stake: r.stake, jackpot: r.jackpot, jackpot_status: r.jackpot_status, net: payout + (r.jackpot_status === 'paid' ? r.jackpot : 0) - r.stake, balance: u?.chips, pool: await poolBalance(env), verify: { seed: r.seed, commit: r.commit_hash } }
+  return { ended: true, reason, hits: r.hits, mult, payout, stake: r.stake, champ, jackpot: r.jackpot, jackpot_status: r.jackpot_status, net: payout + (r.jackpot_status === 'paid' ? r.jackpot : 0) - r.stake + (champ ? champ.payout - champ.stake : 0), balance: u?.chips, pool: await poolBalance(env), verify: { seed: r.seed, commit: r.commit_hash } }
 }
 
 export async function l13Expire(env: Env) {
@@ -239,25 +304,27 @@ export async function l13Verify(env: Env, rid: string) {
   return { run_id: rid, seed: r.seed, commit: r.commit_hash, ok: (await sha256(`${r.seed}|${rid}`)) === r.commit_hash, rounds: g.map(reveal), winner: g[g.length - 1].after }
 }
 
-/** 蒙特卡洛（纯本地，不读库）：策略 = 每轮押概率最高的档，押到第 target 轮后收手 */
-export function l13Simulate(n = 20000, target = 3) {
-  let staked = 0, paid = 0, chains = 0, pool = L13_CFG.seed_pool
-  const lens: Record<number, number> = {}
+/** 蒙特卡洛（纯本地）：策略 = 每步押概率最高的档，押到第 target 步后收手 */
+export function l13Simulate(n = 20000, target = 9) {
+  let staked = 0, paid = 0, chains = 0, pool = L13_CFG.seed_pool, duels = 0
   for (let i = 0; i < n; i++) {
     const stake = 10; staked += stake; pool += Math.max(1, Math.round(stake * L13_CFG.rake))
-    let alive = 13, k = 0, mult = 1, hits = 0, out = false, done = false
-    while (alive > 1) {
-      k++; const b = bulletsAt(k); let nxt
-      do { nxt = 0; for (let j = 0; j < alive; j++) if (Math.random() >= b / 6) nxt++ } while (nxt === 0)
-      if (!out && !done) {
-        const t = tiersFor(alive, b).sort((a, c) => c.p - a.p)[0]
-        if (nxt >= t.lo && nxt <= t.hi) { hits++; mult *= t.odds; if (hits === L13_CFG.chain) { const j = Math.min(Math.floor(pool * L13_CFG.jackpot_share), stake * L13_CFG.jackpot_cap_mult); pool -= j; paid += j; chains++ } if (hits >= target) { paid += Math.floor(stake * mult); done = true } }
-        else out = true
-      }
+    let alive = 13, mult = 1, hits = 0, out = false, done = false, step = 0
+    const bet = (opts: any[], outcome: number) => {
+      if (out || done) return
+      step++
+      const t = [...opts].sort((a, c) => c.p - a.p)[0]
+      if (outcome >= t.lo && outcome <= t.hi) { hits++; mult *= t.odds } else out = true
+      if (!out && step >= target) { paid += Math.floor(stake * mult); done = true }
+    }
+    for (let k = 1; k <= RING_ROUNDS && alive > 1; k++) {
+      let nxt; do { nxt = 0; for (let j = 0; j < alive; j++) if (Math.random() >= k / 6) nxt++ } while (nxt === 0)
+      const opts = tiersFor(alive, k); bet(opts, nxt)
+      if (!out && hits === RING_ROUNDS && k === RING_ROUNDS) { const j = Math.min(Math.floor(pool * L13_CFG.jackpot_share), stake * L13_CFG.jackpot_cap_mult); pool -= j; paid += j; chains++ }
       alive = nxt
     }
+    if (alive >= 2) { duels++; const w = Math.random() < 0.5 ? 1 : 2; bet([{ lo: 1, hi: 1, p: 0.5, odds: Math.floor((L13_CFG.step_rtp / 0.5) * 100) / 100 }, { lo: 2, hi: 2, p: 0.5, odds: 0 }], w) }
     if (!out && !done) paid += Math.floor(stake * mult)
-    lens[k] = (lens[k] || 0) + 1
   }
-  return { runs: n, target, rtp_total: Math.round((paid / staked) * 1000) / 10, chain_rate: chains / n, rounds: lens, pool_end: pool }
+  return { runs: n, target, rtp_total: Math.round((paid / staked) * 1000) / 10, chain_rate: chains / n, duel_rate: duels / n, pool_end: pool }
 }

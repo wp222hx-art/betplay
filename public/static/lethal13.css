@@ -45,3 +45,29 @@ body.pulse .l13-stage{box-shadow:inset 0 0 80px rgba(255,30,50,.25)}
 .tier-row{display:grid;grid-template-columns:1fr auto auto;gap:10px;font-size:13px;padding:6px 0;border-bottom:1px dashed #2c161d}
 .tier-row em{color:#9c7c83;font-style:normal}.tier-row b{color:var(--t-amber);font-family:'Fredoka'}
 @media(max-width:900px){.l13-stage{aspect-ratio:1/1.05}.p .head span{font-size:10px}.l13-bet{bottom:3%}}
+
+/* 真人片模式：视频铺满舞台，围圈环在视频播放时隐去 */
+.l13-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .25s;z-index:2;background:#000}
+body.l13-film .l13-video{opacity:1}
+body.l13-film .l13-ring,body.l13-film .l13-center{opacity:0}
+.l13-ring,.l13-center{transition:opacity .3s}
+.p .head{background-size:cover;background-position:center 20%}
+.p .head[style*="background-image"] span{position:absolute;bottom:-4px;right:-4px;background:#111;color:#ddd;border-radius:8px;padding:0 5px;font-size:10px}
+.l13-caption{z-index:5}
+.l13-bet{z-index:6}
+
+/* 决斗 / 离场 / 押冠军 */
+.p.released{opacity:.25;filter:grayscale(1) blur(1px)}
+.p.released b::after{content:' · 离场';color:#8a9a92;font-weight:400}
+.p.duelist .head{box-shadow:0 0 0 3px #ff3b4f,0 0 36px rgba(255,59,79,.6)}
+.duel-vs{display:flex;align-items:center;gap:16px;justify-content:center;font-family:'Fredoka';font-size:clamp(40px,8vw,84px);color:#e8efe9}
+.duel-vs i{font-style:normal;font-size:.4em;color:#ff3b4f;letter-spacing:2px}
+.champ-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.champ{position:relative;aspect-ratio:1;border-radius:9px;border:1px solid var(--t-line);background:#1f0e14 center 15%/cover;color:#fff;cursor:pointer;padding:0;overflow:hidden}
+.champ b{position:absolute;top:2px;left:4px;font-family:'Fredoka';font-size:12px;text-shadow:0 1px 3px #000}
+.champ span{position:absolute;left:0;right:0;bottom:0;font-size:9px;background:rgba(0,0,0,.65);padding:1px 0}
+.champ.on{outline:2px solid var(--coin);box-shadow:0 0 14px rgba(255,197,61,.6)}
+/* 13 Tzameti 黑白高反差 */
+.l13-video{filter:grayscale(1) contrast(1.35) brightness(.92)}
+.l13-stage{filter:grayscale(.85) contrast(1.15)}
+.l13-stage .l13-bet,.l13-stage .t-flash{filter:none}

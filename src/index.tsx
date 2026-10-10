@@ -233,7 +233,7 @@ const isSybil = async (env: any, u: string) => !!(await env.DB.prepare(`SELECT 1
 app.get('/api/thrill', async (c) => {
   await thrillSeed(c.env)
   const rows = (await c.env.DB.prepare(`SELECT id,title,logline,tension,cover,status FROM thrill_series WHERE status IN ('live','demo','draft') ORDER BY tension DESC, updated_at DESC`).all()).results as any[]
-  const out: any[] = [{ id: L13.L13_SERIES, title: '致命13', logline: '监狱里最流行的游戏：13 人围成一圈，枪口顶住前一个人的后脑。六孔左轮，每轮多装一发。灯亮，扣扳机。押活下来几个人。', tension: 5, cover: null, pool: await (async () => { await L13.l13Meta(c.env as any); const r: any = await c.env.DB.prepare(`SELECT COALESCE(SUM(CASE WHEN direction='C' THEN amount ELSE -amount END),0) b FROM ledger WHERE account=?`).bind('pool:thrill:' + L13.L13_SERIES).first(); return r?.b || 0 })(), special: 'l13', url: '/l13' }]
+  const out: any[] = [{ id: L13.L13_SERIES, title: '致命13', logline: '一封死人的信、一张单程车票，把穷小子阿森带进了森林深处的庄园。13 个人围成一圈，富人们在身后下注。三轮枪响之后，还有一场决斗。', tension: 5, cover: (await c.env.DB.prepare(`SELECT 1 FROM thrill_series WHERE id='l13_media'`).first()) ? `/gimg/${L13.L13_SERIES}/cover.webp` : null, pool: await (async () => { await L13.l13Meta(c.env as any); const r: any = await c.env.DB.prepare(`SELECT COALESCE(SUM(CASE WHEN direction='C' THEN amount ELSE -amount END),0) b FROM ledger WHERE account=?`).bind('pool:thrill:' + L13.L13_SERIES).first(); return r?.b || 0 })(), special: 'l13', url: '/l13' }]
   for (const r of rows) {
     if (r.status === 'draft') { out.push({ id: r.id, title: r.title, logline: r.logline, tension: r.tension, cover: r.cover, soon: true }); continue }
     const E = await thrillOf(c.env, r.id).catch(() => null); if (!E) continue
@@ -247,10 +247,11 @@ app.get('/api/thrill', async (c) => {
 })
 // ── 致命13（监狱俄罗斯轮盘 · 模拟演出版）──
 app.get('/api/l13/meta', async (c) => c.json(await L13.l13Meta(c.env as any, uidOf(c) || undefined)))
-app.post('/api/l13/start', async (c) => { const b = await body(c), u = uidOf(c, b); await rateLimit(c.env as any, 'l13:' + u, 60, 3600000); return c.json(await L13.l13Start(c.env as any, { userId: u, stake: +b.stake, ipHash: await ipKey(c), sybil: await isSybil(c.env, u) })) })
+app.post('/api/l13/start', async (c) => { const b = await body(c), u = uidOf(c, b); await rateLimit(c.env as any, 'l13:' + u, 60, 3600000); return c.json(await L13.l13Start(c.env as any, { userId: u, stake: +b.stake, ipHash: await ipKey(c), sybil: await isSybil(c.env, u), champ: +b.champ || 0, champStake: +b.champ_stake || 0 })) })
 app.post('/api/l13/runs/:id/arm', async (c) => { const b = await body(c); return c.json(await L13.l13Arm(c.env as any, { runId: c.req.param('id'), userId: uidOf(c, b) })) })
 app.post('/api/l13/runs/:id/act', async (c) => { const b = await body(c); return c.json(await L13.l13Act(c.env as any, { runId: c.req.param('id'), userId: uidOf(c, b), k: +b.k, tier: b.tier || null, cashout: b.cashout === true })) })
 app.get('/api/l13/runs/:id/verify', async (c) => c.json(await L13.l13Verify(c.env as any, c.req.param('id'))))
+app.post('/api/admin/l13/media', async (c) => { const b = await body(c); return c.json(await L13.l13SaveMedia(c.env as any, b.clips || {})) })
 app.get('/api/admin/l13/simulate', (c) => c.json([1, 2, 3, 9].map((t) => L13.l13Simulate(+(c.req.query('n') || 20000), t))))
 app.get('/api/thrill/:sid/meta', async (c) => { const E = await thrillOf(c.env, c.req.param('sid')); const u = uidOf(c); const m: any = await E.meta(c.env, u || undefined); m.demo = !!(E.DATA.series as any).demo; return c.json(m) })
 app.post('/api/thrill/:sid/start', async (c) => {

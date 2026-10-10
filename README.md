@@ -362,3 +362,4 @@ npx wrangler d1 migrations apply webapp-production                              
 - **公平**：整局只由种子决定：第 k 轮第 t 次尝试第 i 把枪响 ⇔ HMAC(seed,"r:k:t:i") < b/6；`/api/l13/runs/:id/verify` 复算整局
 - **演出**：程序化 13 人围圈舞台 + WebAudio 合成心跳/上弹/枪声/哨声；真人片待拍（约 52 个模块）
 - **API**：`GET /api/l13/meta` · `POST /api/l13/start {stake}` · `POST /api/l13/runs/:id/arm` · `POST /api/l13/runs/:id/act {k, tier}|{k, cashout:true}` · `GET /api/l13/runs/:id/verify` · `GET /api/admin/l13/simulate`
+- **v2（致敬《13 Tzameti / 百万杀人游戏》）**：环形三轮（1/2/3 发）→ 剩 ≥3 人时主持人抽 2 人决斗、其余离场 → 决斗每枪加 1 发直到一人倒下；13 号 = 误入局的穷小子阿森；新增「押冠军」（开局押最后幸存号码，×11.96）；连环大奖 = 环形三轮全中；画面黑白高反差

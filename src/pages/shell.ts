@@ -208,6 +208,7 @@ export const lethal13Page = () => `${head('致命13 · 监狱俄罗斯轮盘 | �
 ${nav('thrill')}
 <main id="l13-play" class="thrill-play">
   <section id="l13-stage" class="l13-stage">
+    <video id="l13-video" class="l13-video" playsinline></video>
     <div id="l13-ring" class="l13-ring"></div>
     <div id="l13-center" class="l13-center"></div>
     <div id="l13-dark" class="l13-dark"></div>
