@@ -15,7 +15,7 @@ CONC = int(os.environ.get('THRILL_CONC', '8'))
 os.makedirs(OUT, exist_ok=True)
 
 REAL = ('High-contrast black-and-white 35mm film in the style of 13 Tzameti, deep blacks, blown highlights from a single bare bulb. Photorealistic live-action prison film, shot on ARRI Alexa Mini, natural skin texture with visible pores, sweat and grime, no makeup, '
-        'no beauty filter, no CGI sheen, no waxy skin, 35mm film grain, harsh single overhead practical light, deep shadows, cold green-grey grade, '
+        'no beauty filter, no CGI sheen, no waxy skin, 35mm film grain, harsh single overhead practical light, deep shadows, monochrome silver-gelatin look, '
         'handheld documentary realism, unbearable tension. No blood, no gore. Consistent characters exactly as in the reference images.')
 UNIFORM = 'faded grey prison uniform with a sewn white chest patch printed with the number {n} in black'
 SET = ('An underground prison basement at night: bare stained concrete walls, rusty overhead pipes, a floor drain, a large white circle painted on the '
@@ -67,10 +67,10 @@ def phase_refs():
     log('set', *img('set', f'Unretouched documentary photograph, no people. {SET}. Shot from a high corner angle, Fujifilm X-T4 16mm, ISO 3200 grain, realistic, no CGI.', '1:1'))
 
 def plate_prompt(n):
-    return (f'High-angle cinematic film still from a Chinese prison thriller. {SET}. Exactly {n} Chinese prisoners (East Asian men of different ages, '
-            f'shaved or buzz-cut heads) in faded grey prison uniforms with white numbered chest patches stand evenly spaced around the white circle, all facing clockwise, '
-            f'each holding an old black revolver raised at shoulder height aimed forward at the man ahead of him, tense frozen silence, faces half in shadow. '
-            f'Photorealistic, 35mm film grain, cold green-grey grade, no blood.')
+    return (f'High-angle high-contrast black-and-white film still from a 1970s crime drama. {SET}. Exactly {n} East Asian men of different ages '
+            f'in faded grey work uniforms with white numbered chest patches stand in single file around the white circle, each turned sideways in profile, '
+            f'each man\'s right arm extended forward holding an old revolver, so the line of arms and pistols makes one continuous ring. '
+            f'Tense stillness, faces half in shadow, deep blacks, film grain, photorealistic.')
 def phase_plates():
     r = refs()
     with cf.ThreadPoolExecutor(6) as ex:
@@ -80,24 +80,24 @@ def phase_plates():
 def clips():
     C = {}
     C['intro'] = dict(dur=8, refs=['guard', 'plate13', 'set'], text=(
-        '@Image1 is the prison guard, @Image2 shows the thirteen prisoners standing in the ring, @Image3 is the basement. Slow handheld push-in: '
-        'the guard walks slowly around the outside of the silent circle of thirteen prisoners, each holding a revolver raised and aimed at the man ahead of him. '
+        '@Image1 is the master of ceremonies with his cane, @Image2 shows the thirteen men standing in single file around the ring, @Image3 is the basement. Slow handheld push-in: '
+        'he walks slowly around the outside of the silent chain of thirteen men, each turned sideways in profile with his right arm extended forward holding a revolver, one continuous ring of arms and pistols. '
         'He stops under the swinging caged bulb and speaks in a low flat voice in Mandarin Chinese: "规矩只有一条——最后站着的人，明天出去。" '
         'Drip of water, distant metal door, a heartbeat building.'))
     for v, d in (('a', 'Extreme close-up: trembling dirty fingers push a single brass bullet into an empty chamber of a revolver cylinder, then snap the cylinder shut.'),
                  ('b', 'Extreme close-up: a revolver cylinder is spun hard by a thumb, ratcheting whir, it slows and stops; then a hammer is pulled back with a sharp click.'),
-                 ('c', 'Slow pan along a dark ring of silhouetted hands each gripping a raised revolver; sweat drips; all hammers are cocked in perfect unison — one collective click.')):
+                 ('c', 'Slow side-on dolly along a dark chain of silhouetted men in profile, each right arm extended forward holding a revolver, arm after arm in one line; sweat drips; all hammers are cocked in perfect unison — one collective click.')):
         C[f'load_{v}'] = dict(dur=5, refs=['set'], text=f'@Image1 is the basement, now pitch black except a thin red emergency glow. {d} Heavy breathing, a fast heartbeat, no dialogue.')
     for n in range(13, 1, -1):
         C[f'fire{n}'] = dict(dur=4, first=f'plate{n}', text=(
-            f'The caged bulb slams on to full harsh brightness. The {n} prisoners standing in the ring all pull their triggers at the same instant: '
+            f'The caged bulb slams on to full harsh brightness. The {n} men standing in single file around the ring, each sideways in profile with his arm extended forward, all pull their triggers at the same instant: '
             'bright muzzle flashes on some revolvers, empty clicks on others, deafening overlapping gunshots, the camera jolts, gun smoke bursts. '
             'Hard cut on the flash. No blood, no gore.'))
     for i, (name, look) in enumerate(PRISONERS):
         n = i + 1
         C[f'death{n}'] = dict(dur=4, refs=[f'p{n}', 'set'], text=(
-            f'@Image1 is prisoner number {n}, @Image2 is the basement. Tight close-up of him in the ring under the harsh caged bulb, eyes squeezed shut, '
-            'sweat on his temple, the out-of-focus man behind him holds a raised revolver. A blinding flash and a gunshot from behind — '
+            f'@Image1 is prisoner number {n}, @Image2 is the basement. Tight side-on profile close-up of him standing in the line under the harsh caged bulb, his own arm extended forward holding a revolver, eyes squeezed shut, '
+            'sweat on his temple; in soft focus beside him the next man in the chain stands in profile with his arm extended holding a revolver. A blinding flash and a gunshot — '
             'his body goes limp and drops straight down out of frame. The camera holds on the empty space and drifting gun smoke. No blood, no wound, no gore.'))
         C[f'winner{n}'] = dict(dur=6, refs=[f'p{n}', 'set'], text=(
             f'@Image1 is prisoner number {n}, @Image2 is the basement. He is the last man standing on the painted white ring; around him motionless figures in grey '
@@ -111,7 +111,7 @@ def clips():
     C['duel_fire'] = dict(dur=4, refs=['set'], text='@Image1 is the basement. Wide shot: the bulb snaps on, two men face to face in the white circle fire at the same instant; one flash, one deafening shot; one man drops out of frame, the other stays standing, frozen. No blood.')
     C['duel_dry'] = dict(dur=4, refs=['set'], text='@Image1 is the basement. Wide shot: the bulb snaps on, two men face to face in the white circle pull their triggers — two dry metallic clicks, nothing happens. Both still standing, shaking, sweat pouring.')
     C['void'] = dict(dur=5, refs=['guard', 'plate6', 'set'], text=(
-        '@Image1 is the prison guard, @Image2 shows prisoners in the ring, @Image3 is the basement. Just as the prisoners tense to fire, the guard steps into the light '
+        '@Image1 is the master of ceremonies with his cane, @Image2 shows men in single file around the ring in profile with arms extended, @Image3 is the basement. Just as they tense to fire, he steps into the light '
         'and strikes his cane on the concrete floor. Everyone freezes. He says coldly in Mandarin Chinese: "作废。重来。" The bulb cuts to black.'))
     return C
 
