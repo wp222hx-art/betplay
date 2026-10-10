@@ -352,7 +352,7 @@ async function finish(env: Env, rid: string, reason: string) {
   const usr: any = await env.DB.prepare('SELECT chips FROM users WHERE id=?').bind(r.user_id).first()
   const jp = r.jackpot_status === 'paid' ? r.jackpot : 0
   return {
-    ended: true, reason, winner, slip, champ, side: { staked: sides.s, paid: sides.p },
+    ended: true, reason, winner, slip, champ, side_total: { staked: sides.s, paid: sides.p },
     hits: slip.hits, mult: slip.mult, payout: slip.payout, stake: r.stake, jackpot: r.jackpot, jackpot_status: r.jackpot_status,
     net: slip.payout - r.stake + jp + (champ ? champ.payout - champ.stake : 0) + (sides.p - sides.s),
     balance: usr?.chips, pool: await poolBalance(env), verify: { seed: r.seed, commit: r.commit_hash }

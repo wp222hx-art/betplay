@@ -341,7 +341,7 @@
       <div class="slip-end">${s.rows.map((x) => `<div class="${x.hit ? 'hit' : 'miss'}"><span>第 ${x.k} 轮</span><em>${esc(x.label)}</em><b>实际 ${x.actual}</b></div>`).join('')}</div>
       <div class="kv"><span>押注单</span><b>${fmt(r.stake)} → ${fmt(s.payout)}${s.mult ? ` (${xm(s.mult)})` : ''}</b>
         ${r.jackpot ? `<span>奖池大奖</span><b class="coin">${fmt(r.jackpot)}${r.jackpot_status === 'held' ? '（审核中）' : ''}</b>` : ''}
-        ${r.side?.staked ? `<span>追注</span><b>${fmt(r.side.staked)} → ${fmt(r.side.paid)}</b>` : ''}
+        ${r.side_total?.staked ? `<span>追注</span><b>${fmt(r.side_total.staked)} → ${fmt(r.side_total.paid)}</b>` : ''}
         ${r.champ ? `<span>押冠军 ${r.champ.pick} 号</span><b class="${r.champ.hit ? 'up' : 'down'}">${r.champ.hit ? '+' + fmt(r.champ.payout) : '未中'}</b>` : ''}
         <span>本局净额</span><b class="${r.net >= 0 ? 'up' : 'down'}">${r.net >= 0 ? '+' : ''}${fmt(r.net)}</b><span>余额</span><b>${fmt(r.balance)}</b></div>
       <details class="verify"><summary><i class="fas fa-shield-halved"></i> 公平性验证</summary><code>seed: ${esc(r.verify.seed)}</code><code>commit: ${esc(r.verify.commit)}</code><p>第 k 轮第 t 次尝试第 i 把枪响 ⇔ HMAC(seed,"r:k:t:i") &lt; 装弹数/6；全员死亡的尝试作废重开。剧情只由种子决定，与任何下注无关。</p><a href="/api/l13/runs/${S.run.run_id}/verify" target="_blank">服务端复算整局 →</a></details>
