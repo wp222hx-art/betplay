@@ -71,3 +71,79 @@ body.l13-film .l13-ring,body.l13-film .l13-center{opacity:0}
 .l13-video{filter:grayscale(1) contrast(1.35) brightness(.92)}
 .l13-stage{filter:grayscale(.85) contrast(1.15)}
 .l13-stage .l13-bet,.l13-stage .t-flash{filter:none}
+
+/* ─────────── v3：链式环 SVG 地面 + 枪 + 中央转轮 ─────────── */
+.l13-floor{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;color:#c9d2cd}
+.l13-floor .aim{stroke:#c9d2cd;stroke-opacity:.38;stroke-width:.35;stroke-dasharray:.9 .7;color:#c9d2cd;transition:stroke-opacity .3s}
+.l13-floor .aim.hot{stroke:#ffcf5a;stroke-opacity:1;stroke-width:.7;stroke-dasharray:none;color:#ffcf5a;filter:drop-shadow(0 0 1.2px #ffb020)}
+.l13-floor .aim.off{stroke-opacity:0;color:transparent}
+.p .gun{height:auto;width:72%;top:30%;background:none!important;box-shadow:none!important;color:#2f3437;filter:drop-shadow(0 2px 2px rgba(0,0,0,.7))}
+.p .gun .gun-svg{display:block;width:100%;height:auto;transform:translateX(22%)}
+.p.fire .gun{color:#ffd77a;filter:drop-shadow(0 0 6px #ffb020)}
+.p.fire .gun::after{content:'';position:absolute;right:-18%;top:50%;width:26%;aspect-ratio:1;transform:translateY(-50%);border-radius:50%;background:radial-gradient(circle,#fff 0,#ffe08a 30%,rgba(255,140,0,.6) 55%,transparent 72%);animation:muzzle .35s ease-out forwards}
+@keyframes muzzle{0%{opacity:1;transform:translateY(-50%) scale(.4)}100%{opacity:0;transform:translateY(-50%) scale(1.6)}}
+.p.dry .gun{color:#6f7c76}
+.p .head{border:2px solid #9aa39e;box-shadow:0 0 0 3px rgba(0,0,0,.65),0 8px 18px rgba(0,0,0,.7)}
+.p.dead .head{filter:grayscale(1) brightness(.35)}
+.l13-center{width:34%;z-index:1}
+.cyl-wrap{position:relative;width:100%;aspect-ratio:1;filter:drop-shadow(0 18px 30px rgba(0,0,0,.85)) drop-shadow(0 0 40px rgba(220,240,230,.08))}
+.cyl-wrap.small{width:70%;margin:0 auto}
+.cyl-svg{width:100%;height:100%;display:block;transition:transform .9s cubic-bezier(.2,.8,.2,1)}
+.cyl-svg.spin{animation:cylspin 1.3s cubic-bezier(.15,.7,.25,1) forwards}
+@keyframes cylspin{0%{transform:rotate(0)}100%{transform:rotate(1140deg)}}
+.cyl-svg .ch.on{animation:load .35s backwards;animation-delay:var(--d)}
+@keyframes load{0%{opacity:0;transform:scale(1.6);transform-origin:center}100%{opacity:1}}
+.cyl-n{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}
+.cyl-n b{font-family:'Fredoka';font-size:clamp(22px,4.4vw,48px);line-height:1;color:#f2f5f3;text-shadow:0 0 6px #000,0 0 18px #000,0 2px 0 #000}
+.cyl-n small{font-size:clamp(9px,1vw,11px);letter-spacing:4px;color:#c7d1cc;text-shadow:0 0 6px #000}
+.cyl-cap{margin-top:8px;font-size:clamp(10px,1.2vw,12px);letter-spacing:2px;color:#b9c3be;text-shadow:0 1px 4px #000}
+.duel-vs .dv{position:relative;display:inline-block;width:clamp(56px,10vw,110px);aspect-ratio:1;border-radius:50%;background:#2a2f31 center 20%/cover;border:3px solid #ff3b4f;box-shadow:0 0 30px rgba(255,59,79,.5)}
+.duel-vs .dv b{position:absolute;right:-6px;bottom:-6px;font-size:16px;background:#111;border-radius:10px;padding:0 7px;color:#fff}
+.duel-vs .dv.win{width:clamp(80px,14vw,150px);border-color:var(--coin);box-shadow:0 0 60px rgba(255,197,61,.6)}
+/* HUD 押注单进度点 */
+.h-stat .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin:0 2px;border:1.5px solid #9aa39e;vertical-align:middle}
+.h-stat .dot.hit{background:var(--coin);border-color:var(--coin)}.h-stat .dot.miss{background:#ff3b4f;border-color:#ff3b4f}
+/* 押注单 */
+.slip-row{display:grid;grid-template-columns:56px 1fr;gap:8px;align-items:center;padding:6px 0;border-bottom:1px dashed #2c161d}
+.slip-k{font-weight:800;font-size:13px}.slip-k small{display:block;color:#9c7c83;font-weight:400;font-size:11px}
+.slip-bins{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
+.sb{padding:7px 4px;border-radius:9px;border:1px solid var(--t-line);background:#1a0c11;color:#e8d6d9;cursor:pointer;font-size:12px;line-height:1.25}
+.sb small{display:block;color:#9c7c83;font-size:10px}.sb.on{background:linear-gradient(180deg,#5a1420,#2b0a11);border-color:#ff3b4f;box-shadow:0 0 0 1px #ff3b4f inset}
+.sb.on small{color:#ffb4bd}
+.pay-table{margin-top:10px;display:grid;gap:4px}
+.pay{display:grid;grid-template-columns:1fr 50px 64px 64px;gap:6px;align-items:center;font-size:12.5px;padding:6px 8px;border-radius:8px;background:#140a0d}
+.pay em{color:#9c7c83;font-style:normal}.pay b{font-family:'Fredoka';color:var(--t-amber)}.pay strong{text-align:right;color:var(--coin);font-family:'Fredoka'}
+.pay.top{background:linear-gradient(90deg,#3a2a08,#140a0d);border:1px solid #6b4f12}.pay.top b{font-size:16px;color:var(--coin)}
+.pay.zero{opacity:.55}
+.slip.live .slip-line{display:grid;grid-template-columns:52px 1fr auto;gap:6px;font-size:13px;padding:6px 8px;border-radius:8px;margin-bottom:4px;background:#140a0d}
+.slip-line.hit{background:linear-gradient(90deg,#2d2408,#140a0d)}.slip-line.hit b{color:var(--coin)}
+.slip-line.miss{opacity:.6}.slip-line.miss em{text-decoration:line-through}
+.pay-mini{display:flex;gap:6px;margin-top:6px}.pay-mini span{flex:1;text-align:center;font-size:11px;padding:3px 0;border-radius:6px;background:#1a0c11;color:#c9a9af}
+.pay-mini span.on{background:var(--coin);color:#1b1206;font-weight:800}
+.slip-res{margin-top:8px;font-size:14px}
+.slip-end{display:grid;gap:4px;margin:10px 0}.slip-end div{display:grid;grid-template-columns:56px 1fr auto;gap:8px;font-size:13px;padding:5px 8px;border-radius:8px;background:#140a0d}
+.slip-end .hit b{color:var(--coin)}.slip-end .miss{opacity:.6}
+/* 追注条 */
+.bet-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:8px;font-size:12px;color:#c9a9af}
+.bchip{min-width:40px;padding:4px 8px;border-radius:999px;border:1px solid var(--t-line);background:#1a0c11;color:#fff;cursor:pointer;font-family:'Fredoka'}
+.bchip.on{background:var(--coin);color:#1b1206;border-color:var(--coin)}
+.bet-row .g-cash{margin:0 0 0 auto;padding:5px 12px;width:auto}
+.btn.small{padding:8px 12px;font-size:13px}.btn.ghost{background:transparent;border:1px solid var(--t-line);color:#c9a9af;width:100%;margin-top:8px}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.l13-stage{filter:grayscale(.6) contrast(1.12)}
+.l13-stage .l13-center{filter:none}
+/* v3.1 修正：舞台不再整体去色（保留黄铜弹头），只对人物和视频去色 */
+.l13-stage{filter:none!important}
+.l13-ring .p .head{filter:grayscale(1) contrast(1.15)}
+.cyl-svg .rot{transform-origin:50px 50px;transform-box:view-box}
+.cyl-svg .rot.spin{animation:cylspin 1.5s cubic-bezier(.12,.75,.22,1) forwards}
+.cyl-svg.spin{animation:none}
+.l13-center{width:32%}
+.cyl-wrap{filter:drop-shadow(0 22px 34px rgba(0,0,0,.9))}
+.cyl-n{justify-content:flex-end;padding-bottom:0;inset:auto 0 -2% 0;height:auto;top:auto}
+.cyl-n b{font-size:clamp(20px,3.4vw,40px);background:rgba(0,0,0,.72);border:1px solid #3b4448;border-radius:14px;padding:2px 14px 4px;box-shadow:0 6px 18px rgba(0,0,0,.7)}
+.cyl-n small{margin-top:4px}
+.p .gun{width:86%;top:28%;color:#3b4245}
+.p .gun .gun-svg{transform:translateX(30%)}
+.sb{font-size:12.5px;padding:8px 4px;white-space:nowrap}
+.sb span{font-family:'Fredoka',sans-serif;font-weight:700}

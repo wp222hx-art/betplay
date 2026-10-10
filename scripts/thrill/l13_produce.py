@@ -76,43 +76,67 @@ def phase_plates():
     with cf.ThreadPoolExecutor(6) as ex:
         for k, st in ex.map(lambda n: img(f'plate{n}', plate_prompt(n), '1:1', [r['set']]), range(13, 1, -1)): log('plate', k, st)
 
-# ─────────── 视频清单 ───────────
+# ─────────── v3：一致性首帧（每条视频都从「多参考定妆合成的首帧」起，杜绝换脸 / 重复脸 / 枪支幻觉） ───────────
+BW = 'High-contrast black-and-white film still from a 1970s crime drama, deep blacks, single caged bulb, film grain, photorealistic, natural skin texture, no CGI. '
+ONEGUN = 'Each man holds exactly one old revolver in his right hand only; no extra hands, no extra guns, no floating objects. '
+FACE_ORDER = [13, 1, 5, 2, 8, 4, 11, 3, 9, 6, 12, 7, 10]
+def plate_faces(n): return sorted(FACE_ORDER[:n])
+def stills():
+    S = {}
+    for n in range(13, 1, -1):
+        f = plate_faces(n)
+        S[f'plate{n}'] = ([f'p{i}' for i in f] + ['set'], BW + f'High angle, in the basement of the last reference image. Exactly {n} men — the {n} different men from the first {n} reference images, one each, no duplicates, no look-alikes — '
+            f'in faded grey work uniforms with small blank white chest patches stand in single file around the white circle, each turned sideways in profile, each man\'s right arm extended forward holding an old revolver, '
+            f'so the line of arms and pistols makes one continuous ring. {ONEGUN}Tense stillness, faces half in shadow.')
+    for i in range(1, 14):
+        j = (i - 2) % 13 + 1  # 链上站在他身后的人（开枪者）
+        S[f'ds{i}'] = ([f'p{i}', f'p{j}', 'set'], BW + 'Side-on profile close-up in a dark concrete basement. In the foreground, sharp focus: the man from image 1, exactly his face, in profile facing right, eyes squeezed shut, sweat on his temple, '
+            'his right arm extended forward holding an old revolver. Behind him in soft focus: the man from image 2, a clearly different person, also in profile facing right, right arm extended forward holding an old revolver. '
+            'Exactly two men. ' + ONEGUN)
+        S[f'ws{i}'] = ([f'p{i}', 'set'], BW + f'The man from image 1, exactly his face, wearing his grey uniform with one single white chest patch printed {i}, stands alone inside the white circle painted on the floor of the basement from image 2, '
+            'an old revolver hanging loosely in his right hand, exhausted and trembling. Around the circle several figures in grey uniforms lie motionless on the floor in deep shadow, faces turned away and not visible, no blood. '
+            'He is the only person standing.')
+    S['introS'] = (['guard', 'plate13', 'set'], BW + 'High angle. The man from image 1 — the master of ceremonies in a dark three-piece suit with a black walking cane — stands just outside the ring of men from image 2, '
+        'who stand in single file in profile around the white circle, right arms extended forward holding revolvers. Keep every man in image 2 exactly as he is. ' + ONEGUN)
+    S['voidS'] = (['guard', 'plate6', 'set'], BW + 'The master of ceremonies from image 1, in his three-piece suit, steps into the light at the edge of the white circle and raises his black cane, about to strike the floor. '
+        'Behind him the men from image 2 stand frozen in single file in profile, right arms extended holding revolvers. ' + ONEGUN)
+    S['duelS'] = (['set'], BW + 'Wide side view of the basement from the reference. Two men in grey work uniforms stand inside the white circle facing each other in profile at arm\'s length, '
+        'each with his right arm extended toward the other holding one old revolver. Both are backlit by the single bulb between them, their faces fall into deep shadow — anonymous silhouettes. ' + ONEGUN)
+    S['duelI'] = (['guard', 'duelS', 'set'], BW + 'Same scene as image 2, but the master of ceremonies from image 1 stands between the two silhouetted men, under the bulb, both hands on his black cane, looking at the camera. ' + ONEGUN)
+    return S
+def phase_stills(only=None):
+    S = {k: v for k, v in stills().items() if not only or k in only}
+    order = [k for k in S if not k.startswith('duelI')] + [k for k in S if k.startswith('duelI')]
+    for k in order:  # plate13/duelS 先于依赖它们的合成
+        pass
+    first = [k for k in order if k not in ('introS', 'voidS', 'duelI')]
+    def go(k): rr = refs(); return img(k, S[k][1], '1:1', [rr[x] for x in S[k][0]])
+    with cf.ThreadPoolExecutor(6) as ex:
+        for k, st in ex.map(go, first): log('still', k, st)
+    for k in [k for k in ('introS', 'voidS', 'duelI') if k in S]: log('still', *go(k))
+
+KEEP = ('Locked-off camera. Every person keeps exactly the same face, body and position throughout; nobody new enters the frame; ' + 'each man holds exactly one revolver in his right hand, no extra arms or guns appear. ')
 def clips():
     C = {}
-    C['intro'] = dict(dur=8, refs=['guard', 'plate13', 'set'], text=(
-        '@Image1 is the master of ceremonies with his cane, @Image2 shows the thirteen men standing in single file around the ring, @Image3 is the basement. Slow handheld push-in: '
-        'he walks slowly around the outside of the silent chain of thirteen men, each turned sideways in profile with his right arm extended forward holding a revolver, one continuous ring of arms and pistols. '
-        'He stops under the swinging caged bulb and speaks in a low flat voice in Mandarin Chinese: "规矩只有一条——最后站着的人，明天出去。" '
-        'Drip of water, distant metal door, a heartbeat building.'))
+    C['intro'] = dict(dur=8, first='introS', text=KEEP.replace('Locked-off camera', 'Very slow push-in') + 'The master of ceremonies walks slowly along the outside of the ring, his cane tapping on the concrete, while the men stay frozen. '
+        'He stops under the caged bulb and says in a low flat voice in Mandarin Chinese: "规矩只有一条——最后站着的人，明天出去。" Dripping water, a heartbeat building.')
     for v, d in (('a', 'Extreme close-up: trembling dirty fingers push a single brass bullet into an empty chamber of a revolver cylinder, then snap the cylinder shut.'),
                  ('b', 'Extreme close-up: a revolver cylinder is spun hard by a thumb, ratcheting whir, it slows and stops; then a hammer is pulled back with a sharp click.'),
                  ('c', 'Slow side-on dolly along a dark chain of silhouetted men in profile, each right arm extended forward holding a revolver, arm after arm in one line; sweat drips; all hammers are cocked in perfect unison — one collective click.')):
         C[f'load_{v}'] = dict(dur=5, refs=['set'], text=f'@Image1 is the basement, now pitch black except a thin red emergency glow. {d} Heavy breathing, a fast heartbeat, no dialogue.')
     for n in range(13, 1, -1):
-        C[f'fire{n}'] = dict(dur=4, first=f'plate{n}', text=(
-            f'The caged bulb slams on to full harsh brightness. The {n} men standing in single file around the ring, each sideways in profile with his arm extended forward, all pull their triggers at the same instant: '
-            'bright muzzle flashes on some revolvers, empty clicks on others, deafening overlapping gunshots, the camera jolts, gun smoke bursts. '
-            'Hard cut on the flash. No blood, no gore.'))
-    for i, (name, look) in enumerate(PRISONERS):
-        n = i + 1
-        C[f'death{n}'] = dict(dur=4, refs=[f'p{n}', 'set'], text=(
-            f'@Image1 is prisoner number {n}, @Image2 is the basement. Tight side-on profile close-up of him standing in the line under the harsh caged bulb, his own arm extended forward holding a revolver, eyes squeezed shut, '
-            'sweat on his temple; in soft focus beside him the next man in the chain stands in profile with his arm extended holding a revolver. A blinding flash and a gunshot — '
-            'his body goes limp and drops straight down out of frame. The camera holds on the empty space and drifting gun smoke. No blood, no wound, no gore.'))
-        C[f'winner{n}'] = dict(dur=6, refs=[f'p{n}', 'set'], text=(
-            f'@Image1 is prisoner number {n}, @Image2 is the basement. He is the last man standing on the painted white ring; around him motionless figures in grey '
-            'uniforms lie in deep shadow on the concrete (no blood). The smoking revolver trembles in his hand, the caged bulb swings slowly overhead. '
-            'He slowly drops to his knees, breathing raggedly, a broken laugh turns into a sob. Ringing silence.'))
-    C['duel_intro'] = dict(dur=6, refs=['guard', 'set'], text=(
-        '@Image1 is the master of ceremonies, @Image2 is the basement. Two men in grey uniforms stand face to face in the white circle under the single bulb, '
-        'each holding a revolver aimed at the other\'s chest, arms trembling. The master of ceremonies steps between them and says in Mandarin Chinese: "决斗。" '
-        'Then steps back into darkness. Silence, dripping water.'))
+        C[f'fire{n}'] = dict(dur=4, first=f'plate{n}', text=KEEP + f'The caged bulb flares to full harsh brightness. All {n} men pull their triggers at the same instant: bright muzzle flashes from some revolvers, dry clicks from others, '
+            'deafening overlapping gunshots, gun smoke bursts, the camera jolts once. Hard cut on the flash. No blood, no gore.')
+    for i in range(1, 14):
+        C[f'death{i}'] = dict(dur=4, first=f'ds{i}', text=KEEP + 'Side-on close-up, the man in the foreground keeps his eyes shut, breathing hard. A blinding flash and a gunshot — his body goes limp and drops straight down out of frame; '
+            'the man behind him stays in place; the camera holds on the empty space and drifting gun smoke. No blood, no wound, no gore.')
+        C[f'winner{i}'] = dict(dur=6, first=f'ws{i}', text=KEEP.replace('Locked-off camera', 'Slow push-in') + 'He is the only one standing. His revolver slips from his fingers and clatters on the concrete; he sinks to his knees, ragged breathing, '
+            'a broken laugh turns into a sob. The figures on the floor stay completely still, faces hidden. The bulb swings slowly. Ringing silence.')
+    C['duel_intro'] = dict(dur=6, first='duelI', text=KEEP + 'The master of ceremonies says in Mandarin Chinese: "决斗。" then steps back out of the light into darkness, leaving the two silhouetted men facing each other, arms trembling. Dripping water.')
     C['duel_load'] = dict(dur=4, refs=['set'], text='@Image1 is the basement in darkness. Extreme close-up: two revolver cylinders spun side by side, two hammers cocked at the same instant. Ragged breathing, heartbeat.')
-    C['duel_fire'] = dict(dur=4, refs=['set'], text='@Image1 is the basement. Wide shot: the bulb snaps on, two men face to face in the white circle fire at the same instant; one flash, one deafening shot; one man drops out of frame, the other stays standing, frozen. No blood.')
-    C['duel_dry'] = dict(dur=4, refs=['set'], text='@Image1 is the basement. Wide shot: the bulb snaps on, two men face to face in the white circle pull their triggers — two dry metallic clicks, nothing happens. Both still standing, shaking, sweat pouring.')
-    C['void'] = dict(dur=5, refs=['guard', 'plate6', 'set'], text=(
-        '@Image1 is the master of ceremonies with his cane, @Image2 shows men in single file around the ring in profile with arms extended, @Image3 is the basement. Just as they tense to fire, he steps into the light '
-        'and strikes his cane on the concrete floor. Everyone freezes. He says coldly in Mandarin Chinese: "作废。重来。" The bulb cuts to black.'))
+    C['duel_fire'] = dict(dur=4, first='duelS', text=KEEP + 'The bulb flares; both men pull their triggers at the same instant: one flash, one deafening shot; the man on the left goes limp and drops to the floor, the man on the right stays standing, frozen. No blood.')
+    C['duel_dry'] = dict(dur=4, first='duelS', text=KEEP + 'The bulb flares; both men pull their triggers — two dry metallic clicks, nothing happens. Both remain standing, shaking, sweat pouring.')
+    C['void'] = dict(dur=5, first='voidS', text=KEEP + 'He strikes his cane hard on the concrete floor — a sharp crack. Everyone freezes. He says coldly in Mandarin Chinese: "作废。重来。" The bulb cuts to black.')
     return C
 
 def render(key, c, force=False):
@@ -168,6 +192,7 @@ if __name__ == '__main__':
     only = next((a.split('=', 1)[1].split(',') for a in sys.argv if a.startswith('--only=')), None)
     if ph == 'refs': phase_refs()
     elif ph == 'plates': phase_plates()
+    elif ph == 'stills': phase_stills(only)
     elif ph == 'test': phase_render(only or ['fire13', 'death4'], '--force' in sys.argv)
     elif ph == 'render': phase_render(only, '--force' in sys.argv)
     elif ph == 'publish': phase_publish()
