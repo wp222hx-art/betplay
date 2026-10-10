@@ -21,8 +21,8 @@ import { authUid, checkTicket, ipKey, issueDevice, rateLimit, riskEvent } from '
 import * as Market from './market/cards'
 import * as Tiers from './market/tiers'
 import { createEngine } from './comic/factory'
-import { createThrill, ladderRtp, MAX_RTP } from './thrill/engine'
-import { DEMO_THRILL } from './thrill/demo'
+import { createThrill, ladderTable, MAX_RTP } from './thrill/engine'
+import { THRILL_SCRIPTS } from './thrill/scripts'
 
 const app = new Hono<{ Bindings: Bindings & { MEDIA?: R2Bucket; AUTH_SECRET?: string; ADMIN_KEY?: string }; Variables: { uid: string } }>()
 app.use('/api/*', cors())
@@ -217,9 +217,9 @@ const THR: Record<string, { v: number; E: ReturnType<typeof createThrill> }> = {
 let thrSeeded = false
 async function thrillSeed(env: any) {
   if (thrSeeded) return; thrSeeded = true
-  const d = DEMO_THRILL as any
-  await env.DB.prepare(`INSERT OR IGNORE INTO thrill_series (id,title,logline,tension,cover,data,version,status,created_at,updated_at) VALUES (?,?,?,?,?,?,1,'demo',?,?)`)
-    .bind(d.series.id, d.series.title, d.series.logline, d.series.tension, d.segments[d.prologue].poster, JSON.stringify(d), Date.now(), Date.now()).run()
+  // 首批剧本以 draft 写入（未生产视频前不可玩）；生产完成后由 /api/admin/thrill/series 以 live 覆盖
+  for (const d of THRILL_SCRIPTS) await env.DB.prepare(`INSERT OR IGNORE INTO thrill_series (id,title,logline,tension,cover,data,version,status,created_at,updated_at) VALUES (?,?,?,?,?,?,1,'draft',?,?)`)
+    .bind(d.series.id, d.series.title, d.series.logline, d.series.tension, null, JSON.stringify(d), Date.now(), Date.now()).run()
 }
 async function thrillOf(env: any, sid: string) {
   await thrillSeed(env)
@@ -231,14 +231,16 @@ async function thrillOf(env: any, sid: string) {
 const isSybil = async (env: any, u: string) => !!(await env.DB.prepare(`SELECT 1 FROM risk_events WHERE uid=? AND kind='sybil' LIMIT 1`).bind(u).first())
 app.get('/api/thrill', async (c) => {
   await thrillSeed(c.env)
-  const rows = (await c.env.DB.prepare(`SELECT id,title,logline,tension,cover,status,data FROM thrill_series WHERE status IN ('live','demo') ORDER BY tension DESC, updated_at DESC`).all()).results as any[]
-  const out = []
+  const rows = (await c.env.DB.prepare(`SELECT id,title,logline,tension,cover,status FROM thrill_series WHERE status IN ('live','demo','draft') ORDER BY tension DESC, updated_at DESC`).all()).results as any[]
+  const out: any[] = []
   for (const r of rows) {
+    if (r.status === 'draft') { out.push({ id: r.id, title: r.title, logline: r.logline, tension: r.tension, cover: r.cover, soon: true }); continue }
     const E = await thrillOf(c.env, r.id).catch(() => null); if (!E) continue
     await E.ensurePool(c.env)
-    const agg: any = await c.env.DB.prepare(`SELECT COUNT(*) n, SUM(CASE WHEN hits=5 THEN 1 ELSE 0 END) p FROM thrill_runs WHERE series_id=? AND status='ended'`).bind(r.id).first()
-    const rt = ladderRtp(E.CFG.ladder, E.ARITY)
-    out.push({ id: r.id, title: r.title, logline: r.logline, tension: r.tension, cover: r.cover, demo: r.status === 'demo', pool: await E.poolBalance(c.env), plays: agg?.n || 0, perfect: agg?.p || 0, ladder: E.CFG.ladder, arity: E.ARITY, jackpot_odds: Math.round(rt.jackpot_odds), url: '/t/' + r.id })
+    const agg: any = await c.env.DB.prepare(`SELECT COUNT(*) n FROM thrill_runs WHERE series_id=? AND status='ended'`).bind(r.id).first()
+    const top = ladderTable(E.CFG, 6)
+    const best: any = await c.env.DB.prepare(`SELECT COALESCE(MAX(hits),0) h, COALESCE(MAX(mult),0) m FROM thrill_runs WHERE series_id=? AND status='ended'`).bind(r.id).first()
+    out.push({ id: r.id, title: r.title, logline: r.logline, tension: r.tension, cover: r.cover, demo: r.status === 'demo', pool: await E.poolBalance(c.env), plays: agg?.n || 0, best_streak: best?.h || 0, top_mult: best?.m || 0, ladder: top.map((x) => x.mult), story_cards: E.STORY.length, bonus_cards: E.BONUS.length, jackpot_step: E.CFG.jackpot_step, url: '/t/' + r.id })
   }
   return c.json({ items: out })
 })
@@ -250,10 +252,10 @@ app.post('/api/thrill/:sid/start', async (c) => {
 })
 app.get('/api/thrill/:sid/resume', async (c) => { const E = await thrillOf(c.env, c.req.param('sid')); return c.json({ run: await E.resume(c.env, uidOf(c, {})) }) })
 app.post('/api/thrill/:sid/runs/:id/arm', async (c) => { const b = await body(c); return c.json(await (await thrillOf(c.env, c.req.param('sid'))).arm(c.env, { runId: c.req.param('id'), userId: uidOf(c, b) })) })
-app.post('/api/thrill/:sid/runs/:id/pick', async (c) => { const b = await body(c); return c.json(await (await thrillOf(c.env, c.req.param('sid'))).pick(c.env, { runId: c.req.param('id'), userId: uidOf(c, b), optionId: b.option_id || null, gate: +b.gate })) })
+app.post('/api/thrill/:sid/runs/:id/act', async (c) => { const b = await body(c); return c.json(await (await thrillOf(c.env, c.req.param('sid'))).act(c.env, { runId: c.req.param('id'), userId: uidOf(c, b), step: +b.step, side: b.side || null, cashout: b.cashout === true })) })
 app.get('/api/thrill/:sid/runs/:id/verify', async (c) => c.json(await (await thrillOf(c.env, c.req.param('sid'))).verify(c.env, c.req.param('id'))))
 // 管理：经济沙盘 / Jackpot 审核 / 剧本上架
-app.get('/api/admin/thrill/:sid/simulate', async (c) => { const E = await thrillOf(c.env, c.req.param('sid')); const r = ladderRtp(E.CFG.ladder, E.ARITY); return c.json({ ladder: E.CFG.ladder, arity: E.ARITY, ladder_rtp: r.rtp, rake: E.CFG.rake, max_rtp: MAX_RTP, jackpot_odds: r.jackpot_odds, mc: E.simulate(+(c.req.query('n') || 20000), +(c.req.query('stake') || 10)) }) })
+app.get('/api/admin/thrill/:sid/simulate', async (c) => { const E = await thrillOf(c.env, c.req.param('sid')); const n = +(c.req.query('n') || 50000); return c.json({ ladder: ladderTable(E.CFG, 14), rtp: E.CFG.rtp, rake: E.CFG.rake, max_rtp: MAX_RTP, mc: [1, 2, 3, 4, 6, 99].map((t) => E.simulate(n, 10, t)) }) })
 app.get('/api/admin/thrill/holds', async (c) => c.json((await c.env.DB.prepare(`SELECT id,user_id,series_id,ip_hash,stake,hits,jackpot,hold_reason,ended_at FROM thrill_runs WHERE jackpot_status='held' ORDER BY ended_at DESC LIMIT 100`).all()).results))
 app.post('/api/admin/thrill/holds/:id', async (c) => { const b = await body(c); const r: any = await c.env.DB.prepare('SELECT series_id FROM thrill_runs WHERE id=?').bind(c.req.param('id')).first(); if (!r) throw new GameError('RUN_NOT_FOUND', '局不存在'); return c.json(await (await thrillOf(c.env, r.series_id)).resolveHold(c.env, c.req.param('id'), b.approve === true)) })
 app.post('/api/admin/thrill/series', async (c) => {

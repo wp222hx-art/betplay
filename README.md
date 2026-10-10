@@ -340,14 +340,15 @@ npx wrangler d1 migrations apply webapp-production                              
 - 数据：`migrations/0009_growth.sql`（funnel_events / referrals / comic_rounds.contrarian）· `src/growth/growth.ts`
 - 测试：`python3 tests/ui_abstract.py`（邀请进场 → 截梗 → 人格 → 梗图 → 导流，errors=[]）
 
-## ⚡ 惊心1分钟（Thrill 60s）· 真人剧 5 关连猜
+## ⚡ 惊心1分钟（Thrill 60s）v2 · 连猜爬塔
 - **入口**：`/thrill`（板块，按紧张度排序）· `/t/:sid`（播放页）· 导航「惊心1分钟」
-- **玩法**：序章 → 5 关（每关 2~3 选 1）→ 结局；连续命中按 ×2/×3/×4/×5/×6 赔付，未中连击清零；5 关全中瓜分本剧奖池 50%（上限 = 每关注金×200）
-- **公平**：开局一次性生成 5 关结果（HMAC 种子）并公开 commit，通关公开种子 → `/api/thrill/:sid/runs/:id/verify` 复算；交叉剧情只改情境不改概率（各情境选项数强制一致）
-- **无悔棋**：开局托管 5 关注金；无暂停/回看/撤注；抉择窗口服务端计时（6s），超时弃权（退注、断连击）；离开 10 分钟剩余关自动弃权
-- **防多开**：同账号同时 1 局 · 同 IP 同时 ≤2 局（超出记 `thrill_multi_open`）· Jackpot 遇女巫号/新号<24h/同 IP 24h 内已中 → 冻结 `hold:thrill:<run>` 待审核
-- **经济红线**：阶梯 RTP + 抽成 ≤ 94%，否则拒绝上架。默认 2/3/3/3/3 选项：阶梯 86.7% + 奖池 5% ≈ 91.7%（20 万局 MC 实测 91%），全中 1/162
-- **API**：`GET /api/thrill` · `GET /api/thrill/:sid/meta|resume` · `POST /api/thrill/:sid/start {stake}` · `POST …/runs/:id/arm` · `POST …/runs/:id/pick {gate,option_id}` · 管理：`GET /api/admin/thrill/:sid/simulate` · `GET /api/admin/thrill/holds` · `POST /api/admin/thrill/holds/:id {approve}` · `POST /api/admin/thrill/series {data,status}`
-- **数据**：`thrill_series`（剧本，draft/demo/live/offline）· `thrill_runs` · `thrill_picks` · `thrill_gate_slots`（迁移 0019）
-- **测试**：`npx tsx tests/thrill.test.ts`
-- **状态**：架构 ✅；演示剧《零点拆弹》（占位素材）✅；正式剧本待选定后用 gsk Seedance 2.0 生产
+- **剧情**：`main[]` 线性主线一条线演到底（不分叉 → 人物/形象/故事连贯）；每两段主线之间插 1 张剧情猜卡；主线演完进入「加时赛」，从加时卡库无限续猜（运营可随时扩充）
+- **猜卡**：只有 A / B 两面（硬币机制），两面揭晓片段都是微瞬间、都回到同一条主线 —— 竞猜不改变剧情
+- **博弈**：一局一注；连中倍率 ×1.82 → ×3.95 → ×9.42 → ×24.8 → ×72.9 → ×243(+Jackpot) → ×935 → ×4249 … 单步命中率 50%→46%→42%…下限 20%；每张卡可选 A/B 继续爬或「落袋」；猜错归零；任意落袋点期望恒为 91%（不靠诱导多爬获利）；封顶 ×10000
+- **个人独立随机**：每人每局独立种子，开局公开 commit=sha256(seed|run)，结束公开 seed；第 k 猜命中 ⇔ HMAC(seed,"step:k") < p_k（与选 A/B 无关）→ `/api/thrill/:sid/runs/:id/verify`
+- **不可悔棋**：注金开局托管；无暂停/回看/撤注；6 秒抉择服务端计时，超时 = 自动落袋；出局/落袋后剩余主线照常演完
+- **防多开**：同账号 1 局 · 同 IP ≤2 局 · Jackpot 风控冻结审核（女巫号/新号<24h/同 IP 24h 已中）
+- **API**：`GET /api/thrill` · `GET /api/thrill/:sid/meta|resume` · `POST /api/thrill/:sid/start {stake}` · `POST …/runs/:id/arm` · `POST …/runs/:id/act {step, side:'a'|'b'} | {step, cashout:true}` · 管理：`GET /api/admin/thrill/:sid/simulate` · `GET /api/admin/thrill/holds` · `POST /api/admin/thrill/holds/:id {approve}` · `POST /api/admin/thrill/series {data,status}`
+- **剧本**：`src/thrill/scripts.ts`（坠梯 / 人质谈判 / 最后一把；每部 6 段主线 + 5 剧情卡 + 3 加时卡 = 22 片段，含定妆表/场景/镜头/提示词）
+- **数据**：`thrill_series` · `thrill_runs` · `thrill_picks` · `thrill_gate_slots`（迁移 0019、0020）
+- **测试**：`npx tsx tests/thrill.test.ts`（21 项）

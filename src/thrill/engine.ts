@@ -1,91 +1,97 @@
-// 惊心 1 分钟（Thrill 60s）—— 真人剧 5 关连续竞猜
+// 惊心 1 分钟（Thrill 60s）v2 —— 「连猜爬塔」：剧情一条线演到底，竞猜与剧情解耦、可无限加猜
 // ─────────────────────────────────────────────────────────────────────────────
-// 一局 = 一条完整的 1 分钟剧情：序章 → 关1 → 关2 → 关3 → 关4 → 关5 → 结局
-// · 每关 2~3 个分支，命中完全随机（服务端真随机，均匀分布）；开局时 5 关结果一次性生成并承诺（commit），
-//   通关后公开种子，任何人可复算 —— 平台无法事后改结果，玩家也无法预知
-// · 开局一次性托管「每关注金 × 5」，之后不能撤注、不能悔棋、不能暂停回看 —— 剧情一口气演完
-// · 连续命中按阶梯倍率赔付（第 1 中 ×2、连 2 ×3、连 3 ×4、连 4 ×5、连 5 ×6）；未中连击清零，本关注金归平台
-// · 5 关全中 = Jackpot：额外瓜分本剧奖池（奖池来自每局注金抽成 + 平台注资，只发奖池里有的钱，平台永不超发）
-// · 剧情分支：每关的结局片段 = 该关被抽中的分支；后一关的抉择情境由前一关结果决定（交叉剧情），
-//   但下一关的「命中概率」与前面结果无关（独立均匀），保证博弈公平
-// 防作弊：令牌身份（不可冒充）· 同账号同时只能有 1 局进行中 · 同 IP 同时最多 2 局 · Jackpot 需账号满 24h 且非女巫，
-//         否则进入人工审核 · 每关抉择窗口服务端计时 · 视频只凭当局票据播放 · 所有资金走复式账本
-import { encryptSlot, hmac, randomHex, seedFloat, sha256, uid } from '../core/crypto'
+// 剧情：main[] 是一条完整的线性主线（S0 → S1 → … → Sn），保证人物 / 故事 / 形象连贯，不分叉
+// 竞猜：主线每两段之间插一张「猜卡」（剧情卡），每张卡只有 A / B 两面（像硬币正反），
+//       两面揭晓片段都是「微瞬间」，结束后都回到同一条主线 —— 猜卡不改变剧情走向
+//       主线演完后进入「加时赛」：从本剧的加时卡库（后日谈 / 氛围微瞬间）里无限续猜，卡库可随时运营扩充
+// 博弈：一局只押一次注金；每猜中一次，累计倍率上涨；越往后单步命中率越低（50% → 46% → 42% … 下限 20%）
+//       每张卡出现时你可以选 A / B 继续爬，或「落袋」带走当前倍率；猜错 = 本局注金归零
+//       每个落袋点的期望返还恒定（= rtp），平台不靠"诱导多爬"获利；连中到第 jackpot_step 关额外瓜分本剧奖池
+// 随机：每人每局独立种子（不存在多人同猜一个结果），开局公开 commit=sha256(seed|run)，结束公开 seed 可复算
+//       第 k 猜：r_k = HMAC(seed,"step:k")；命中 ⇔ r_k < p_k —— 与你选 A 还是 B 无关（命中率对两面一致、透明公示）
+// 不可悔棋：注金开局托管；无暂停 / 回看 / 撤注；抉择窗口服务端计时，超时 = 自动落袋；
+//          中途落袋或猜错后，主线剧情照常一口气演完（顺畅表演到底），只是不能再押
+// 防作弊：令牌身份 · 同账号同时 1 局 · 同 IP 同时 ≤ N 局 · Jackpot 风控冻结审核 · 视频凭票据播放 · 复式账本
+import { encryptSlot, randomHex, seedFloat, sha256, uid } from '../core/crypto'
 import { ensureUser, GameError, post } from '../core/engine'
 import { mediaTicket, riskEvent } from '../core/guard'
 
 type Env = { DB: D1Database }
 const now = () => Date.now()
-/** 一局最长存活 10 分钟（1 分钟剧 + 网络余量）；超时剩余关按弃权清算 */
-export const STALE_MS = 10 * 60000
 const J = (s: any, d: any = null) => { try { return s ? JSON.parse(s) : d } catch { return d } }
+/** 一局最长存活 15 分钟（主线 1 分钟 + 加时赛）；超时未操作 = 自动落袋 */
+export const STALE_MS = 15 * 60000
 
-/** 平台默认参数（每部剧可覆盖 DATA.thrill.cfg）；RTP 见 ladderRtp() */
 export const DEFAULT_CFG = {
-  ladder: [2, 3, 4, 5, 6],        // 连击倍率：第 k 次连续命中 × ladder[k-1]（配合关卡选项数 2/3/3/3/3 → 阶梯返还 86.7%）
-  stakes: [10, 20, 50, 100, 200], // 每关注金档位（开局托管 ×5）
-  pick_sec: 6,                    // 每关抉择窗口（秒）—— 1 分钟节奏，窗口很短
-  rake: 0.05,                     // 每局总注金的 5% 注入本剧奖池
-  jackpot_share: 0.5,             // 全中者拿走当前奖池的 50%
-  jackpot_cap_mult: 200,          // 单次 Jackpot 上限 = 每关注金 × 200
+  p: [0.5, 0.46, 0.42, 0.38, 0.34, 0.3, 0.26, 0.22], // 第 k 猜命中率（越往后越难）
+  p_floor: 0.2,                   // 之后每猜的命中率
+  rtp: 0.91,                      // 任意落袋点的期望返还
+  rake: 0.03,                     // 注金 3% 注入本剧奖池
+  stakes: [10, 20, 50, 100, 200], // 单局注金档位
+  pick_sec: 6,                    // 每张卡抉择窗口（秒）
+  max_mult: 10000,                // 封顶倍率（风控）：到达即自动落袋
+  jackpot_step: 6,                // 连中第 6 猜触发 Jackpot（继续可爬）
+  jackpot_share: 0.5,             // 拿走奖池的 50%
+  jackpot_cap_mult: 500,          // 单次 Jackpot ≤ 注金 × 500
   seed_pool: 20000,               // 新剧上线平台注资
-  max_open_per_ip: 2,             // 同 IP 同时进行中的局数上限（多开拦截）
-  jackpot_min_age_h: 24           // 账号满 24 小时才能直接拿 Jackpot，否则冻结待审核
+  max_open_per_ip: 2,
+  jackpot_min_age_h: 24
 }
 export type Cfg = typeof DEFAULT_CFG
-/** 总返还率红线（阶梯 + 奖池）；超出拒绝上架 */
-export const MAX_RTP = 0.94
+/** 总返还红线（落袋 rtp + 奖池抽成）；超出拒绝上架 */
+export const MAX_RTP = 0.95
 
-/** 阶梯 RTP（不含奖池）：枚举所有 2^5 条命中路径，按每关选项数精确计算 —— 用来校验倍率不会让平台亏损 */
-export function ladderRtp(ladder: number[], arity: number[]) {
-  let total = 0, p5 = 1
-  const n = arity.length
-  for (let mask = 0; mask < 1 << n; mask++) {
-    let p = 1, s = 0, pay = 0
-    for (let k = 0; k < n; k++) {
-      const hit = (mask >> k) & 1, q = 1 / arity[k]
-      p *= hit ? q : 1 - q
-      if (hit) { s++; pay += ladder[Math.min(s, ladder.length) - 1] } else s = 0
-    }
-    total += p * pay
+export const pAt = (cfg: Cfg, k: number) => (k < cfg.p.length ? cfg.p[k] : cfg.p_floor)
+/** 连中 h 次后的累计倍率（两位小数向下取整，保证每个落袋点期望 ≤ rtp） */
+export function multAt(cfg: Cfg, h: number) {
+  if (h <= 0) return 1
+  let P = 1
+  for (let i = 0; i < h; i++) P *= pAt(cfg, i)
+  return Math.min(cfg.max_mult, Math.floor((cfg.rtp / P) * 100) / 100)
+}
+/** 倍率塔：每一层的命中率 / 到达概率 / 倍率 —— 前端展示 + 经济校验 */
+export function ladderTable(cfg: Cfg, n = 12) {
+  const rows: { step: number; p: number; reach: number; mult: number; jackpot: boolean; cap: boolean }[] = []
+  let reach = 1
+  for (let h = 1; h <= n; h++) {
+    reach *= pAt(cfg, h - 1)
+    const mult = multAt(cfg, h)
+    rows.push({ step: h, p: pAt(cfg, h - 1), reach, mult, jackpot: h === cfg.jackpot_step, cap: mult >= cfg.max_mult })
+    if (mult >= cfg.max_mult) break
   }
-  for (const a of arity) p5 *= 1 / a
-  return { rtp: total / n, jackpot_odds: 1 / p5 }
+  return rows
 }
 
-// ─────────────────────────── 剧本数据（DATA） ───────────────────────────
+// ─────────────────────────── 剧本数据（DATA v2） ───────────────────────────
 // DATA = {
-//   series: { id, title, logline, tension },  thrill: { cfg? },
-//   prologue: seg_id,                     // 序章片段（≈8 秒）
-//   gates: [ { id, title, question, options: [ { id, label, hint, seg } ] } ×5 ],   // 每关 2~3 个选项，每个选项对应一个结果片段（≈8 秒）
-//   // 交叉剧情：gates[k].variants?: { [上一关命中选项 id]: { question, options: [...] } } —— 前一关结果改变本关情境与选项文案/片段
-//   endings: { perfect: seg, ...按命中数分档: { "0": seg, "1-2": seg, "3-4": seg } }（可选；不填则以第 5 关片段收尾）
-//   segments: { [seg_id]: { title, video_url, poster, dur, lines } }
+//   v: 2, series: { id, title, logline, tension, gated?, cast? }, thrill: { cfg? },
+//   main: [seg_id, …],                         // 线性主线（≥2 段）
+//   cards: [ { id, at?, title?, q, a:{label,seg}, b:{label,seg} } ],
+//      at = 剧情卡位置（显示在 main[at] 之后，0 ≤ at < main.length-1）；不填 at = 加时卡（主线演完后无限循环抽取）
+//   segments: { [id]: { title, video_url, poster, dur, lines } }
 // }
 export function validate(DATA: any) {
   const errs: string[] = []
   if (!DATA?.series?.id) errs.push('缺少 series.id')
-  const gates = DATA?.gates || []
-  if (gates.length !== 5) errs.push(`必须正好 5 关，当前 ${gates.length}`)
-  const segs = DATA?.segments || {}
-  if (!segs[DATA?.prologue]) errs.push('序章片段不存在')
-  gates.forEach((g: any, i: number) => {
-    const sets = [g, ...Object.values<any>(g.variants || {})]
-    for (const s of sets) {
-      const n = (s.options || []).length
-      if (n < 2 || n > 3) errs.push(`第 ${i + 1} 关选项数必须 2~3 个（当前 ${n}）`)
-      for (const o of s.options || []) if (!segs[o.seg]) errs.push(`第 ${i + 1} 关选项「${o.label}」缺少片段 ${o.seg}`)
+  const segs = DATA?.segments || {}, main: string[] = DATA?.main || [], cards: any[] = DATA?.cards || []
+  if (main.length < 2) errs.push('主线至少 2 段')
+  main.forEach((s, i) => { if (!segs[s]) errs.push(`主线第 ${i + 1} 段缺少片段 ${s}`) })
+  const ats = new Set<number>()
+  for (const c of cards) {
+    if (!c.id || !c.q) errs.push('猜卡缺少 id / 问题')
+    for (const side of ['a', 'b']) if (!c[side]?.label || !segs[c[side]?.seg]) errs.push(`猜卡「${c.q}」${side.toUpperCase()} 面缺少文案或片段`)
+    if (c.at !== undefined && c.at !== null) {
+      if (!(c.at >= 0 && c.at < main.length - 1)) errs.push(`剧情卡「${c.q}」位置 at=${c.at} 越界`)
+      if (ats.has(c.at)) errs.push(`主线第 ${c.at + 1} 段之后有多张剧情卡`)
+      ats.add(c.at)
     }
-    // 交叉剧情：所有情境的选项数必须一致，否则「命中概率」会随上一关结果变化，不公平
-    const ns = new Set(sets.map((s: any) => (s.options || []).length))
-    if (ns.size > 1) errs.push(`第 ${i + 1} 关各交叉情境的选项数不一致（${[...ns].join('/')}），会导致命中概率随前一关变化`)
-  })
-  // 经济红线：阶梯返还 + 奖池抽成 必须 ≤ MAX_RTP，否则平台长期必亏（例：全二选一 + 2/3/4/5/6 倍 = 130%）
-  if (gates.length === 5 && !errs.length) {
-    const cfg = { ...DEFAULT_CFG, ...(DATA.thrill?.cfg || {}) }
-    const r = ladderRtp(cfg.ladder, gates.map((g: any) => g.options.length))
-    if (r.rtp + cfg.rake > MAX_RTP) errs.push(`倍率阶梯不可持续：阶梯返还 ${(r.rtp * 100).toFixed(1)}% + 奖池 ${(cfg.rake * 100).toFixed(0)}% > ${MAX_RTP * 100}%（请增加关卡选项数或降低倍率）`)
   }
+  // 剧情卡必须从第 1 段之后连续排布（否则爬塔会在主线中间断档）
+  for (let i = 0; i < ats.size; i++) if (!ats.has(i)) errs.push(`剧情卡位置必须从 0 起连续（缺 at=${i}）`)
+  if (!cards.length) errs.push('至少 1 张猜卡')
+  const cfg: Cfg = { ...DEFAULT_CFG, ...(DATA?.thrill?.cfg || {}) }
+  if (cfg.rtp + cfg.rake > MAX_RTP) errs.push(`返还 ${(cfg.rtp * 100).toFixed(0)}% + 奖池 ${(cfg.rake * 100).toFixed(0)}% 超过红线 ${MAX_RTP * 100}%`)
+  if (cfg.p.some((x, i) => x <= 0 || x > 0.5 || (i && x > cfg.p[i - 1]))) errs.push('命中率必须在 (0, 50%] 且逐步递减')
   return errs
 }
 
@@ -94,66 +100,65 @@ export function createThrill(DATA: any) {
   if (errs.length) throw new GameError('THRILL_INVALID', '惊心 1 分钟剧本不合法：' + errs.join('；'))
   const SERIES = DATA.series.id
   const CFG: Cfg = { ...DEFAULT_CFG, ...(DATA.thrill?.cfg || {}) }
-  const GATES: any[] = DATA.gates
-  const ARITY = GATES.map((g) => g.options.length)
+  const MAIN: string[] = DATA.main
+  const STORY: any[] = DATA.cards.filter((c: any) => c.at !== undefined && c.at !== null).sort((a: any, b: any) => a.at - b.at)
+  const BONUS: any[] = DATA.cards.filter((c: any) => c.at === undefined || c.at === null)
   const POOL = `pool:thrill:${SERIES}`
   const clipOf = (url: string) => (url.split('/').pop() || '').replace(/\.mp4$/, '')
-  const vurl = async (env: any, u: string, url?: string | null) => (url ? (DATA.series.gated === false ? url : mediaTicket(env, u, SERIES, clipOf(url), 30 * 60000)) : null)
-
-  /** 某关在某条历史下的情境（交叉剧情）：上一关命中选项决定本关问题与选项 */
-  const sceneOf = (k: number, prevOutcome?: string) => {
-    const g = GATES[k], v = prevOutcome && g.variants?.[prevOutcome]
-    return { id: g.id, title: v?.title || g.title, question: v?.question || g.question, options: (v?.options || g.options) as any[] }
+  const vurl = async (env: any, u: string, url?: string | null) => (url ? (DATA.series.gated === false || !/^\/m\//.test(url) ? url : mediaTicket(env, u, SERIES, clipOf(url), 30 * 60000)) : null)
+  const segOut = async (env: any, u: string, segId?: string) => {
+    const s = segId && DATA.segments[segId]; if (!s) return null
+    return { id: segId, title: s.title, video: await vurl(env, u, s.video_url), poster: s.poster || null, dur: s.dur || 6, lines: s.lines || [] }
   }
-  const segOut = async (env: any, u: string, segId: string) => {
-    const s = DATA.segments[segId]; if (!s) return null
-    return { id: segId, title: s.title, video: await vurl(env, u, s.video_url), poster: s.poster || null, dur: s.dur || 8, lines: s.lines || [] }
+
+  /** 第 k 猜用哪张卡：先剧情卡，再加时卡（按种子洗牌、轮次循环、无限续） */
+  async function cardAt(seed: string, k: number) {
+    if (k < STORY.length) return { card: STORY[k], phase: 'story' as const }
+    if (!BONUS.length) return null
+    const j = k - STORY.length, round = Math.floor(j / BONUS.length)
+    const order = BONUS.map((c, i) => ({ c, i }))
+    for (let i = order.length - 1; i > 0; i--) { const r = await seedFloat(seed, `bonus:${round}:${i}`); const x = Math.floor(r * (i + 1));[order[i], order[x]] = [order[x], order[i]] }
+    return { card: order[j % BONUS.length].c, phase: 'bonus' as const }
   }
 
   async function poolBalance(env: Env) {
     const r: any = await env.DB.prepare(`SELECT COALESCE(SUM(CASE WHEN direction='C' THEN amount ELSE -amount END),0) b FROM ledger WHERE account=?`).bind(POOL).first()
     return r?.b || 0
   }
-  /** 首次开局时平台注资（只做一次） */
   async function ensurePool(env: Env) {
     const r: any = await env.DB.prepare(`SELECT 1 FROM ledger WHERE account=? LIMIT 1`).bind(POOL).first()
     if (!r && CFG.seed_pool > 0) await post(env, '惊心1分钟奖池·上线注资', SERIES, [['platform:house', 'D', CFG.seed_pool], [POOL, 'C', CFG.seed_pool]])
   }
+  const publicCfg = () => ({ stakes: CFG.stakes, pick_sec: CFG.pick_sec, max_mult: CFG.max_mult, jackpot_step: CFG.jackpot_step, jackpot_share: CFG.jackpot_share, jackpot_cap_mult: CFG.jackpot_cap_mult, rtp: CFG.rtp, rake: CFG.rake })
 
-  /** 公开信息：剧集、阶梯、奖池、RTP、近期战报（不含任何结果与视频） */
   async function meta(env: Env, userId?: string) {
     await ensurePool(env)
-    const recent = (await env.DB.prepare(`SELECT user_id, hits, payout, jackpot, ended_at FROM thrill_runs WHERE series_id=? AND status='ended' ORDER BY ended_at DESC LIMIT 8`).bind(SERIES).all()).results as any[]
-    const agg: any = await env.DB.prepare(`SELECT COUNT(*) n, SUM(CASE WHEN hits=5 THEN 1 ELSE 0 END) perfect, COALESCE(MAX(jackpot),0) top FROM thrill_runs WHERE series_id=? AND status='ended'`).bind(SERIES).first()
-    const open: any = userId ? await env.DB.prepare(`SELECT id FROM thrill_runs WHERE user_id=? AND status='playing' LIMIT 1`).bind(userId).first() : null
-    const r = ladderRtp(CFG.ladder, ARITY)
+    const recent = (await env.DB.prepare(`SELECT user_id, hits, mult, payout, stake, jackpot, end_reason, ended_at FROM thrill_runs WHERE series_id=? AND status='ended' ORDER BY ended_at DESC LIMIT 8`).bind(SERIES).all()).results as any[]
+    const agg: any = await env.DB.prepare(`SELECT COUNT(*) n, COALESCE(MAX(hits),0) best, COALESCE(MAX(mult),0) top_mult, COALESCE(MAX(jackpot),0) top FROM thrill_runs WHERE series_id=? AND status='ended'`).bind(SERIES).first()
+    const open: any = userId ? await env.DB.prepare(`SELECT id FROM thrill_runs WHERE user_id=? AND series_id=? AND status='playing' AND started_at>? LIMIT 1`).bind(userId, SERIES, now() - STALE_MS).first() : null
     return {
-      series: { ...DATA.series }, gates: GATES.map((g, i) => ({ no: i + 1, title: g.title, arity: g.options.length })),
-      cfg: { ladder: CFG.ladder, stakes: CFG.stakes, pick_sec: CFG.pick_sec, jackpot_share: CFG.jackpot_share, jackpot_cap_mult: CFG.jackpot_cap_mult },
-      pool: await poolBalance(env), rtp: Math.round(r.rtp * 1000) / 10, jackpot_odds: Math.round(r.jackpot_odds),
-      stats: { plays: agg?.n || 0, perfect: agg?.perfect || 0, top_jackpot: agg?.top || 0 },
-      recent: recent.map((x) => ({ who: '玩家' + String(x.user_id).slice(-4), hits: x.hits, payout: x.payout, jackpot: x.jackpot, at: x.ended_at })),
+      series: { ...DATA.series }, story_cards: STORY.length, bonus_cards: BONUS.length, main_segs: MAIN.length,
+      cfg: publicCfg(), ladder: ladderTable(CFG), pool: await poolBalance(env),
+      stats: { plays: agg?.n || 0, best_streak: agg?.best || 0, top_mult: agg?.top_mult || 0, top_jackpot: agg?.top || 0 },
+      recent: recent.map((x) => ({ who: '玩家' + String(x.user_id).slice(-4), hits: x.hits, mult: x.mult, win: x.payout, stake: x.stake, jackpot: x.jackpot, reason: x.end_reason, at: x.ended_at })),
       open_run: open?.id || null
     }
   }
 
-  // ─────────────────────────── 开局（托管全部注金 + 承诺 5 关结果） ───────────────────────────
+  // ─────────────────────────── 开局 ───────────────────────────
   async function start(env: Env, p: { userId: string; stake: number; ipHash: string; sybil?: boolean }) {
     const stake = Math.floor(+p.stake)
-    if (!CFG.stakes.includes(stake)) throw new GameError('BAD_STAKE', `每关注金只能是 ${CFG.stakes.join(' / ')}`)
+    if (!CFG.stakes.includes(stake)) throw new GameError('BAD_STAKE', `注金只能是 ${CFG.stakes.join(' / ')}`)
     const u: any = await ensureUser(env, p.userId)
     if (u.self_excluded) throw new GameError('SELF_EXCLUDED', '您已加入自我排除名单，仅可观战')
     if (u.cooloff_until && new Date(u.cooloff_until).getTime() > now()) throw new GameError('COOLOFF', '冷静期中')
-    const total = stake * GATES.length
-    if (u.chips < total) throw new GameError('INSUFFICIENT', `需要 ${total} Chips（每关 ${stake} × ${GATES.length} 关）`)
-    // 日限额：与普通下注共用
+    if (u.chips < stake) throw new GameError('INSUFFICIENT', `需要 ${stake} Chips`)
     const day = new Date(); day.setHours(0, 0, 0, 0)
-    const spent: any = await env.DB.prepare(`SELECT COALESCE(SUM(stake*gates),0) s FROM thrill_runs WHERE user_id=? AND started_at>=?`).bind(p.userId, day.getTime()).first()
-    if ((spent?.s || 0) + total > u.daily_limit) throw new GameError('DAILY_LIMIT', `超出日限额 ${u.daily_limit}`)
-    // 多开拦截：同账号同时只能 1 局；同 IP 同时最多 N 局（进行中且 10 分钟内）
+    const spent: any = await env.DB.prepare(`SELECT COALESCE(SUM(stake),0) s FROM thrill_runs WHERE user_id=? AND started_at>=?`).bind(p.userId, day.getTime()).first()
+    if ((spent?.s || 0) + stake > u.daily_limit) throw new GameError('DAILY_LIMIT', `超出日限额 ${u.daily_limit}`)
     await expireStale(env)
     const mine: any = await env.DB.prepare(`SELECT id FROM thrill_runs WHERE user_id=? AND status='playing' AND started_at>? LIMIT 1`).bind(p.userId, now() - STALE_MS).first()
-    if (mine) throw new GameError('ONE_AT_A_TIME', '你有一局「惊心 1 分钟」还没演完，必须先看完')
+    if (mine) throw new GameError('ONE_AT_A_TIME', '你有一局「惊心 1 分钟」还没结束，必须先演完')
     const ipOpen: any = await env.DB.prepare(`SELECT COUNT(*) n FROM thrill_runs WHERE ip_hash=? AND status='playing' AND started_at>?`).bind(p.ipHash, now() - STALE_MS).first()
     if ((ipOpen?.n || 0) >= CFG.max_open_per_ip) {
       await riskEvent(env as any, p.userId, 'thrill_multi_open', 2, { ip_open: ipOpen.n, series: SERIES })
@@ -161,44 +166,40 @@ export function createThrill(DATA: any) {
     }
     await ensurePool(env)
     const rid = uid('tr_'), seed = randomHex(32)
-    // 5 关结果：每关独立均匀随机（与玩家选择、与前一关结果都无关）；交叉剧情只改变「情境」，不改变概率
-    const outcomes: string[] = []
-    for (let k = 0; k < GATES.length; k++) {
-      const sc = sceneOf(k, outcomes[k - 1])
-      const r = await seedFloat(seed, `gate:${k}`)
-      outcomes.push(sc.options[Math.min(sc.options.length - 1, Math.floor(r * sc.options.length))].id)
-    }
-    const commit = await sha256(`${seed}|${rid}|${outcomes.join(',')}`)
-    const t = now()
-    // 资金：总注金一次性冻结到本局托管账户；抽成 rake 立即注入奖池
-    // 抽成按关计（每关 floor(stake×rake)），托管额 = 5 × 每关净额，逐关清算后托管账户精确归零，无尾差
-    const rakePer = Math.floor(stake * CFG.rake), rake = rakePer * GATES.length
-    await post(env, '惊心1分钟·开局托管', rid, [[`user:${p.userId}:available`, 'D', total], [`escrow:thrill:${rid}`, 'C', total - rake], [POOL, 'C', rake]])
+    const commit = await sha256(`${seed}|${rid}`)
+    const rake = Math.floor(stake * CFG.rake)
+    await post(env, '惊心1分钟·开局托管', rid, [[`user:${p.userId}:available`, 'D', stake], [`escrow:thrill:${rid}`, 'C', stake - rake], [POOL, 'C', rake]])
     await env.DB.batch([
-      env.DB.prepare('UPDATE users SET chips=chips-? WHERE id=?').bind(total, p.userId),
-      env.DB.prepare(`INSERT INTO thrill_runs (id,user_id,series_id,ip_hash,stake,gates,seed,commit_hash,outcomes,cfg,status,gate,started_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`)
-        .bind(rid, p.userId, SERIES, p.ipHash, stake, GATES.length, seed, commit, JSON.stringify(outcomes), JSON.stringify({ ...CFG, sybil: !!p.sybil, rake_per: rakePer }), 'playing', 0, t)
+      env.DB.prepare('UPDATE users SET chips=chips-? WHERE id=?').bind(stake, p.userId),
+      env.DB.prepare(`INSERT INTO thrill_runs (id,user_id,series_id,ip_hash,stake,gates,seed,commit_hash,outcomes,cfg,status,gate,mult,started_at) VALUES (?,?,?,?,?,0,?,?,'[]',?,'playing',0,1,?)`)
+        .bind(rid, p.userId, SERIES, p.ipHash, stake, seed, commit, JSON.stringify({ ...CFG, sybil: !!p.sybil, rake_amt: rake }), now())
     ])
-    const s0 = sceneOf(0)
     return {
-      run_id: rid, commit, stake, total, rake, ladder: CFG.ladder, pick_sec: CFG.pick_sec, pool: await poolBalance(env),
-      prologue: await segOut(env, p.userId, DATA.prologue),
-      gate: await gatePayload(env, p.userId, rid, 0, s0),
-      balance: u.chips - total
+      run_id: rid, commit, stake, rake, pick_sec: CFG.pick_sec, ladder: ladderTable(CFG), pool: await poolBalance(env),
+      intro: await segOut(env, p.userId, MAIN[0]),
+      card: await cardPayload(env, p.userId, rid, seed, 0),
+      balance: u.chips - stake
     }
   }
 
-  /** 关卡载荷：问题 + 选项 + 每个选项结果片段的等长密文（可预载，抉择后只下发命中片段的密钥） */
-  async function gatePayload(env: Env, userId: string, rid: string, k: number, sc: any) {
-    const plains = await Promise.all(sc.options.map(async (o: any) => ({ id: o.id, plain: JSON.stringify(await segOut(env, userId, o.seg)) })))
+  /** 猜卡载荷：问题 + A/B 文案 + 两面揭晓片段的等长密文（揭晓时只下发展示那一面的钥匙） */
+  async function cardPayload(env: Env, userId: string, rid: string, seed: string, k: number) {
+    const ca = await cardAt(seed, k)
+    if (!ca) return null
+    const c = ca.card
+    const plains = await Promise.all(['a', 'b'].map(async (side) => ({ side, plain: JSON.stringify({ side, label: c[side].label, ...(await segOut(env, userId, c[side].seg)) }) })))
     const pad = Math.ceil(Math.max(...plains.map((x) => new TextEncoder().encode(x.plain).length)) / 512) * 512
     const slots: any[] = []
-    for (const x of plains) slots.push({ option_id: x.id, ...(await encryptSlot(x.plain, pad)) })
-    // 密码学洗牌（Fisher-Yates + CSPRNG），槽位顺序与选项顺序无关
-    for (let i = slots.length - 1; i > 0; i--) { const j = crypto.getRandomValues(new Uint32Array(1))[0] % (i + 1); [slots[i], slots[j]] = [slots[j], slots[i]] }
+    for (const x of plains) slots.push({ side: x.side, ...(await encryptSlot(x.plain, pad)) })
+    if (crypto.getRandomValues(new Uint8Array(1))[0] & 1) slots.reverse()
     await env.DB.prepare(`INSERT OR REPLACE INTO thrill_gate_slots (run_id,gate,slots) VALUES (?,?,?)`).bind(rid, k, JSON.stringify(slots)).run()
-    return { no: k + 1, id: sc.id, title: sc.title, question: sc.question, options: sc.options.map((o: any) => ({ id: o.id, label: o.label, hint: o.hint || '' })),
-      encrypted: slots.map((s, i) => ({ slot: i, iv: s.iv, ct: s.ct })) }
+    const cfg = CFG, h = k
+    return {
+      step: k + 1, phase: ca.phase, id: c.id, title: c.title || (ca.phase === 'story' ? `第 ${k + 1} 猜` : `加时 · 第 ${k + 1} 猜`), q: c.q,
+      a: { label: c.a.label }, b: { label: c.b.label },
+      p: pAt(cfg, h), mult_now: multAt(cfg, h), mult_next: multAt(cfg, h + 1), jackpot: h + 1 === cfg.jackpot_step,
+      encrypted: slots.map((s, i) => ({ slot: i, iv: s.iv, ct: s.ct }))
+    }
   }
 
   async function load(env: Env, rid: string, userId: string) {
@@ -208,137 +209,153 @@ export function createThrill(DATA: any) {
     return r
   }
 
-  /** 抉择面板出现时激活计时（每关只能激活一次） */
   async function arm(env: Env, p: { runId: string; userId: string }) {
     const r = await load(env, p.runId, p.userId)
     if (r.status !== 'playing') throw new GameError('RUN_ENDED', '本局已结束')
-    if (r.armed_at) return { gate: r.gate + 1, lock_at: r.lock_at, server_time: now() }
-    const t = now(), lock = t + J(r.cfg, CFG).pick_sec * 1000 + 800 // 0.8 秒网络余量
+    if (r.armed_at) return { step: r.gate + 1, lock_at: r.lock_at, server_time: now() }
+    const t = now(), lock = t + J(r.cfg, CFG).pick_sec * 1000 + 800
     await env.DB.prepare('UPDATE thrill_runs SET armed_at=?, lock_at=? WHERE id=? AND armed_at IS NULL').bind(t, lock, r.id).run()
-    return { gate: r.gate + 1, lock_at: lock, server_time: t }
+    return { step: r.gate + 1, lock_at: lock, server_time: t }
   }
 
-  // ─────────────────────────── 押注本关 → 揭晓 → 结算 → 下一关 ───────────────────────────
-  async function pick(env: Env, p: { runId: string; userId: string; optionId?: string | null; gate: number }) {
+  /** 剩余主线：第 k 猜之后应接着演的主线片段（猜错 / 落袋后也照演，剧情顺畅到底） */
+  const restMain = async (env: Env, userId: string, fromIdx: number) => Promise.all(MAIN.slice(fromIdx).map((s) => segOut(env, userId, s)))
+
+  // ─────────────────────────── 行动：选 A / B 继续爬，或落袋 ───────────────────────────
+  async function act(env: Env, p: { runId: string; userId: string; step: number; side?: 'a' | 'b' | null; cashout?: boolean }) {
     const r = await load(env, p.runId, p.userId)
     if (r.status !== 'playing') throw new GameError('RUN_ENDED', '本局已结束')
-    if (+p.gate !== r.gate + 1) throw new GameError('STALE_GATE', `当前是第 ${r.gate + 1} 关`)
-    const cfg: any = J(r.cfg, CFG), outs: string[] = J(r.outcomes, [])
-    const k = r.gate, prev = k ? outs[k - 1] : undefined, sc = sceneOf(k, prev)
-    const outcome = outs[k]
-    // 超时：服务端计时；未激活就提交也按超时处理（防止跳过计时）
-    let opt = p.optionId || null
+    if (+p.step !== r.gate + 1) throw new GameError('STALE_STEP', `当前是第 ${r.gate + 1} 猜`)
+    const cfg: any = J(r.cfg, CFG), k = r.gate
     const late = !r.armed_at || now() > r.lock_at
-    if (opt && !sc.options.some((o: any) => o.id === opt)) throw new GameError('BAD_OPTION', '无效选项')
-    if (late) opt = null
-    const hit = opt === outcome ? 1 : 0
-    const streak = hit ? r.streak + 1 : 0
-    const mult = hit ? cfg.ladder[Math.min(streak, cfg.ladder.length) - 1] : 0
-    const stakeNet = r.stake - (cfg.rake_per ?? Math.floor(r.stake * cfg.rake)) // 托管里每关实际可用（已扣抽成）
-    const payout = hit ? Math.floor(r.stake * mult) : opt === null ? stakeNet : 0 // 超时弃权：退回本关（扣抽成后）注金
-    // 并发安全：只有 gate 未变时才能结算（防重复提交/双开同一局）
-    const upd = await env.DB.prepare(`UPDATE thrill_runs SET gate=gate+1, streak=?, hits=hits+?, payout=payout+?, armed_at=NULL, lock_at=NULL WHERE id=? AND gate=? AND status='playing'`)
-      .bind(streak, hit, payout, r.id, k).run()
-    if (!upd.meta.changes) throw new GameError('DUPLICATE', '本关已结算')
-    await env.DB.prepare(`INSERT INTO thrill_picks (run_id,gate,option_id,outcome_id,hit,streak,mult,payout,picked_at) VALUES (?,?,?,?,?,?,?,?,?)`).bind(r.id, k, opt, outcome, hit, streak, mult, payout, now()).run()
-    // 资金：托管里本关份额（stakeNet）——命中：从托管 + 平台补足赔付；未中：本关份额归平台；弃权：原路退回
-    if (hit) await post(env, `惊心1分钟·第${k + 1}关命中 ×${mult}`, r.id, [[`escrow:thrill:${r.id}`, 'D', stakeNet], ['platform:house', 'D', payout - stakeNet], [`user:${r.user_id}:available`, 'C', payout]])
-    else if (opt === null) await post(env, `惊心1分钟·第${k + 1}关超时退回`, r.id, [[`escrow:thrill:${r.id}`, 'D', stakeNet], [`user:${r.user_id}:available`, 'C', stakeNet]])
-    else await post(env, `惊心1分钟·第${k + 1}关未中`, r.id, [[`escrow:thrill:${r.id}`, 'D', stakeNet], ['platform:house', 'C', stakeNet]])
-    if (payout) await env.DB.prepare('UPDATE users SET chips=chips+? WHERE id=?').bind(payout, r.user_id).run()
-    // 揭晓：只下发命中片段的密钥
+    let side = p.side === 'a' || p.side === 'b' ? p.side : null
+    if (p.side && !side) throw new GameError('BAD_SIDE', '只能选 A 或 B')
+    // 超时 / 未计时 / 主动落袋 → 落袋（第 0 猜落袋 = 退回扣除抽成后的注金）
+    if (p.cashout || late || !side) {
+      if (!(await claim(env, r.id, k))) throw new GameError('DUPLICATE', '本猜已结算')
+      await env.DB.prepare(`INSERT INTO thrill_picks (run_id,gate,option_id,outcome_id,hit,streak,mult,payout,picked_at) VALUES (?,?,?,?,0,?,?,0,?)`).bind(r.id, k, p.cashout ? 'cashout' : 'timeout', '-', r.hits, multAt(cfg, r.hits), now()).run()
+      return { step: k + 1, action: p.cashout ? 'cashout' : 'timeout', ...(await settle(env, r.id, p.cashout ? 'cashout' : 'timeout')), rest: await restMain(env, r.user_id, k + 1) }
+    }
+    // 选面：命中与选哪一面无关 —— r_k < p_k 即命中；展示面 = 命中 ? 你选的面 : 另一面
+    const rk = await seedFloat(r.seed, `step:${k}`), pk = pAt(cfg, k)
+    const hit = rk < pk
+    const shown = hit ? side : side === 'a' ? 'b' : 'a'
+    const hits = hit ? r.hits + 1 : r.hits, mult = hit ? multAt(cfg, hits) : 0
+    if (!(await claim(env, r.id, k, hit, mult))) throw new GameError('DUPLICATE', '本猜已结算')
+    await env.DB.prepare(`INSERT INTO thrill_picks (run_id,gate,option_id,outcome_id,hit,streak,mult,payout,picked_at) VALUES (?,?,?,?,?,?,?,0,?)`).bind(r.id, k, side, shown, hit ? 1 : 0, hits, mult, now()).run()
     const slots: any[] = J(((await env.DB.prepare('SELECT slots FROM thrill_gate_slots WHERE run_id=? AND gate=?').bind(r.id, k).first()) as any)?.slots, [])
-    const si = slots.findIndex((s) => s.option_id === outcome)
-    const reveal = { slot: si, key: slots[si]?.key, outcome_id: outcome, label: sc.options.find((o: any) => o.id === outcome)?.label }
-    const res: any = { gate: k + 1, pick: opt, timeout: opt === null, hit: !!hit, streak, mult, payout, reveal, next_mult: cfg.ladder[Math.min(streak + 1, cfg.ladder.length) - 1] }
-    if (k + 1 < GATES.length) res.next = await gatePayload(env, r.user_id, r.id, k + 1, sceneOf(k + 1, outcome))
-    else Object.assign(res, await finish(env, r.id))
-    const u: any = await env.DB.prepare('SELECT chips FROM users WHERE id=?').bind(r.user_id).first(); res.balance = u?.chips
+    const si = slots.findIndex((s) => s.side === shown)
+    const ca = await cardAt(r.seed, k)
+    const res: any = { step: k + 1, side, hit, shown, p: pk, hits, mult, reveal: { slot: si, key: slots[si]?.key, side: shown, label: ca?.card[shown].label } }
+    // 主线：本猜之后的那段主线（剧情卡 k 在 main[k] 之后 → 揭晓后接 main[k+1]）
+    const nextMainIdx = k + 1 < MAIN.length ? k + 1 : null
+    if (!hit) return Object.assign(res, await settle(env, r.id, 'miss'), { rest: await restMain(env, r.user_id, k + 1) })
+    if (hits === cfg.jackpot_step) res.jackpot = await awardJackpot(env, r)
+    if (mult >= cfg.max_mult) return Object.assign(res, await settle(env, r.id, 'cap'), { rest: await restMain(env, r.user_id, k + 1) })
+    const next = await cardPayload(env, r.user_id, r.id, r.seed, k + 1)
+    if (!next) return Object.assign(res, await settle(env, r.id, 'final'), { rest: await restMain(env, r.user_id, k + 1) })
+    res.main = nextMainIdx !== null ? await segOut(env, r.user_id, MAIN[nextMainIdx]) : null
+    res.next = next
     return res
   }
+  /** 原子推进一步（防重复提交 / 双开同一局） */
+  async function claim(env: Env, rid: string, k: number, hit?: boolean, mult?: number) {
+    const u = hit
+      ? await env.DB.prepare(`UPDATE thrill_runs SET gate=gate+1, hits=hits+1, streak=streak+1, mult=?, armed_at=NULL, lock_at=NULL WHERE id=? AND gate=? AND status='playing'`).bind(mult ?? 1, rid, k).run()
+      : await env.DB.prepare(`UPDATE thrill_runs SET armed_at=NULL, lock_at=NULL, status='settling' WHERE id=? AND gate=? AND status='playing'`).bind(rid, k).run()
+    return !!u.meta.changes
+  }
 
-  /** 收官：Jackpot 判定（5 关全中）+ 公开种子 */
-  async function finish(env: Env, rid: string) {
-    const r: any = await env.DB.prepare('SELECT * FROM thrill_runs WHERE id=?').bind(rid).first()
+  /** Jackpot：连中到第 jackpot_step 猜立即发放（风控命中则冻结待审），之后可继续爬 */
+  async function awardJackpot(env: Env, r: any) {
     const cfg: any = J(r.cfg, CFG)
-    let jackpot = 0, jstatus: string | null = null, hold: string | null = null
-    if (r.hits === GATES.length) {
-      const pool = await poolBalance(env)
-      jackpot = Math.max(0, Math.min(Math.floor(pool * cfg.jackpot_share), r.stake * cfg.jackpot_cap_mult))
-      // 风控：新号 / 女巫号 / 同 IP 近 24h 已中过 Jackpot → 冻结待审核（资金先划入待审账户，不会消失）
-      const dev: any = await env.DB.prepare('SELECT created_at FROM auth_devices WHERE uid=?').bind(r.user_id).first()
-      const ageH = dev ? (now() - dev.created_at) / 3600000 : 0
-      const ipWins: any = await env.DB.prepare(`SELECT COUNT(*) n FROM thrill_runs WHERE ip_hash=? AND jackpot>0 AND ended_at>? AND id!=?`).bind(r.ip_hash, now() - 86400000, rid).first()
-      if (cfg.sybil) hold = '同网络新设备超限（疑似多开）'
-      else if (ageH < cfg.jackpot_min_age_h) hold = `账号注册不足 ${cfg.jackpot_min_age_h} 小时`
-      else if ((ipWins?.n || 0) > 0) hold = '同网络 24 小时内已中过 Jackpot'
-      if (jackpot > 0) {
-        if (hold) {
-          jstatus = 'held'
-          await post(env, '惊心1分钟·Jackpot 待审核', rid, [[POOL, 'D', jackpot], [`hold:thrill:${rid}`, 'C', jackpot]])
-          await riskEvent(env as any, r.user_id, 'thrill_jackpot_hold', 2, { run: rid, jackpot, reason: hold })
-        } else {
-          jstatus = 'paid'
-          await post(env, '惊心1分钟·Jackpot', rid, [[POOL, 'D', jackpot], [`user:${r.user_id}:available`, 'C', jackpot]])
-          await env.DB.prepare('UPDATE users SET chips=chips+? WHERE id=?').bind(jackpot, r.user_id).run()
-        }
-      }
+    const pool = await poolBalance(env)
+    const jackpot = Math.max(0, Math.min(Math.floor(pool * cfg.jackpot_share), r.stake * cfg.jackpot_cap_mult))
+    if (!jackpot) return { amount: 0 }
+    const dev: any = await env.DB.prepare('SELECT created_at FROM auth_devices WHERE uid=?').bind(r.user_id).first()
+    const ageH = dev ? (now() - dev.created_at) / 3600000 : 0
+    const ipWins: any = await env.DB.prepare(`SELECT COUNT(*) n FROM thrill_runs WHERE ip_hash=? AND jackpot>0 AND started_at>? AND id!=?`).bind(r.ip_hash, now() - 86400000, r.id).first()
+    let hold: string | null = null
+    if (cfg.sybil) hold = '同网络新设备超限（疑似多开）'
+    else if (ageH < cfg.jackpot_min_age_h) hold = `账号注册不足 ${cfg.jackpot_min_age_h} 小时`
+    else if ((ipWins?.n || 0) > 0) hold = '同网络 24 小时内已中过 Jackpot'
+    if (hold) {
+      await post(env, '惊心1分钟·Jackpot 待审核', r.id, [[POOL, 'D', jackpot], [`hold:thrill:${r.id}`, 'C', jackpot]])
+      await riskEvent(env as any, r.user_id, 'thrill_jackpot_hold', 2, { run: r.id, jackpot, reason: hold })
+    } else {
+      await post(env, '惊心1分钟·Jackpot', r.id, [[POOL, 'D', jackpot], [`user:${r.user_id}:available`, 'C', jackpot]])
+      await env.DB.prepare('UPDATE users SET chips=chips+? WHERE id=?').bind(jackpot, r.user_id).run()
     }
-    await env.DB.prepare(`UPDATE thrill_runs SET status='ended', jackpot=?, jackpot_status=?, hold_reason=?, ended_at=? WHERE id=?`).bind(jackpot, jstatus, hold, now(), rid).run()
-    const outs: string[] = J(r.outcomes, [])
-    const endSeg = endingSeg(r.hits, outs[outs.length - 1])
+    await env.DB.prepare(`UPDATE thrill_runs SET jackpot=?, jackpot_status=?, hold_reason=? WHERE id=?`).bind(jackpot, hold ? 'held' : 'paid', hold, r.id).run()
+    return { amount: jackpot, status: hold ? 'held' : 'paid', hold_reason: hold }
+  }
+
+  /** 结算：miss = 注金归平台；cashout / timeout / cap / final = 按当前倍率赔付（0 猜落袋 = 退净注金） */
+  async function settle(env: Env, rid: string, reason: 'miss' | 'cashout' | 'timeout' | 'cap' | 'final') {
+    const r: any = await env.DB.prepare('SELECT * FROM thrill_runs WHERE id=?').bind(rid).first()
+    const cfg: any = J(r.cfg, CFG), net = r.stake - (cfg.rake_amt ?? 0)
+    const mult = reason === 'miss' ? 0 : multAt(cfg, r.hits)
+    const payout = reason === 'miss' ? 0 : r.hits === 0 ? net : Math.floor(r.stake * mult)
+    if (payout) {
+      const lines: [string, 'D' | 'C', number][] = [[`escrow:thrill:${rid}`, 'D', net], [`user:${r.user_id}:available`, 'C', payout]]
+      if (payout > net) lines.push(['platform:house', 'D', payout - net]); else if (payout < net) lines.push(['platform:house', 'C', net - payout])
+      await post(env, `惊心1分钟·${reason === 'cashout' ? '落袋' : reason === 'timeout' ? '超时自动落袋' : reason === 'cap' ? '封顶落袋' : '卡库演完落袋'} ×${mult}`, rid, lines)
+      await env.DB.prepare('UPDATE users SET chips=chips+? WHERE id=?').bind(payout, r.user_id).run()
+    } else await post(env, '惊心1分钟·猜错', rid, [[`escrow:thrill:${rid}`, 'D', net], ['platform:house', 'C', net]])
+    await env.DB.prepare(`UPDATE thrill_runs SET status='ended', payout=?, mult=?, end_reason=?, ended_at=? WHERE id=?`).bind(payout, mult, reason, now(), rid).run()
+    const u: any = await env.DB.prepare('SELECT chips FROM users WHERE id=?').bind(r.user_id).first()
+    const picks = (await env.DB.prepare('SELECT gate, option_id, outcome_id, hit FROM thrill_picks WHERE run_id=? ORDER BY gate').bind(rid).all()).results as any[]
     return {
-      ended: true, hits: r.hits, total_payout: r.payout + (jstatus === 'paid' ? jackpot : 0), staked: r.stake * r.gates,
-      jackpot, jackpot_status: jstatus, hold_reason: hold,
-      ending: endSeg ? await segOut(env, r.user_id, endSeg) : null,
-      verify: { seed: r.seed, commit: r.commit_hash, outcomes: outs, formula: 'sha256(seed|run_id|outcomes) = commit；第 k 关 = options[floor(HMAC(seed,"gate:k") 前 52 位 / 2^52 × 选项数)]' },
-      pool: await poolBalance(env)
+      ended: true, reason, hits: r.hits, mult, payout, stake: r.stake, jackpot: r.jackpot, jackpot_status: r.jackpot_status, hold_reason: r.hold_reason,
+      net: payout + (r.jackpot_status === 'paid' ? r.jackpot : 0) - r.stake, balance: u?.chips, pool: await poolBalance(env),
+      verify: { seed: r.seed, commit: r.commit_hash, picks, formula: 'sha256(seed|run_id)=commit；第 k 猜 r=HMAC(seed,"step:k") 前 52 位/2^52，命中 ⇔ r < 该步命中率（与选 A/B 无关）' }
     }
   }
-  /** 结局片段：全中 → perfect；否则按命中数分档；都没配就以第 5 关片段收尾（null） */
-  function endingSeg(hits: number, last: string) {
-    const e = DATA.endings || {}
-    if (hits === GATES.length && e.perfect) return e.perfect
-    for (const [k, v] of Object.entries<any>(e)) { if (k === 'perfect') continue; const [a, b] = k.split('-').map(Number); if (hits >= a && hits <= (b ?? a)) return v }
-    void last; return null
-  }
 
-  /** 中途离开（关掉页面）超过 10 分钟：剩余关全部按弃权处理（注金退回、不发 Jackpot），不允许挂起后回来"看准了再押" */
+  /** 离开超过 STALE_MS 的局：按当前倍率自动落袋（不会因为掉线而白输） */
   async function expireStale(env: Env) {
-    const old = (await env.DB.prepare(`SELECT id,user_id FROM thrill_runs WHERE status='playing' AND series_id=? AND started_at<?`).bind(SERIES, now() - STALE_MS).all()).results as any[]
-    for (const r of old) {
-      for (let i = 0; i < GATES.length; i++) {
-        const cur: any = await env.DB.prepare('SELECT gate,status FROM thrill_runs WHERE id=?').bind(r.id).first()
-        if (cur.status !== 'playing') break
-        await env.DB.prepare(`UPDATE thrill_runs SET armed_at=1, lock_at=1 WHERE id=?`).bind(r.id).run()
-        await pick(env, { runId: r.id, userId: r.user_id, optionId: null, gate: cur.gate + 1 }).catch(() => {})
-      }
-    }
+    const old = (await env.DB.prepare(`SELECT id,gate FROM thrill_runs WHERE status='playing' AND series_id=? AND started_at<?`).bind(SERIES, now() - STALE_MS).all()).results as any[]
+    for (const r of old) if (await claim(env, r.id, r.gate)) await settle(env, r.id, 'timeout').catch(() => {})
   }
 
-  /** 公开复算：任何人拿到种子都能验证 5 关结果与承诺一致 */
+  async function resume(env: Env, userId: string) {
+    const r: any = await env.DB.prepare(`SELECT * FROM thrill_runs WHERE user_id=? AND series_id=? AND status='playing' AND started_at>? LIMIT 1`).bind(userId, SERIES, now() - STALE_MS).first()
+    if (!r) return null
+    return { run_id: r.id, commit: r.commit_hash, stake: r.stake, pick_sec: J(r.cfg, CFG).pick_sec, hits: r.hits, mult: multAt(CFG, r.hits), ladder: ladderTable(CFG),
+      card: await cardPayload(env, userId, r.id, r.seed, r.gate), main: r.gate < MAIN.length ? await segOut(env, userId, MAIN[r.gate]) : null }
+  }
+
   async function verify(env: Env, rid: string) {
     const r: any = await env.DB.prepare('SELECT * FROM thrill_runs WHERE id=?').bind(rid).first()
     if (!r) throw new GameError('RUN_NOT_FOUND', '局不存在')
     if (r.status !== 'ended') return { run_id: rid, commit: r.commit_hash, status: r.status, note: '本局未结束，种子保密' }
-    const outs: string[] = J(r.outcomes, []), re: string[] = []
-    for (let k = 0; k < GATES.length; k++) { const sc = sceneOf(k, re[k - 1]); re.push(sc.options[Math.min(sc.options.length - 1, Math.floor((await seedFloat(r.seed, `gate:${k}`)) * sc.options.length))].id) }
-    const commitOk = (await sha256(`${r.seed}|${rid}|${outs.join(',')}`)) === r.commit_hash
-    return { run_id: rid, seed: r.seed, commit: r.commit_hash, outcomes: outs, recomputed: re, ok: commitOk && re.join() === outs.join() }
-  }
-
-  /** 蒙特卡洛：按真实引擎规则模拟 N 局（玩家随机押），给出实际 RTP / 全中率 / 奖池走势 */
-  function simulate(n = 20000, stake = 10) {
-    let staked = 0, paid = 0, perfect = 0, pool = CFG.seed_pool, jp = 0
-    for (let i = 0; i < n; i++) {
-      let s = 0, hits = 0; staked += stake * 5; pool += Math.floor(stake * 5 * CFG.rake)
-      for (let k = 0; k < 5; k++) { const a = ARITY[k]; if (Math.floor(Math.random() * a) === Math.floor(Math.random() * a)) { s++; hits++; paid += stake * CFG.ladder[s - 1] } else s = 0 }
-      if (hits === 5) { perfect++; const j = Math.min(Math.floor(pool * CFG.jackpot_share), stake * CFG.jackpot_cap_mult); pool -= j; paid += j; jp += j }
+    const cfg: any = J(r.cfg, CFG)
+    const picks = (await env.DB.prepare('SELECT * FROM thrill_picks WHERE run_id=? ORDER BY gate').bind(rid).all()).results as any[]
+    const rows = []
+    let ok = (await sha256(`${r.seed}|${rid}`)) === r.commit_hash
+    for (const pk of picks) {
+      if (pk.option_id === 'cashout' || pk.option_id === 'timeout') { rows.push({ step: pk.gate + 1, action: pk.option_id }); continue }
+      const rk = await seedFloat(r.seed, `step:${pk.gate}`), hit = rk < pAt(cfg, pk.gate)
+      if (hit !== !!pk.hit) ok = false
+      rows.push({ step: pk.gate + 1, pick: pk.option_id, r: rk, p: pAt(cfg, pk.gate), hit })
     }
-    return { runs: n, rtp_total: Math.round((paid / staked) * 1000) / 10, perfect_rate: `1/${Math.round(n / Math.max(1, perfect))}`, jackpot_paid: jp, pool_end: pool, house_edge: Math.round((1 - paid / staked) * 1000) / 10 }
+    return { run_id: rid, seed: r.seed, commit: r.commit_hash, steps: rows, ok }
   }
 
-  /** 管理：Jackpot 审核放行 / 作废（作废 = 退回奖池） */
+  /** 蒙特卡洛：玩家策略 = 爬到第 target 猜后落袋（target=Infinity 一直爬） */
+  function simulate(n = 100000, stake = 10, target = 3) {
+    let staked = 0, paid = 0, pool = CFG.seed_pool, jp = 0, jpHits = 0
+    for (let i = 0; i < n; i++) {
+      staked += stake; pool += Math.floor(stake * CFG.rake)
+      let h = 0, alive = true
+      while (alive && h < target && multAt(CFG, h) < CFG.max_mult) {
+        if (Math.random() < pAt(CFG, h)) { h++; if (h === CFG.jackpot_step) { const j = Math.min(Math.floor(pool * CFG.jackpot_share), stake * CFG.jackpot_cap_mult); pool -= j; paid += j; jp += j; jpHits++ } } else alive = false
+      }
+      if (alive) paid += h ? Math.floor(stake * multAt(CFG, h)) : stake - Math.floor(stake * CFG.rake)
+    }
+    return { runs: n, target, rtp_total: Math.round((paid / staked) * 1000) / 10, jackpots: jpHits, jackpot_paid: jp, pool_end: pool }
+  }
+
   async function resolveHold(env: Env, rid: string, approve: boolean, actor = 'admin') {
     const r: any = await env.DB.prepare(`SELECT * FROM thrill_runs WHERE id=? AND jackpot_status='held'`).bind(rid).first()
     if (!r) throw new GameError('NOT_HELD', '该局没有待审核的 Jackpot')
@@ -352,15 +369,5 @@ export function createThrill(DATA: any) {
     return { ok: true, run_id: rid, status: approve ? 'released' : 'void', jackpot: r.jackpot }
   }
 
-  /** 当前进行中的局（刷新页面后恢复：只能继续往下演，不能回看已揭晓的关） */
-  async function resume(env: Env, userId: string) {
-    const r: any = await env.DB.prepare(`SELECT * FROM thrill_runs WHERE user_id=? AND series_id=? AND status='playing' LIMIT 1`).bind(userId, SERIES).first()
-    if (!r) return null
-    const outs: string[] = J(r.outcomes, []), k = r.gate
-    const sc = sceneOf(k, k ? outs[k - 1] : undefined)
-    return { run_id: r.id, commit: r.commit_hash, stake: r.stake, ladder: J(r.cfg, CFG).ladder, pick_sec: J(r.cfg, CFG).pick_sec, streak: r.streak, hits: r.hits, payout: r.payout,
-      gate: await gatePayload(env, userId, r.id, k, sc), lock_at: r.lock_at, server_time: now() }
-  }
-
-  return { SERIES, CFG, ARITY, DATA, meta, start, arm, pick, verify, simulate, poolBalance, ensurePool, expireStale, resolveHold, resume, validate: () => validate(DATA) }
+  return { SERIES, CFG, DATA, MAIN, STORY, BONUS, meta, start, arm, act, verify, simulate, poolBalance, ensurePool, expireStale, resolveHold, resume, validate: () => validate(DATA) }
 }
