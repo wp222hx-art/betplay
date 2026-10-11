@@ -22,6 +22,7 @@ const nav = (active: string) => `
     <a href="/" class="${active === 'discover' ? 'on' : ''}"><i class="fas fa-compass"></i><b>发现</b></a>
     ${FMT.map(([k, ic, n]) => `<a href="/?cat=${k}" class="${act(active) === k ? 'on' : ''}"><i class="fas ${ic}"></i><b>${n}</b></a>`).join('')}
     <a href="/thrill" class="thrill-tab ${active === 'thrill' ? 'on' : ''}"><i class="fas fa-bolt"></i><b>惊心1分钟</b></a>
+    <a href="/fun" class="fun-tab ${active === 'fun' ? 'on' : ''}"><i class="fas fa-face-laugh-squint"></i><b>开心1分钟</b></a>
     <a href="/market" class="${active === 'market' ? 'on' : ''}"><i class="fas fa-gem"></i><b>结局卡</b></a>
     <details class="nav-more ${['voice', 'console', 'agents', 'arch'].includes(active) ? 'on' : ''}"><summary><i class="fas fa-toolbox"></i><b>工作台</b></summary>
       <div class="more-menu"><a href="/market" class="m-only"><i class="fas fa-gem"></i> 结局卡交易所</a><a href="/studio"><i class="fas fa-clapperboard"></i> MoMo Studio · 生产与上架</a><a href="/arch"><i class="fas fa-sitemap"></i> 技术架构</a><a href="/voice"><i class="fas fa-microphone-lines"></i> 声线工作室</a><a href="/console"><i class="fas fa-gauge-high"></i> 运营后台</a><a href="/agents"><i class="fas fa-robot"></i> 7-Agent</a></div>
@@ -31,7 +32,8 @@ const nav = (active: string) => `
 <nav id="tab-bar" class="tab-bar">
   <a href="/" class="${active === 'discover' ? 'on' : ''}"><i class="fas fa-compass"></i><span>发现</span></a>
   ${FMT.map(([k, ic, n]) => `<a href="/?cat=${k}" class="${act(active) === k ? 'on' : ''}"><i class="fas ${ic}"></i><span>${n}</span></a>`).join('')}
-  <a href="/thrill" class="thrill-tab ${active === 'thrill' ? 'on' : ''}"><i class="fas fa-bolt"></i><span>惊心1分钟</span></a>
+  <a href="/thrill" class="thrill-tab ${active === 'thrill' ? 'on' : ''}"><i class="fas fa-bolt"></i><span>惊心</span></a>
+  <a href="/fun" class="fun-tab ${active === 'fun' ? 'on' : ''}"><i class="fas fa-face-laugh-squint"></i><span>开心</span></a>
   <a href="/?tab=mine" class="${active === 'mine' ? 'on' : ''}"><i class="fas fa-bookmark"></i><span>我的</span></a>
 </nav>`
 
@@ -220,4 +222,40 @@ ${nav('thrill')}
 </main>
 <div id="thrill-modal" class="t-modal hidden"></div>
 <script src="/static/lethal13.js"></script>
+</body></html>`
+
+// 开心 1 分钟：恶搞喜剧博弈短片（9:16 竖屏）
+export const funHubPage = () => `${head('开心1分钟 · 恶搞喜剧押注短片 | MoMocash剧场', '<link href="/static/fun.css" rel="stylesheet">')}
+<body class="fun-body">
+${nav('fun')}
+<main id="fun-hub" class="fun-hub">
+  <header id="fun-hero" class="fun-hero">
+    <p class="kicker"><i class="fas fa-face-laugh-squint"></i> 新板块 · 恶搞真人短片</p>
+    <h1>开心<em>1</em>分钟</h1>
+    <p class="sub">一本正经的人 × 荒诞的处境 × 层层翻车 × 神反转 —— 你押的不是谁赢，是<b>怎么翻车</b></p>
+    <ul class="rules"><li><i class="fas fa-receipt"></i>押注单：开局一次押三条，中几条赔几档</li><li><i class="fas fa-bolt"></i>每步 5 秒快押，押错不出局</li><li><i class="fas fa-crown"></i>押主角：冷门结局赔率最高</li><li><i class="fas fa-shield-halved"></i>结果开局锁定，可公开复算</li></ul>
+  </header>
+  <section id="fun-list" class="fun-list"></section>
+</main>
+<script src="/static/fun.js"></script>
+<script>FunHub()</script>
+</body></html>`
+
+export const funPage = (sid: string, title: string) => `${head(title + ' · 开心1分钟 | MoMocash剧场', '<link href="/static/fun.css" rel="stylesheet">')}
+<body class="fun-body play">
+${nav('fun')}
+<main id="fun-play" class="fun-play" data-sid="${sid}">
+  <section id="fun-stage" class="fun-stage">
+    <img id="fun-poster" class="f-poster" alt="">
+    <video id="fun-video" class="f-video" playsinline></video>
+    <div id="fun-cap" class="f-cap"></div>
+    <div id="fun-hud" class="f-hud"></div>
+    <div id="fun-bet" class="f-bet hidden"></div>
+    <div id="fun-flash" class="f-flash"></div>
+  </section>
+  <aside id="fun-side" class="fun-side"></aside>
+</main>
+<div id="fun-modal" class="f-modal hidden"></div>
+<script src="/static/fun.js"></script>
+<script>FunPlay(${JSON.stringify(sid)})</script>
 </body></html>`

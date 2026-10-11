@@ -376,3 +376,13 @@ npx wrangler d1 migrations apply webapp-production                              
 - **API**：`GET /api/l13/meta` · `POST /api/l13/start {stake}` · `POST /api/l13/runs/:id/arm` · `POST /api/l13/runs/:id/act {k, tier}|{k, cashout:true}` · `GET /api/l13/runs/:id/verify` · `GET /api/admin/l13/simulate`
 - **v2（致敬《13 Tzameti / 百万杀人游戏》）**：环形三轮（1/2/3 发）→ 剩 ≥3 人时主持人抽 2 人决斗、其余离场 → 决斗每枪加 1 发直到一人倒下；13 号 = 误入局的穷小子阿森；新增「押冠军」（开局押最后幸存号码，×11.96）；连环大奖 = 环形三轮全中；画面黑白高反差
 - 2026-10-10：站位改为「侧身链式」——13人侧身单列成环、后者举枪指向前者，plates 与 fire/death/intro/void/duel 共 35 条重拍，媒体清单 47 条已上架。
+
+## 开心1分钟（恶搞真人博弈短片）
+- **入口**：`/fun` 大厅 · `/f/fun_parking` 老爸倒车 · `/f/fun_ceo` 霸总求婚 · `/f/fun_office` 动物世界·打工人篇
+- **玩法**：开局押注单（3 条腿，中 1/2/3 档赔付，全中最高，联合概率精确计算）+ 押主角（终局冷门高赔，rtp 0.92）+ 每步 5 秒快押（rtp 0.94）
+- **公平**：结果 = HMAC(seed, 'f:i') 映射公开概率树；开局公布 sha256(seed|rid)，结束可复算（`/api/fun/runs/:id/verify`）
+- **引擎**：`src/fun/engine.ts`（通用事件树引擎 + 托管账户 `escrow:fun:<rid>` 复式记账）；剧本与概率树：`src/fun/games.ts`
+- **API**：`GET /api/fun`、`/api/fun/:sid/meta`、`POST /api/fun/:sid/quote|start`、`/api/fun/runs/:id/arm|act|skip|verify`、`POST /api/admin/fun/:sid/media`
+- **素材**：62 条 Seedance 2.0 竖屏片段（停车 15、霸总 21、办公室 26）→ R2 `webapp-media/<sid>/`，通过 `/m/:series/:clip` 带票据播放
+- **生产**：`python3 scripts/fun/produce.py <park|ceo|office|all> refs|stills|render|publish [--only=] [--force]`（定角色 → 多参考首帧 → i2v，保证人脸一致）
+- **测试**：`npx tsx tests/fun.test.ts`（21 项：EV ≤ 0.93、单局约 56–63 秒、结局覆盖）
