@@ -10,7 +10,7 @@
   async function api(p, o = {}) {
     const r = await fetch(p, { method: o.body ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json' }, body: o.body ? JSON.stringify(o.body) : undefined })
     const j = await r.json().catch(() => ({}))
-    if (!r.ok || j.error) throw Object.assign(new Error(j.message || '请求失败'), { code: j.error })
+    if (!r.ok || j.error) throw Object.assign(new Error(j.error === 'INSUFFICIENT' ? j.message + '，余额不足' : j.message || '请求失败'), { code: j.error })
     return j
   }
 
@@ -57,13 +57,24 @@
   let MEDIA = null
   if (video) { video.controls = false; video.disablePictureInPicture = true; video.addEventListener('pause', () => { if (video.dataset.playing === '1' && !video.ended) video.play().catch(() => {}) }) }
   /** 播放一个片段；返回 Promise（播完 / 超时）。maxMs：截断长片段以保节奏 */
+  // 手势解锁：在「交单」点击的同步阶段先让 <video> 播一次（静音），之后同一元素可自动带声播放（iOS / 微信）
+  function unlockVideo() { try { video.muted = true; video.playsInline = true; const p = video.play(); p?.catch?.(() => {}); video.pause() } catch {} }
+  /** 等用户点一下再播（自动播放被拦截时的兜底） */
+  function tapToPlay() {
+    return new Promise((res) => {
+      const o = document.createElement('button'); o.className = 'tap-play'; o.innerHTML = '<i class="fas fa-play"></i><span>点一下继续观看</span>'
+      video.parentElement.appendChild(o); o.onclick = () => { o.remove(); video.muted = false; video.play().then(res, () => { video.muted = true; video.play().then(res, res) }) }
+    })
+  }
+  /** 播放一个片段；返回 Promise（播完 / 超时）。超时从「真正开始播放」起算，加载最多等 20 秒 */
   function clip(key, maxMs) {
     const c = MEDIA?.clips?.[key]; if (!c || !c.url) return null
     return new Promise(async (res) => {
       document.body.classList.add('l13-film'); video.src = c.url; video.dataset.playing = '1'; video.muted = false
-      let done = false; const fin = () => { if (done) return; done = true; video.dataset.playing = '0'; res() }
-      video.onended = fin; setTimeout(fin, Math.min(maxMs || 1e9, (c.dur + 3) * 1000))
-      try { await video.play() } catch { video.muted = true; await video.play().catch(fin) }
+      let done = false, timer = 0; const fin = () => { if (done) return; done = true; clearTimeout(timer); video.dataset.playing = '0'; res() }
+      const arm = () => { clearTimeout(timer); timer = setTimeout(fin, Math.min(maxMs || 1e9, (c.dur + 3) * 1000)) }
+      video.onended = fin; video.onplaying = arm; video.onerror = fin; timer = setTimeout(fin, 20000)
+      try { await video.play() } catch { video.muted = true; try { await video.play() } catch { clearTimeout(timer); await tapToPlay(); arm() } }
     })
   }
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)]
@@ -128,6 +139,11 @@
   }
   function boom(html, cls) { flash.className = 't-flash ' + cls; flash.innerHTML = `<div>${html}</div>`; void flash.offsetWidth; flash.classList.add('go') }
   function toast(m) { const t = document.createElement('div'); t.className = 't-toast'; t.textContent = m; document.body.appendChild(t); setTimeout(() => t.remove(), 3500) }
+    async function needChips(btn) {
+      if (!btn || document.getElementById('faucet-cta')) return
+      btn.insertAdjacentHTML('afterend', '<button id="faucet-cta" class="btn ghost" style="width:100%;margin-top:8px"><i class="fas fa-gift"></i> 余额不足 · 领取 500 免费币</button>')
+      document.getElementById('faucet-cta').onclick = async (e) => { try { await api('/api/me/faucet', { body: {} }); e.currentTarget.remove(); toast('+500 Chips 已到账，再点交单') } catch (er) { toast(er.message) } }
+    }
 
   // ─────────── 大厅：押注单 ───────────
   const short = (l) => String(l).replace(/^剩 /, '').replace(/ 人及以上$/, '+ 人').replace(/^(\d+) 人及以下$/, '≤$1 人')
@@ -178,16 +194,21 @@
   }
 
   async function start() {
-    ac().resume?.()
+    ac().resume?.(); unlockVideo()
     const btn = $('#l13-start'); btn.disabled = true; btn.textContent = '锁定随机种子…'
     try {
-      const r = await api('/api/l13/start', { body: { stake: S.stake, picks: S.picks, champ: S.champ || 0, champ_stake: S.champ ? S.stake : 0 } })
+      const body = { stake: S.stake, picks: S.picks, champ: S.champ || 0, champ_stake: S.champ ? S.stake : 0 }
+      let r
+      try { r = await api('/api/l13/start', { body }) } catch (e) {
+        if (e.code !== 'ONE_AT_A_TIME' || !M.open_run) throw e
+        await api(`/api/l13/runs/${M.open_run}/skip`, { body: {} }).catch(() => {}); M.open_run = null; toast('上一局已按种子自动结算'); r = await api('/api/l13/start', { body })
+      }
       Object.assign(S, { run: r, dead: new Set(), log: [], slip: null, busy: false }); M.pool = r.pool
       liveSide(); renderHud(); drawRing(13)
       caption('主持人：<b>先生们，单子已经交了。最后站着的人，带走一切。</b>'); heart(72)
       const ic = clip('intro'); if (ic) { heartStop(); await ic; document.body.classList.remove('l13-film'); heart(80) } else await sleep(2600)
       await runRound(r.round)
-    } catch (e) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-skull"></i> 交单 · 灯要灭了'; toast(e.message) }
+    } catch (e) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-skull"></i> 交单 · 灯要灭了'; toast(e.message); if (e.code === 'INSUFFICIENT') needChips(btn) }
   }
 
   // 一轮：追注面板（可不押）→ 演出 → 下一轮
@@ -353,6 +374,6 @@
   ;(async () => {
     try { M = await api('/api/l13/meta'); MEDIA = M.media } catch (e) { side.innerHTML = `<div class="t-empty">${esc(e.message)}</div>`; return }
     drawRing(13); renderHud(); lobby()
-    if (M.open_run) toast('你有一局还在进行，15 分钟后会按种子自动结算')
+    if (M.open_run) toast('你有一局还没看完，交单时会先自动结算上一局')
   })()
 })()

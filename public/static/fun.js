@@ -10,7 +10,7 @@
   async function api(p, o = {}) {
     const r = await fetch(p, { method: o.body ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json' }, body: o.body ? JSON.stringify(o.body) : undefined })
     const j = await r.json().catch(() => ({}))
-    if (!r.ok || j.error) throw Object.assign(new Error(j.message || '请求失败'), { code: j.error })
+    if (!r.ok || j.error) throw Object.assign(new Error(j.error === 'INSUFFICIENT' ? j.message + '，余额不足' : j.message || '请求失败'), { code: j.error })
     return j
   }
   // 小音效：叮 / 嘣 / 胜利 / 啊哦
@@ -36,18 +36,31 @@
     video.controls = false; video.disablePictureInPicture = true
     video.addEventListener('pause', () => { if (video.dataset.playing === '1' && !video.ended) video.play().catch(() => {}) })
     const face = (id) => MEDIA?.faces?.[id] || ''
+    function unlockVideo() { try { video.muted = true; video.playsInline = true; video.play()?.catch?.(() => {}); video.pause() } catch {} }
+    function tapToPlay() {
+      return new Promise((res) => {
+        const o = document.createElement('button'); o.className = 'tap-play'; o.innerHTML = '<i class="fas fa-play"></i><span>点一下继续观看</span>'
+        stage.appendChild(o); o.onclick = () => { o.remove(); video.muted = false; video.play().then(res, () => { video.muted = true; video.play().then(res, res) }) }
+      })
+    }
     function clip(key, maxMs, onEnd) {
       const c = MEDIA?.clips?.[key]; if (!c?.url) return sleep(Math.min(maxMs || 3200, 3200))
       return new Promise(async (res) => {
         stage.classList.add('film'); video.src = c.url; video.dataset.playing = '1'; video.muted = false
-        let done = false; const fin = () => { if (done) return; done = true; try { onEnd?.() } catch {} video.dataset.playing = '0'; res() }
-        video.onended = fin; setTimeout(fin, Math.min(maxMs || 1e9, (c.dur + 2.5) * 1000))
-        try { await video.play() } catch { video.muted = true; await video.play().catch(fin) }
+        let done = false, timer = 0; const fin = () => { if (done) return; done = true; clearTimeout(timer); try { onEnd?.() } catch {} video.dataset.playing = '0'; res() }
+        const arm = () => { clearTimeout(timer); timer = setTimeout(fin, Math.min(maxMs || 1e9, (c.dur + 2.5) * 1000)) }
+        video.onended = fin; video.onplaying = arm; video.onerror = fin; timer = setTimeout(fin, 20000)
+        try { await video.play() } catch { video.muted = true; try { await video.play() } catch { clearTimeout(timer); await tapToPlay(); arm() } }
       })
     }
     function caption(t, cls = '') { cap.className = 'f-cap ' + cls; cap.innerHTML = t; void cap.offsetWidth; cap.classList.add('in') }
     function boom(html, cls) { flash.className = 'f-flash ' + cls; flash.innerHTML = `<div>${html}</div>`; void flash.offsetWidth; flash.classList.add('go') }
     function toast(m) { const t = document.createElement('div'); t.className = 'f-toast'; t.textContent = m; document.body.appendChild(t); setTimeout(() => t.remove(), 3200) }
+    async function needChips(btn) {
+      if (!btn || document.getElementById('faucet-cta')) return
+      btn.insertAdjacentHTML('afterend', '<button id="faucet-cta" class="btn ghost" style="width:100%;margin-top:8px"><i class="fas fa-gift"></i> 余额不足 · 领取 500 免费币</button>')
+      document.getElementById('faucet-cta').onclick = async (e) => { try { await api('/api/me/faucet', { body: {} }); e.currentTarget.remove(); toast('+500 Chips 已到账，再点交单') } catch (er) { toast(er.message) } }
+    }
     function renderHud() { hud.innerHTML = S.run ? `<span class="pill"><i class="fas fa-receipt"></i> 押注单 ${fmt(S.run.stake)} · 全中 <b>${xm(S.run.quote.mult[3])}</b></span>${S.run.final ? `<span class="pill"><i class="fas fa-crown"></i> ${esc(S.run.final.label)} ${xm(S.run.final.odds)}</span>` : ''}` : `<span class="pill"><i class="fas fa-face-laugh-squint"></i> 开心1分钟 · ${esc(M.title)}</span>` }
 
     function payTable() {
@@ -84,14 +97,19 @@
     }
 
     async function start() {
-      ac().resume?.()
+      ac().resume?.(); unlockVideo()
       const b = $('#go'); b.disabled = true; b.textContent = '开拍准备…'
       try {
-        const r = await api(`/api/fun/${sid}/start`, { body: { stake: S.stake, picks: S.picks, final: S.final, final_stake: S.final ? S.stake : 0 } })
+        const body = { stake: S.stake, picks: S.picks, final: S.final, final_stake: S.final ? S.stake : 0 }
+        let r
+        try { r = await api(`/api/fun/${sid}/start`, { body }) } catch (e) {
+          if (e.code !== 'ONE_AT_A_TIME' || !M.open_run) throw e
+          await api(`/api/fun/${M.open_run.sid}/runs/${M.open_run.id}/skip`, { body: {} }).catch(() => {}); M.open_run = null; r = await api(`/api/fun/${sid}/start`, { body })
+        }
         Object.assign(S, { run: r, log: [], res: null, skipped: false }); renderHud(); liveSide()
         caption(esc(r.intro.cap)); await clip(r.intro.clip)
         await step(r.step)
-      } catch (e) { b.disabled = false; b.innerHTML = '<i class="fas fa-clapperboard"></i> 交单 · 开拍！'; toast(e.message) }
+      } catch (e) { b.disabled = false; b.innerHTML = '<i class="fas fa-clapperboard"></i> 交单 · 开拍！'; toast(e.message); if (e.code === 'INSUFFICIENT') needChips(b) }
     }
     async function step(st) {
       if (S.skipped) return

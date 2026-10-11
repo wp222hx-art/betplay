@@ -121,3 +121,5 @@
 .f-share .acts{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
 .f-share p{color:rgba(255,255,255,.7);font-size:12px;margin:0}
 @keyframes fpIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:none}}
+.tap-play{position:absolute;inset:0;z-index:30;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:rgba(0,0,0,.5);color:#fff;border:0;font:700 16px 'Noto Sans SC',sans-serif;cursor:pointer}
+.tap-play i{width:72px;height:72px;border-radius:50%;background:var(--c,#ffb020);display:flex;align-items:center;justify-content:center;font-size:26px;color:#1b1210}

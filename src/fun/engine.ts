@@ -87,7 +87,8 @@ export async function funMeta(env: any, sid: string, userId?: string) {
   const recent = (await env.DB.prepare(`SELECT user_id,hits,mult,payout FROM thrill_runs WHERE series_id=? AND status='ended' ORDER BY ended_at DESC LIMIT 6`).bind(sid).all()).results as any[]
   return { sid, title: g.title, tag: g.tag, logline: g.logline, color: g.color, cast: g.cast, rules: g.rules, cfg: FUN_CFG,
     legs: legMarginals(g), slip_default: quote(g, bestSlip(g)), final: { title: g.final.title, opts: finalOdds(g) },
-    recent: recent.map((x) => ({ who: '玩家' + String(x.user_id).slice(-4), hits: x.hits, mult: x.mult, win: x.payout })), media: await funMedia(env, sid, userId) }
+    recent: recent.map((x) => ({ who: '玩家' + String(x.user_id).slice(-4), hits: x.hits, mult: x.mult, win: x.payout })), media: await funMedia(env, sid, userId),
+    open_run: userId ? await (async () => { const o: any = await env.DB.prepare(`SELECT id, series_id FROM thrill_runs WHERE user_id=? AND status='playing' AND series_id LIKE 'fun_%' LIMIT 1`).bind(userId).first(); return o ? { id: o.id, sid: o.series_id } : null })() : null }
 }
 
 export async function funStart(env: Env, sid: string, p: { userId: string; stake: number; picks: string[]; final?: string; finalStake?: number; ipHash: string; sybil?: boolean }) {
