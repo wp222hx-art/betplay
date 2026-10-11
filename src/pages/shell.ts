@@ -225,7 +225,7 @@ ${nav('thrill')}
 </body></html>`
 
 // 开心 1 分钟：恶搞喜剧博弈短片（9:16 竖屏）
-export const funHubPage = () => `${head('开心1分钟 · 恶搞喜剧押注短片 | MoMocash剧场', '<link href="/static/fun.css" rel="stylesheet">')}
+export const funHubPage = () => `${head('开心1分钟 · 恶搞喜剧押注短片 | MoMocash剧场', '<link href="/static/fun.css" rel="stylesheet"><link href="/static/combo.css" rel="stylesheet">')}
 <body class="fun-body">
 ${nav('fun')}
 <main id="fun-hub" class="fun-hub">
@@ -258,4 +258,25 @@ ${nav('fun')}
 <div id="fun-modal" class="f-modal hidden"></div>
 <script src="/static/fun.js"></script>
 <script>FunPlay(${JSON.stringify(sid)})</script>
+</body></html>`
+
+export const comboPage = (sid: string, title: string) => `${head(title + ' · 开心1分钟 | MoMocash剧场', '<link href="/static/fun.css" rel="stylesheet"><link href="/static/combo.css" rel="stylesheet">', `/gimg/${sid}/cover.webp`)}
+<body class="fun-body play combo-body">
+${nav('fun')}
+<main id="cb-play" class="cb-play" data-sid="${sid}">
+  <section id="cb-stage" class="cb-stage">
+    <img id="cb-poster" class="cb-poster" alt="">
+    <video id="cb-v0" class="cb-video on" playsinline preload="auto"></video>
+    <video id="cb-v1" class="cb-video" playsinline preload="auto"></video>
+    <div id="cb-timeline" class="cb-timeline"></div>
+    <div id="cb-hud" class="cb-hud"></div>
+    <div id="cb-cap" class="cb-cap"></div>
+    <div id="cb-window" class="cb-window hidden"></div>
+    <div id="cb-stamp" class="cb-stamp"></div>
+  </section>
+  <aside id="cb-side" class="cb-side"></aside>
+</main>
+<div id="cb-modal" class="f-modal hidden"></div>
+<script src="/static/combo.js"></script>
+<script>ComboPlay(${JSON.stringify(sid)})</script>
 </body></html>`

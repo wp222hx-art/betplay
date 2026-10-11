@@ -9,7 +9,7 @@ import { modelHealth, predictiveQueue, rankVideoModels, submitVideo, buildVideoP
 import { branches, overview, scriptTree } from './agents/console'
 import { applyClipPlan, approveExtension, clipPairs, derive, generatePoems, ingestSignals, regulate } from './agents/deriver'
 import type { Bindings } from './gateway/llm'
-import { playerPage, consolePage, agentsPage, comicPage, filmPage, voicePage, lovePage, discoverPage, marketPage, archPage, seriesPage, thrillHubPage, thrillPage, lethal13Page, funHubPage, funPage } from './pages/shell'
+import { playerPage, consolePage, agentsPage, comicPage, filmPage, voicePage, lovePage, discoverPage, marketPage, archPage, seriesPage, thrillHubPage, thrillPage, lethal13Page, funHubPage, funPage, comboPage } from './pages/shell'
 import CATALOG from './catalog/data.json'
 import * as Tax from './catalog/taxonomy'
 import * as Growth from './growth/growth'
@@ -26,6 +26,7 @@ import { THRILL_SCRIPTS } from './thrill/scripts'
 import * as L13 from './thrill/lethal13'
 import * as Fun from './fun/engine'
 import { FUN_GAMES } from './fun/games'
+import * as Combo from './fun/combo'
 
 const app = new Hono<{ Bindings: Bindings & { MEDIA?: R2Bucket; AUTH_SECRET?: string; ADMIN_KEY?: string }; Variables: { uid: string } }>()
 app.use('/api/*', cors())
@@ -300,7 +301,17 @@ app.get('/comic', (c) => c.html(comicPage()))
 app.get('/film', (c) => c.html(filmPage()))
 app.get('/thrill', (c) => c.html(thrillHubPage()))
 // ─── 开心1分钟 ───
-app.get('/api/fun', async (c) => c.json(await Fun.funList(c.env)))
+// ─── 开心1分钟 · 阿木系列（三元素组合结局）───
+app.get('/api/combo/:sid/meta', async (c) => c.json(await Combo.comboMeta(c.env, c.req.param('sid'), uidOf(c) || undefined)))
+app.post('/api/combo/:sid/quote', async (c) => { const b = await body(c); const g = Combo.COMBO_GAMES[c.req.param('sid')]; if (!g) return c.json({ error: 'NOT_FOUND', message: '无此剧' }, 404); return c.json(Combo.quote(g, Array.isArray(b.picks) ? b.picks : [])) })
+app.post('/api/combo/:sid/start', async (c) => { const b = await body(c), u = uidOf(c, b); await rateLimit(c.env as any, 'combo:' + u, 80, 3600000); return c.json(await Combo.comboStart(c.env as any, c.req.param('sid'), { userId: u, stake: +b.stake, picks: Array.isArray(b.picks) ? b.picks : [], twist: !!b.twist, twistStake: +b.twist_stake || 0, ipHash: await ipKey(c), sybil: await isSybil(c.env, u) })) })
+app.post('/api/combo/:sid/runs/:id/arm', async (c) => { const b = await body(c); return c.json(await Combo.comboArm(c.env as any, c.req.param('sid'), { runId: c.req.param('id'), userId: uidOf(c, b), k: +b.k })) })
+app.post('/api/combo/:sid/runs/:id/bet', async (c) => { const b = await body(c); return c.json(await Combo.comboBet(c.env as any, c.req.param('sid'), { runId: c.req.param('id'), userId: uidOf(c, b), k: +b.k, opt: String(b.opt || ''), bet: +b.bet })) })
+app.post('/api/combo/:sid/runs/:id/reveal', async (c) => { const b = await body(c); return c.json(await Combo.comboReveal(c.env as any, c.req.param('sid'), { runId: c.req.param('id'), userId: uidOf(c, b), k: +b.k })) })
+app.post('/api/combo/:sid/runs/:id/skip', async (c) => { const b = await body(c); return c.json(await Combo.comboSkip(c.env as any, c.req.param('sid'), { runId: c.req.param('id'), userId: uidOf(c, b) })) })
+app.get('/api/combo/:sid/runs/:id/verify', async (c) => c.json(await Combo.comboVerify(c.env as any, c.req.param('sid'), c.req.param('id'))))
+app.post('/api/admin/combo/:sid/media', async (c) => { const b = await body(c); return c.json(await Combo.comboSaveMedia(c.env as any, c.req.param('sid'), b.clips || {})) })
+app.get('/api/fun', async (c) => c.json([...(await Combo.comboList(c.env)), ...(await Fun.funList(c.env))]))
 app.get('/api/fun/:sid/meta', async (c) => c.json(await Fun.funMeta(c.env, c.req.param('sid'), uidOf(c) || undefined)))
 app.post('/api/fun/:sid/quote', async (c) => { const b = await body(c); const g = FUN_GAMES[c.req.param('sid')]; if (!g) return c.json({ error: 'NOT_FOUND', message: '无此剧' }, 404); return c.json(Fun.quote(g, Array.isArray(b.picks) ? b.picks : [])) })
 app.post('/api/fun/:sid/start', async (c) => { const b = await body(c), u = uidOf(c, b); await rateLimit(c.env as any, 'fun:' + u, 80, 3600000); return c.json(await Fun.funStart(c.env as any, c.req.param('sid'), { userId: u, stake: +b.stake, picks: Array.isArray(b.picks) ? b.picks : [], final: b.final || undefined, finalStake: +b.final_stake || 0, ipHash: await ipKey(c), sybil: await isSybil(c.env, u) })) })
@@ -310,7 +321,7 @@ app.post('/api/fun/:sid/runs/:id/skip', async (c) => { const b = await body(c); 
 app.get('/api/fun/:sid/runs/:id/verify', async (c) => c.json(await Fun.funVerify(c.env as any, c.req.param('sid'), c.req.param('id'))))
 app.post('/api/admin/fun/:sid/media', async (c) => { const b = await body(c); return c.json(await Fun.funSaveMedia(c.env as any, c.req.param('sid'), b.clips || {})) })
 app.get('/fun', (c) => c.html(funHubPage()))
-app.get('/f/:sid', (c) => { const g = FUN_GAMES[c.req.param('sid')]; if (!g) return c.notFound(); return c.html(funPage(g.sid, g.title)) })
+app.get('/f/:sid', (c) => { const cg = Combo.COMBO_GAMES[c.req.param('sid')]; if (cg) return c.html(comboPage(cg.sid, cg.title)); const g = FUN_GAMES[c.req.param('sid')]; if (!g) return c.notFound(); return c.html(funPage(g.sid, g.title)) })
 app.get('/l13', (c) => c.html(lethal13Page()))
 app.get('/t/:sid', async (c) => { await thrillSeed(c.env); const r: any = await c.env.DB.prepare(`SELECT title FROM thrill_series WHERE id=? AND status IN ('live','demo')`).bind(c.req.param('sid')).first(); if (!r) return c.notFound(); return c.html(thrillPage(c.req.param('sid'), r.title)) })
 app.get('/love', (c) => c.html(lovePage()))

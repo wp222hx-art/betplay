@@ -169,7 +169,64 @@ for s, line in ENDS.items():
     C[f'end_{s}'] = dict(dur=6, refs=[s, 'office'], still='The person from image 1 standing alone in the middle of the office from image 2 under a warm spotlight, holding a cheap gold plastic trophy, other desks dark.',
                          text=DOC + 'Slow push-in; the colleagues clap politely in the dark. ' + NAR + line + ' Epic documentary music swells.')
 
-GAMES = {'park': PARK, 'ceo': CEO, 'office': OFFICE}
+
+# ───────────────────────── ④ 阿木停车（原创默剧主角 · 三元素组合结局） ─────────────────────────
+SILENT = ('Silent physical comedy in the tradition of classic slapstick: absolutely no dialogue, no speech, no words, no subtitles, no on-screen text; '
+          'only grunts, hums, sighs, footsteps, crisp sound effects and a playful bouncy clarinet-and-pizzicato comedy score. '
+          'The lead man is deadpan and extremely serious about everything; the comedy comes from precise physical actions, timing and escalation. ')
+AMU_LOOK = 'the man from image 1 (tall lanky Chinese man, rubbery expressive face, thick eyebrows, neat side-parted hair, slightly too-small grey tweed suit, thin red tie)'
+AMU = dict(sid='fun_amu_park', refs={
+  'amu': PORTRAIT + 'Chinese man, 35, tall and lanky, long rubbery very expressive face, thick dark eyebrows, neatly combed side-parted black hair, slightly too-small grey tweed suit with sleeves a bit short showing his wrists, white shirt, thin red tie, holding a battered brown leather briefcase, raising one eyebrow with total seriousness. Original character, not a celebrity.',
+  'owner': PORTRAIT + 'Chinese woman, 40, glamorous rich businesswoman, sleek black bob haircut, cream designer wool coat, gold earrings, big designer handbag, sunglasses pushed up on her head, impatient arched eyebrow.',
+  'guard': PORTRAIT + 'Chinese man, 55, chubby parking security guard, navy uniform and peaked cap, orange reflective vest, walkie-talkie on his belt, whistle around his neck, sleepy droopy face.',
+  'uncle': PORTRAIT + 'Chinese man, 68, retired know-it-all grandpa, white undershirt under an open short-sleeve checked shirt, grey trousers, plastic sandals, holding a round palm-leaf fan, eagerly pointing one finger.',
+  'auntie': PORTRAIT + 'Chinese woman, 58, cheerful auntie in a bright pink tracksuit and white sun visor, holding a red leash attached to a fat fluffy orange-and-white corgi dog sitting at her feet.',
+}, sets={
+  'car': 'Unretouched photo, no people. A tiny old two-door bright red city car (very small boxy hatchback with a small glass sunroof, round headlights, a little dent on the front bumper) standing in an underground parking garage, three-quarter side view, vertical 9:16.',
+  'garage': 'Unretouched wide photo, no people. Bright underground shopping-mall parking garage, fluorescent tube lights, painted white parking lines. In the centre one very tight empty parking space between a thick grey concrete pillar on the left and a glossy black luxury sedan on the right. '
+            'Clearly visible around it: a small glass security booth at the far end, a row of metal shopping trolleys, a balloon stand with a big bunch of colourful helium balloons tied to it, an elevator lobby with steel doors, and a yellow ride-on floor-scrubber cleaning machine parked by the wall. Vertical 9:16.',
+}, clips={
+  'intro': dict(dur=8, refs=['amu', 'car', 'owner', 'guard', 'uncle', 'auntie', 'garage'], still=f'Wide shot of the garage from the last image: the tiny red car from image 2 just arriving in the driving lane in front of the tight empty space, {AMU_LOOK} at the wheel. In the background: the woman from image 3 waiting at the elevator, the security guard from image 4 dozing in the glass booth, the grandpa from image 5 sitting on a folding stool fanning himself, the auntie from image 6 walking her corgi past the balloon stand.',
+                text='The tiny red car putters in and stops. The camera pans slowly across the whole garage showing every prop one by one: the balloon stand, the row of shopping trolleys, the yellow floor scrubber, the guard dozing in his booth, the rich woman at the elevator, the grandpa fanning himself, the auntie with her fat corgi. Back on the driver: he stares at the tiny space, cracks his knuckles one by one, smooths his hair in the rear-view mirror and nods to himself with enormous seriousness.'),
+  'sA': dict(dur=6, refs=['amu', 'car', 'garage'], still=f'Medium shot through the open side window: {AMU_LOOK} in the driver seat of the tiny red car from image 2, stopped in front of the tight empty space next to the pillar, both hands gripping the wheel, tongue poking out in concentration.',
+                text='He grips the wheel, looks at the space, looks at the pillar, licks a finger and holds it up to test the wind, adjusts his tie, rolls up his sleeves with great ceremony. A ticking clock and a slowly building drum roll.'),
+  'a_rev': dict(dur=8, refs=['amu', 'car', 'garage'], still=f'Rear three-quarter view in the parking garage: the small red car from image 2 backing slowly toward the empty parking bay beside a grey pillar; through its rear window we see {AMU_LOOK} looking back over his shoulder.',
+                text='He throws one arm over the passenger seat and reverses at full speed with total confidence. The car zig-zags, the wing mirror folds flat against the pillar with a clack, the car jerks forward and back five times in quick succession and ends up wedged in perfectly straight. He nods once, very proudly, and unfolds the mirror with one finger.'),
+  'a_push': dict(dur=8, refs=['amu', 'car', 'garage'], still=f'In the parking garage, {AMU_LOOK} stands behind the small red car from image 2 with both hands flat on its rear hatch, leaning forward as if to push it into the empty bay.',
+                text='Locked-off wide shot, the camera never moves closer. He pushes the tiny car by hand, face going red, polished shoes sliding on the floor; it creeps in inch by inch. He turns round and pushes with his back, then with his bottom, grunting rhythmically. Finally it rolls in and he falls flat on his face. He stands up slowly and dusts himself off with great dignity, still in the wide shot. Same man, same thin red tie throughout.'),
+  'a_jack': dict(dur=8, refs=['amu', 'car', 'garage'], still=f'{AMU_LOOK} crouching beside the tiny red car from image 2, cranking a small car jack under its side sill, the car already tilted a little.',
+                text='He jacks one side of the car up, then waddles the whole car sideways bit by bit, hopping from front to back like a crab and cranking the jack each time; the car shuffles sideways into the space centimetre by centimetre. He wipes his brow with the end of his red tie.'),
+  'a_guide': dict(dur=8, refs=['amu', 'car', 'uncle', 'garage'], still=f'Wide shot in the underground parking garage: the elderly man from image 3 stands behind the small red car from image 2, cheerfully waving both hands like a parking attendant; {AMU_LOOK} leans his head out of the open driver window looking back at him. No mirrors in close-up.',
+                text='The grandpa waves enthusiastically, hands flapping "back, back, back"; the driver obeys every gesture exactly. The car goes left, right, left; the grandpa spins round in a full circle and waves even faster; the car follows and slots in perfectly. The grandpa gives a big thumbs up; the driver answers with a tiny, very serious salute.'),
+  'sB': dict(dur=6, refs=['amu', 'car', 'garage'], still=f'{AMU_LOOK} squeezing sideways out of the half-open driver door of the tiny red car from image 2, now parked tightly in the space between the pillar and the black sedan, sucking in his stomach, briefcase first.',
+                text='The door bumps the pillar; he sucks in his stomach and squeezes out sideways inch by inch, briefcase first, then one long leg, then the other. Somewhere off-screen a strange rumble begins. He freezes, one eyebrow rising, and slowly turns his head. Suspense music builds.'),
+  'b_cart': dict(dur=8, refs=['amu', 'car', 'garage'], still=f'{AMU_LOOK} standing next to the parked tiny red car from image 2, turning in alarm toward a runaway metal shopping trolley rolling fast toward him down the lane.',
+                text='The runaway shopping trolley rattles straight at him. He sidesteps like a bullfighter with a flourish of his jacket; the trolley clangs off the black sedan, spins round and comes back; he catches it at the last second, parks it neatly beside his car, then glances at the camera.'),
+  'b_balloon': dict(dur=8, refs=['amu', 'car', 'garage'], still=f'Underground parking garage like image 3, concrete pillar and fluorescent lights: {AMU_LOOK} beside the small red car from image 2, gazing upward with raised eyebrows at a cluster of colourful party balloons hovering near the ceiling above him',
+                text='The loose bunch of balloons drifts over and its strings tangle round his briefcase handle and his tie. His heels lift off the ground; he goes up on tiptoe, then floats a few centimetres up, legs paddling in the air like a swimmer, and grabs the edge of the car sunroof with one hand to stay down. He looks at the camera, still floating.'),
+  'b_dog': dict(dur=8, refs=['amu', 'car', 'auntie', 'garage'], still=f'{AMU_LOOK} standing next to the parked tiny red car from image 2, a fat corgi dog trailing a red leash sprinting toward him, the auntie from image 3 running after it in the background.',
+                text='The fat corgi escapes and charges at him, grabs his trouser leg and tugs; he hops round in circles on one foot while the auntie chases them both. The corgi lets go, snatches his briefcase instead and waddles under the car with it. He lies flat on the floor and negotiates silently with the dog.'),
+  'b_scrub': dict(dur=8, refs=['amu', 'car', 'garage'], still=f'{AMU_LOOK} standing next to the parked tiny red car from image 2, the yellow ride-on floor scrubber machine with nobody on it rolling toward him and spraying soapy foam.',
+                text='The empty yellow floor scrubber has started by itself and chases him in slow circles round his car, spraying foam. He leaps on board, cannot find the brake, and ends up riding it standing up like a surfer, arms out for balance, spinning slowly in a cloud of foam. He glances at the camera.'),
+  'sC': dict(dur=6, refs=['amu', 'car', 'garage'], still=f'{AMU_LOOK} standing proudly next to the tiny red car from image 2 parked in the tight space, straightening his tie with a satisfied little smile.',
+                text='He straightens his tie, admires his parking from three angles and takes a small bow to nobody. Footsteps echo; the elevator dings; someone is coming. He freezes mid-bow, eyes sliding sideways. Suspense build.'),
+  'c_amu': dict(dur=8, refs=['amu', 'car', 'garage'], still=f'{AMU_LOOK} stepping backwards away from the parked tiny red car with his arms spread proudly, a banana peel on the floor right behind his heel.',
+                text='He steps back to admire his work, treads on the banana peel, slides across the floor on his back, and lands sitting upright in a shopping trolley that rolls away with him. He crosses his arms and legs as if nothing happened and rolls out of frame with total dignity.'),
+  'c_owner': dict(dur=8, refs=['owner', 'amu', 'car', 'garage'], still='The rich woman from image 1 standing between the glossy black sedan and the tiny red car from image 3, staring in disbelief at the ten-centimetre gap by her driver door; the man from image 2 standing nearby.',
+                text='She tries her driver door: it opens two centimetres and hits the tiny red car. She tries the other side: blocked by the pillar. She opens the boot and climbs in through it in her high heels, handbag first, legs kicking in the air. He watches, raises one eyebrow and gives her a small polite wave.'),
+  'c_guard': dict(dur=8, refs=['guard', 'amu', 'car', 'garage'], still='In the parking garage, the security guard from image 1 stands sideways in the narrow gap between the small red car from image 3 and a black sedan, holding a ticket notebook, looking puzzled; the man from image 2 stands beside the cars watching.',
+                text='The guard squeezed into the gap to write a ticket and is stuck fast. He blows his whistle helplessly, cheeks squashed. The man takes his arm and pulls; he pops out like a cork and they both tumble backwards onto the floor. The ticket floats down and lands on the man\'s face.'),
+  'c_uncle': dict(dur=8, refs=['uncle', 'amu', 'car', 'garage'], still='The grandpa from image 1 leaning back against the tiny red car from image 3, fan in hand, pointing at the man from image 2 as if lecturing him.',
+                text='The grandpa lectures silently, wagging his fan, and leans back on the tiny car to demonstrate. The car rolls; he windmills his arms and topples backwards straight into the open sunroof, sandals sticking out and kicking. The man looks at the sandals, then at the camera.'),
+  'outro': dict(dur=5, refs=['amu', 'car', 'garage'], still=f'{AMU_LOOK} walking away from the parked tiny red car toward the elevator, briefcase in hand, mid-step.',
+                text='He picks up his briefcase, brushes his lapels and walks off toward the elevator with a little skip. He stops, turns, looks straight into the camera and slowly raises one eyebrow. Music button.'),
+  'tw_tow': dict(dur=6, refs=['amu', 'car', 'garage'], still=f'{AMU_LOOK} next to the parked tiny red car from image 2, a yellow tow truck reversing toward it with its hook lowered; a large blue wheelchair accessibility symbol painted on the floor of the parking space.',
+                text='Twist. He notices the wheelchair symbol under his car a second too late. The tow truck hooks the tiny car and drags it away; he clings to the rear bumper, shoes skidding along the floor behind it, briefcase flapping, until they both disappear round the corner.'),
+  'tw_wrong': dict(dur=6, refs=['amu', 'car', 'garage'], still=f'{AMU_LOOK} holding up a car key remote next to the tiny red car from image 2; in the far background an identical tiny red car with its headlights flashing.',
+                text='Twist. He proudly presses the key remote: the car beside him does nothing. Across the garage an identical tiny red car beeps and flashes its lights. He looks at the car he just parked, at the other one, back again, then slowly at the camera.'),
+})
+
+GAMES = {'park': PARK, 'ceo': CEO, 'office': OFFICE, 'amu': AMU}
 
 # ───────────────────────── 管线 ─────────────────────────
 def out_dir(g): d = f"{ARCH}/{GAMES[g]['sid']}"; os.makedirs(d, exist_ok=True); return d
@@ -206,7 +263,7 @@ def render(g, key, force=False):
     if os.path.exists(mp4) and os.path.getsize(mp4) > 100000 and not force: return key, 'skip'
     first = refs(g).get('s_' + key)
     if not first: return key, 'no still'
-    args = ['gsk', 'video', KEEP + c['text'] + ' ' + SITCOM, '-m', MODEL, '--tier', 'standard', '-r', RATIO, '-d', str(c['dur']), '--audio_enable', 'true', '--video_size', '720p', '-o', mp4, '-i', first]
+    args = ['gsk', 'video', KEEP + (SILENT if g == 'amu' else '') + c['text'] + ' ' + SITCOM, '-m', MODEL, '--tier', 'standard', '-r', RATIO, '-d', str(c['dur']), '--audio_enable', 'true', '--video_size', '720p', '-o', mp4, '-i', first]
     err = ''
     for attempt in range(2):
         t0 = time.time(); o = sh(*args, timeout=2400)
@@ -242,7 +299,8 @@ def phase_publish(g):
     cov = f'{d}/s_intro.png'
     if os.path.exists(cov):
         sh('ffmpeg', '-loglevel', 'error', '-y', '-i', cov, '-vf', 'scale=540:-2', '-q:v', '80', f'{d}/cover.webp'); r2put(f'{sid}/img/cover.webp', f'{d}/cover.webp', 'image/webp')
-    req = urllib.request.Request(f'http://localhost:3000/api/admin/fun/{sid}/media', data=json.dumps({'clips': man}).encode(), headers={'content-type': 'application/json'})
+    ep = 'combo' if g == 'amu' else 'fun'
+    req = urllib.request.Request(f'http://localhost:3000/api/admin/{ep}/{sid}/media', data=json.dumps({'clips': man}).encode(), headers={'content-type': 'application/json'})
     log(g, 'PUBLISHED', urllib.request.urlopen(req, timeout=60).read().decode()[:200])
 
 if __name__ == '__main__':
