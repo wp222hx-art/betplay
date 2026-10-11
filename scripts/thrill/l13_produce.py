@@ -170,7 +170,7 @@ def r2put(key, path, ctype):
     if o.returncode: raise RuntimeError('r2 put failed ' + key + (o.stderr or '')[-200:])
 
 def phase_publish():
-    C = {**clips(), **v4_clips()}; man = {}
+    C = {**clips(), **v4_clips(), **v5_clips()}; man = {}
     for k in C:
         mp4 = f'{OUT}/{k}.mp4'
         if not os.path.exists(mp4): log('missing', k); continue
@@ -256,6 +256,38 @@ def phase_v4_render(only=None, force=False):
         for k, st in ex.map(lambda k: render_v4(k, C[k], force), keys): res[k] = st
     log('v4 render done', {k: v for k, v in res.items() if v not in ('ok', 'skip')})
 
+# ─────────── v5（2026-10-11）：圈内依次开枪 · 不给特写 · 枪口指向后背要害 ───────────
+# 每人 2 条（以「被瞄准的人」为主角，开枪者只露出持枪手臂）：hit{i} 背后一枪 → 原地倒下躺在画面下方；miss{i} 背后空膛「咔」→ 一抖、继续站着
+def v5_stills():
+    S = {}
+    for i in range(1, 14):
+        S[f'rA{i}'] = ([f'p{i}', 'set'], BW + 'Medium-wide side view inside the dark basement of image 2, camera at waist height, locked off. In the centre of the frame: the man from image 1, exactly his face, full figure from head to shoes, '
+            'standing in profile facing right inside the large white circle painted on the concrete floor, his right arm extended forward holding an old revolver aimed ahead. At the right edge of the frame only the dark out-of-focus back of the next man in the ring. '
+            'From the left edge of the frame an outstretched arm of an unseen man holds an old revolver aimed at the middle of the centre man\'s back, about one metre behind him. The concrete floor fills the lower third of the frame. ' + ONEGUN)
+        S[f'rB{i}'] = ([f'rA{i}'], BW + 'Exactly the same image, same camera, same lighting, same arm with the revolver entering from the left edge. Change only this: the man in the centre has collapsed and now lies motionless on his side on the concrete floor inside the white circle, along the bottom of the frame, '
+            'his face turned toward the camera and still recognisable, eyes closed, his revolver lying beside his open hand. A thin wisp of gun smoke rises from the muzzle at the left edge. ' + NOBLOOD)
+    return S
+def phase_v5_stills(only=None):
+    S = {k: v for k, v in v5_stills().items() if not only or k in only}
+    def go(k): rr = refs(); return img(k, S[k][1], '1:1', [rr[x] for x in S[k][0]])
+    for grp in ([k for k in S if k.startswith('rA')], [k for k in S if k.startswith('rB')]):
+        with cf.ThreadPoolExecutor(6) as ex:
+            for k, st in ex.map(go, grp): log('v5 still', k, st)
+def v5_clips():
+    C = {}
+    for i in range(1, 14):
+        C[f'hit{i}'] = dict(dur=4, frames=[f'rA{i}', f'rB{i}'], text=LOCK + 'He stands rigid for one second, eyes shut. The revolver behind him fires at his back: one bright muzzle flash and one deafening gunshot. Instantly he goes limp, his knees buckle and he collapses straight down onto the concrete inside the circle, '
+            'and lies motionless along the bottom of the frame, his revolver clattering beside him. The arm at the left edge stays where it is, gun smoke drifting. ' + NOBLOOD + 'No dialogue.')
+        C[f'miss{i}'] = dict(dur=4, frames=[f'rA{i}', f'rA{i}'], text=LOCK + 'He stands rigid, eyes shut. After one second the revolver behind him clicks dry — only a tiny metallic click, no flash, no smoke, no shot. His shoulders flinch hard, he gasps once and stays standing in exactly the same place, still aiming forward, trembling. No dialogue.')
+    return C
+def phase_v5_render(only=None, force=False):
+    C = v5_clips(); keys = [k for k in C if not only or k in only]
+    log('v5 render', len(keys), 'clips, concurrency', CONC)
+    res = {}
+    with cf.ThreadPoolExecutor(CONC) as ex:
+        for k, st in ex.map(lambda k: render_v4(k, C[k], force), keys): res[k] = st
+    log('v5 render done', {k: v for k, v in res.items() if v not in ('ok', 'skip')})
+
 if __name__ == '__main__':
     ph = sys.argv[1]
     only = next((a.split('=', 1)[1].split(',') for a in sys.argv if a.startswith('--only=')), None)
@@ -266,4 +298,6 @@ if __name__ == '__main__':
     elif ph == 'render': phase_render(only, '--force' in sys.argv)
     elif ph == 'publish': phase_publish()
     elif ph == 'v4stills': phase_v4_stills(only)
+    elif ph == 'v5stills': phase_v5_stills(only)
+    elif ph == 'v5render': phase_v5_render(only, '--force' in sys.argv)
     elif ph == 'v4render': phase_v4_render(only, '--force' in sys.argv)

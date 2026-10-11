@@ -71,7 +71,8 @@
     return new Promise(async (res) => {
       const nv = V[1 - cur], ov = V[cur]
       if (nv.dataset.k !== k) { nv.dataset.k = k; nv.src = c.url }
-      nv.currentTime = 0; nv.muted = false; nv.loop = !!opts.loop; nv.volume = opts.vol ?? 1
+      nv.currentTime = opts.from || 0; nv.muted = false; nv.loop = !!opts.loop; nv.volume = opts.vol ?? 1
+      if (opts.until != null) { const u = opts.until; const tk = () => { if (done) return; if (nv.currentTime >= u) { nv.pause(); fin() } else requestAnimationFrame(tk) }; requestAnimationFrame(tk) }
       if (opts.cue != null) { let fired = false, pre = false; const cueT = opts.cue; const tick = () => { if (done) return; const t = nv.currentTime; if (!pre && t >= cueT - 0.55) { pre = true; heartStop(); opts.onPre?.() } if (!fired && t >= cueT - 0.03) { fired = true; opts.onCue?.() } else requestAnimationFrame(tick) }; requestAnimationFrame(tick) }
       let done = false, t = 0
       const fin = () => { if (done) return; done = true; clearTimeout(t); res(true) }
@@ -214,28 +215,26 @@
     if (rd.type === 'duel') return performDuel(rd)
     for (let v = 0; v <= rd.voids; v++) {
       if (v < rd.voids) { caption('<b class="red">敲杖！</b> 这一枪会让所有人死——作废，重来。', 'warn'); preload('voidC'); await play(has('voidC') ? 'voidC' : 'void'); continue }
-      const n = rd.before.length, nf = rd.fired.length, nd = n - nf
-      if (nf) {
-        // 有人开火：齐射片原声压低，在闪光那一帧叠真实枪声（几把枪响就叠几层）+ 其余空膛的"咔"
-        caption('<b>灯亮——</b>', 'dim'); preload('death' + rd.dead[0])
-        await play('fire' + n, { max: 3400, vol: 0.12, cue: CUES['fire' + n] ?? 1.5,
-          onCue: () => { bang(nf); clickN(Math.min(nd, 5), 0.02); samp('ring', 0.35, 0.25); stamp(`砰！<small>${nf} 把枪响了 · ${nd} 把空膛</small>`, 'bang') } })
-        // 倒地：最多 3 人特写；中枪声与画面闪光对齐，随后倒地闷响，尸体留在画面下方
-        const shown = rd.dead.slice(0, 3)
-        for (const [j, id] of shown.entries()) {
-          if (shown[j + 1]) preload('death' + shown[j + 1])
-          caption(`<b class="red">${id} 号 ${esc(name(id))}</b>`)
-          await play('death' + id, { vol: 0.1, cue: CUES['death' + id] ?? 1, onCue: () => { bang(1); samp('fall', 0.9, 0.45) } })
-          S.dead.add(id); renderRoster(rd.after); await sleep(350)
-        }
-      } else {
-        // 全是空膛：不放齐射片（没有一把枪响），镜头给一个人的脸——只有一串干巴巴的"咔"，然后死寂
-        const w = pick(rd.before); preload('dry' + w)
-        caption('<b>灯亮——</b>', 'dim')
-        await play(has('dry' + w) ? 'dry' + w : 'face' + w, { max: 4200, vol: 0.08, cue: CUES['dry' + w] ?? 1,
-          onCue: () => { clickN(Math.min(n, 6)); stamp(`咔。<small>${n} 把全是空膛</small>`, 'click'); flashFx('click') } })
-        caption('<b>全是空膛。</b>没有人倒下。')
+      const n = rd.before.length
+      // ① 灯亮：全景一眼（齐射片闪光前的静止部分，无枪声）
+      const seq = ringOrder(rd)
+      caption(`<b>灯亮——</b> 从 <b>${seq[0]}</b> 号身后开始，一个接一个扣扳机`, 'dim')
+      const fk = 'fire' + n, fc = CUES[fk] ?? 1.5
+      ring.show(rd.before, S.dead)
+      await play(fk, { vol: 0, until: Math.max(0.6, Math.min(fc - 0.12, 1.4)) })
+      // ② 依次开枪：沿着圈，每个人身后那把枪轮流扣——咔 = 他活，砰 = 他原地倒下（中景，不给特写）
+      let shotNo = 0
+      for (const [j, t] of seq.entries()) {
+        const shooter = rd.before[(rd.before.indexOf(t) - 1 + n) % n], hit = rd.dead.includes(t)
+        const k = (hit ? 'hit' : 'miss') + t, c = CUES[k] ?? 1
+        if (seq[j + 1]) preload((rd.dead.includes(seq[j + 1]) ? 'hit' : 'miss') + seq[j + 1])
+        ring.aim(shooter, t); caption(`<b>${shooter}</b> 号 → <b>${t} 号 ${esc(name(t))}</b>`, hit ? '' : 'dim')
+        const fast = !hit && j > 2 // 前几枪慢、后面加速
+        await play(k, { vol: 0.08, from: Math.max(0, c - (fast ? 0.35 : 0.7)), until: hit ? c + 2.3 : c + (fast ? 0.55 : 0.9), cue: c,
+          onCue: () => { if (hit) { shotNo++; bang(1); samp('fall', 0.9, 0.5); if (shotNo === 1) samp('ring', 0.3, 0.2); stamp('砰！', 'bang') } else { clickN(1); flashFx('click') } ring.result(t, hit) } })
+        if (hit) { S.dead.add(t); renderRoster(rd.after) }
       }
+      ring.hide()
       rd.dead.forEach((id) => S.dead.add(id)); renderRoster(rd.after)
       await bigText(rd.dead.length ? `倒下 <em>${rd.dead.length}</em> 人<small>还剩 ${rd.after.length} 人</small>` : `<em>0</em> 人倒下<small>${rd.after.length} 人都还站着</small>`, rd.dead.length ? 'red' : '', 1300)
     }
@@ -247,18 +246,43 @@
         caption(`第 <b>${sh.d}</b> 枪 · 各装 <b class="red">${sh.bullets}</b> 发`)
         const lk = 'load' + Math.min(sh.bullets, 5); preload(lk); await play(has(lk) ? lk : 'duel_load', { max: 5000 })
         if (v < sh.voids) { caption('<b class="red">敲杖！</b> 两人都会死——重来。', 'warn'); await play(has('voidC') ? 'voidC' : 'void'); continue }
-        if (sh.dead.length) {
-          // 一把响一把空：先"咔"（活下来的人扣空），紧跟着"砰"
-          const d = sh.dead[0]; caption(`<b class="red">${d} 号 ${esc(name(d))}</b>`)
-          await play('death' + d, { vol: 0.1, cue: CUES['death' + d] ?? 1, onPre: () => { if (sh.fired.length === 1) setTimeout(() => clickN(1), 250) }, onCue: () => { bang(1); samp('fall', 0.9, 0.45); samp('ring', 0.35, 0.25); stamp('砰！', 'bang') } })
-          S.dead.add(d); renderRoster(rd.pair)
-        } else {
-          for (const x of [a, b]) { renderRoster(rd.pair, [x]); caption(`<b>${x} 号</b> 扣下扳机——`); await play(has('dry' + x) ? 'dry' + x : 'duel_dry', { max: 3800, vol: 0.08, cue: CUES['dry' + x] ?? 1, onCue: () => { clickN(1); stamp('咔。', 'click'); flashFx('click') } }) }
+        // 决斗：两人互指，依次扣——先 a 身后（b 的枪）对 a，再 b
+        for (const t of [b, a]) {
+          const hit = sh.dead.includes(t), k = (hit ? 'hit' : 'miss') + t, c = CUES[k] ?? 1, sh2 = t === a ? b : a
+          renderRoster(rd.pair, [t]); caption(`<b>${sh2}</b> 号扣扳机 → <b>${t} 号 ${esc(name(t))}</b>`)
+          await play(has(k) ? k : (hit ? 'death' + t : 'dry' + t), { vol: 0.08, from: Math.max(0, c - 0.8), until: hit ? c + 2.4 : c + 1.0, cue: c,
+            onCue: () => { if (hit) { bang(1); samp('fall', 0.9, 0.5); samp('ring', 0.35, 0.2); stamp('砰！', 'bang') } else { clickN(1); stamp('咔。', 'click'); flashFx('click') } } })
+          if (hit) { S.dead.add(t); renderRoster(rd.pair); break }
+        }
+        if (!sh.dead.length) {
           await bigText('<em>两声空响</em><small>两个人都还站着</small>', '', 1100)
         }
       }
     }
   }
+  /** 依次开枪的顺序（保证"死人不开枪"）：t 号的枪手是他身后的 t-1；倒下的人必须先扣完自己那一枪。
+   *  → 从一个本轮活下来的人开始，沿圈往回走：目标 s, s-1, s-2 …；每一枪的枪手就是下一枪的目标 */
+  function ringOrder(rd) {
+    const b = rd.before, n = b.length, i0 = b.findIndex((x) => rd.after.includes(x))
+    return Array.from({ length: n }, (_, j) => b[(i0 - j + n * 2) % n])
+  }
+  // 右上角小地图：圈 + 当前「谁 → 谁」
+  const ring = (() => {
+    const el = document.createElement('div'); el.className = 'l13-mini'; $('#l13-stage').appendChild(el)
+    let ids = []
+    const xy = (i, n) => { const a = (i / n) * Math.PI * 2 - Math.PI / 2; return [50 + 40 * Math.cos(a), 50 + 40 * Math.sin(a)] }
+    return {
+      show(alive, dead) { ids = alive; const n = alive.length
+        el.innerHTML = `<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="none" stroke="#fff" stroke-opacity=".18" stroke-dasharray="2 2"/><line id="mm-aim" x1="0" y1="0" x2="0" y2="0" stroke="#ffb020" stroke-width="2.4" marker-end="url(#mmh)" opacity="0"/><defs><marker id="mmh" viewBox="0 0 6 6" refX="5" refY="3" markerWidth="4" markerHeight="4" orient="auto"><path d="M0 0L6 3L0 6z" fill="#ffb020"/></marker></defs>${alive.map((id, i) => { const [x, y] = xy(i, n); return `<g id="mm${id}" class="mm"><circle cx="${x}" cy="${y}" r="6.5"/><text x="${x}" y="${y + 2.6}" text-anchor="middle">${id}</text></g>` }).join('')}</svg>`
+        el.classList.add('on') },
+      aim(a, b) { const n = ids.length, [x1, y1] = xy(ids.indexOf(a), n), [x2, y2] = xy(ids.indexOf(b), n), L = Math.hypot(x2 - x1, y2 - y1), k = 7.5 / L
+        const ln = el.querySelector('#mm-aim'); if (!ln) return; ln.setAttribute('x1', x1 + (x2 - x1) * k); ln.setAttribute('y1', y1 + (y2 - y1) * k); ln.setAttribute('x2', x2 - (x2 - x1) * k * 1.2); ln.setAttribute('y2', y2 - (y2 - y1) * k * 1.2); ln.setAttribute('opacity', 1)
+        el.querySelectorAll('.mm').forEach((g) => g.classList.remove('cur', 'gun')); el.querySelector('#mm' + b)?.classList.add('cur'); el.querySelector('#mm' + a)?.classList.add('gun') },
+      result(id, hit) { el.querySelector('#mm' + id)?.classList.add(hit ? 'dead' : 'safe') },
+      hide() { setTimeout(() => el.classList.remove('on'), 600) }
+    }
+  })()
+
   async function settle(r) {
     const st = r.streak || { n: 0 }; S.streak = st.n; M.pool = st.pool ?? M.pool
     if (r.side) {
