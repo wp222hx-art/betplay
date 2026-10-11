@@ -225,6 +225,26 @@ ${nav('thrill')}
 <script src="/static/lethal13.js"></script>
 </body></html>`
 
+// 逐个揭晓 · 淘汰赛（6 部通用播放器，玩法同致命13）
+export const gauntletPage = (sid: string, title: string, board: string) => `${head(title + ' · 逐个揭晓淘汰赛 | MoMocash剧场', '<link href="/static/thrill.css" rel="stylesheet"><link href="/static/lethal13.css" rel="stylesheet"><link href="/static/gauntlet.css" rel="stylesheet">', `/gimg/${sid}/cover.webp`)}
+<body class="thrill-body l13-body l13v4 g-body g-${board}" data-sid="${sid}">
+${nav(board === 'fun' ? 'fun' : 'thrill')}
+<main id="l13-play" class="l13-main">
+  <section id="l13-stage" class="l13-stage">
+    <video id="l13-v0" class="l13-video" playsinline preload="auto"></video>
+    <video id="l13-v1" class="l13-video" playsinline preload="auto"></video>
+    <header id="l13-hud" class="l13-hud"></header>
+    <nav id="l13-roster" class="l13-roster"></nav>
+    <div id="l13-caption" class="l13-caption"></div>
+    <div id="l13-big" class="l13-big"></div>
+    <canvas id="l13-fx" class="l13-fx"></canvas>
+    <div id="l13-over" class="l13-over"></div>
+    <section id="l13-bet" class="l13-betbar"></section>
+  </section>
+</main>
+<script src="/static/gauntlet.js"></script>
+</body></html>`
+
 // 开心 1 分钟：恶搞喜剧博弈短片（9:16 竖屏）
 export const funHubPage = () => `${head('开心1分钟 · 恶搞喜剧押注短片 | MoMocash剧场', '<link href="/static/fun.css" rel="stylesheet"><link href="/static/combo.css" rel="stylesheet">')}
 <body class="fun-body">

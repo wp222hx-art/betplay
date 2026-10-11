@@ -9,7 +9,7 @@ import { modelHealth, predictiveQueue, rankVideoModels, submitVideo, buildVideoP
 import { branches, overview, scriptTree } from './agents/console'
 import { applyClipPlan, approveExtension, clipPairs, derive, generatePoems, ingestSignals, regulate } from './agents/deriver'
 import type { Bindings } from './gateway/llm'
-import { playerPage, consolePage, agentsPage, comicPage, filmPage, voicePage, lovePage, discoverPage, marketPage, archPage, seriesPage, thrillHubPage, thrillPage, lethal13Page, funHubPage, funPage, comboPage } from './pages/shell'
+import { playerPage, consolePage, agentsPage, comicPage, filmPage, voicePage, lovePage, discoverPage, marketPage, archPage, seriesPage, thrillHubPage, thrillPage, lethal13Page, gauntletPage, funHubPage, funPage, comboPage } from './pages/shell'
 import CATALOG from './catalog/data.json'
 import * as Tax from './catalog/taxonomy'
 import * as Growth from './growth/growth'
@@ -24,6 +24,7 @@ import { createEngine } from './comic/factory'
 import { createThrill, ladderTable, MAX_RTP } from './thrill/engine'
 import { THRILL_SCRIPTS } from './thrill/scripts'
 import * as L13 from './thrill/lethal13'
+import * as GT from './thrill/gauntlet'
 import * as Fun from './fun/engine'
 import { FUN_GAMES } from './fun/games'
 import * as Combo from './fun/combo'
@@ -246,9 +247,20 @@ app.get('/api/thrill', async (c) => {
     const best: any = await c.env.DB.prepare(`SELECT COALESCE(MAX(hits),0) h, COALESCE(MAX(mult),0) m FROM thrill_runs WHERE series_id=? AND status='ended'`).bind(r.id).first()
     out.push({ id: r.id, title: r.title, logline: r.logline, tension: r.tension, cover: r.cover, demo: r.status === 'demo', pool: await E.poolBalance(c.env), plays: agg?.n || 0, best_streak: best?.h || 0, top_mult: best?.m || 0, ladder: top.map((x) => x.mult), story_cards: E.STORY.length, bonus_cards: E.BONUS.length, jackpot_step: E.CFG.jackpot_step, url: '/t/' + r.id })
   }
+  const gts = (await GT.gList(c.env as any, 'thrill')).map((g: any) => ({ ...g, special: 'gauntlet', soon: !g.live }))
+  out.splice(1, 0, ...gts)
   return c.json({ items: out })
 })
 // ── 致命13（监狱俄罗斯轮盘 · 模拟演出版）──
+// ─────────── 逐个揭晓 · 淘汰赛（6 部通用） ───────────
+app.get('/api/g', async (c) => c.json({ items: await GT.gList(c.env as any, c.req.query('board') || undefined) }))
+app.get('/api/g/:sid/meta', async (c) => c.json(await GT.gMeta(c.env as any, c.req.param('sid'), uidOf(c) || undefined)))
+app.post('/api/g/:sid/start', async (c) => { const b = await body(c), u = uidOf(c, b); await rateLimit(c.env as any, 'g:' + u, 90, 3600000); return c.json(await GT.gStart(c.env as any, { sid: c.req.param('sid'), userId: u, ipHash: await ipKey(c), sybil: await isSybil(c.env, u) })) })
+app.post('/api/g/runs/:id/arm', async (c) => { const b = await body(c); return c.json(await GT.gArm(c.env as any, { runId: c.req.param('id'), userId: uidOf(c, b) })) })
+app.post('/api/g/runs/:id/act', async (c) => { const b = await body(c); return c.json(await GT.gAct(c.env as any, { runId: c.req.param('id'), userId: uidOf(c, b), k: +b.k, tier: b.tier || null, bet: +b.bet || 0 })) })
+app.get('/api/g/runs/:id/verify', async (c) => c.json(await GT.gVerify(c.env as any, c.req.param('id'))))
+app.post('/api/admin/gauntlet/:sid/media', async (c) => { const b = await body(c); return c.json(await GT.gSaveMedia(c.env as any, c.req.param('sid'), b.clips || {})) })
+app.get('/g/:sid', (c) => { const g = GT.GAUNTLETS[c.req.param('sid')]; return g ? c.html(gauntletPage(g.sid, g.title, g.board)) : c.notFound() })
 app.get('/api/l13/meta', async (c) => c.json(await L13.l13Meta(c.env as any, uidOf(c) || undefined)))
 app.post('/api/l13/start', async (c) => { const b = await body(c), u = uidOf(c, b); await rateLimit(c.env as any, 'l13:' + u, 60, 3600000); return c.json(await L13.l13Start(c.env as any, { userId: u, stake: +b.stake, picks: Array.isArray(b.picks) ? b.picks : [], ipHash: await ipKey(c), sybil: await isSybil(c.env, u), champ: +b.champ || 0, champStake: +b.champ_stake || 0 })) })
 app.post('/api/l13/quote', async (c) => { const b = await body(c); return c.json(L13.slipQuote(Array.isArray(b.picks) ? b.picks : [])) })
@@ -311,7 +323,7 @@ app.post('/api/combo/:sid/runs/:id/reveal', async (c) => { const b = await body(
 app.post('/api/combo/:sid/runs/:id/skip', async (c) => { const b = await body(c); return c.json(await Combo.comboSkip(c.env as any, c.req.param('sid'), { runId: c.req.param('id'), userId: uidOf(c, b) })) })
 app.get('/api/combo/:sid/runs/:id/verify', async (c) => c.json(await Combo.comboVerify(c.env as any, c.req.param('sid'), c.req.param('id'))))
 app.post('/api/admin/combo/:sid/media', async (c) => { const b = await body(c); return c.json(await Combo.comboSaveMedia(c.env as any, c.req.param('sid'), b.clips || {})) })
-app.get('/api/fun', async (c) => c.json([...(await Combo.comboList(c.env)), ...(await Fun.funList(c.env))]))
+app.get('/api/fun', async (c) => c.json([...(await GT.gList(c.env as any, 'fun')).map((g: any) => ({ ...g, tag: '淘汰赛 · 押人数' })), ...(await Combo.comboList(c.env)), ...(await Fun.funList(c.env))]))
 app.get('/api/fun/:sid/meta', async (c) => c.json(await Fun.funMeta(c.env, c.req.param('sid'), uidOf(c) || undefined)))
 app.post('/api/fun/:sid/quote', async (c) => { const b = await body(c); const g = FUN_GAMES[c.req.param('sid')]; if (!g) return c.json({ error: 'NOT_FOUND', message: '无此剧' }, 404); return c.json(Fun.quote(g, Array.isArray(b.picks) ? b.picks : [])) })
 app.post('/api/fun/:sid/start', async (c) => { const b = await body(c), u = uidOf(c, b); await rateLimit(c.env as any, 'fun:' + u, 80, 3600000); return c.json(await Fun.funStart(c.env as any, c.req.param('sid'), { userId: u, stake: +b.stake, picks: Array.isArray(b.picks) ? b.picks : [], final: b.final || undefined, finalStake: +b.final_stake || 0, ipHash: await ipKey(c), sybil: await isSybil(c.env, u) })) })

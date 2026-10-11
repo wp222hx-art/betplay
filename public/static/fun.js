@@ -23,7 +23,7 @@
     const list = $('#fun-list')
     try {
       const items = await api('/api/fun')
-      list.innerHTML = items.map((g, i) => `<a class="fun-card" href="${g.url}" style="--c:${g.color}">
+      list.innerHTML = items.map((g, i) => `<a class="fun-card" href="${g.gauntlet && !g.live ? 'javascript:void 0' : g.url}" style="--c:${g.color}">
         <div class="cover" style="${g.cover ? `background-image:url('${g.cover}')` : ''}"><span class="tag">${esc(g.tag)}</span>${g.combo ? '<span class="combo-badge">阿木系列 · 70 种结局</span>' : ''}${g.live ? '' : '<span class="soon">拍摄中</span>'}<span class="play"><i class="fas fa-play"></i></span></div>
         <div class="info"><h3>${esc(g.title)}</h3><p>${esc(g.logline)}</p><div class="foot"><span><i class="fas fa-users"></i> ${fmt(g.plays)} 局</span><span class="go">押一单 <i class="fas fa-arrow-right"></i></span></div></div></a>`).join('')
     } catch (e) { list.innerHTML = `<div class="f-empty">${esc(e.message)}</div>` }

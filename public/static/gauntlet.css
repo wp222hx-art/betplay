@@ -1,0 +1,21 @@
+/* 逐个揭晓淘汰赛 · 在 lethal13.css v4 之上的薄主题层 */
+.g-body { --g-c: #ff3b4f }
+.g-still { position: absolute; inset: 0; background: #0b0b10 center/cover no-repeat; opacity: 0; transition: opacity .35s; z-index: 0 }
+.g-still.on { opacity: 1 }
+.g-body .l13-video { z-index: 1 }
+.g-body .l13-over.lobby .lb h1 { color: var(--g-c); letter-spacing: .08em }
+.g-log { max-width: 34em; margin: 4px auto 10px; font-size: 13px; line-height: 1.6; opacity: .82 }
+.g-cast { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 10px 0 14px }
+.g-cast span { position: relative; width: 52px; height: 66px; border-radius: 8px; background: #222 center/cover; border: 1px solid rgba(255,255,255,.18); overflow: hidden }
+.g-cast span b { position: absolute; left: 4px; top: 2px; font-size: 11px; text-shadow: 0 1px 2px #000 }
+.g-cast span small { position: absolute; left: 0; right: 0; bottom: 0; font-size: 10px; padding: 1px 0; background: rgba(0,0,0,.6); text-align: center; white-space: nowrap; overflow: hidden }
+.g-body .l13-roster .rp.hi { box-shadow: 0 0 0 2px var(--g-c), 0 0 14px var(--g-c) }
+/* 开心 1 分钟：明亮喜剧风 */
+.g-fun .l13-stamp.bang { color: #ffb020; text-shadow: 0 0 18px rgba(255,176,32,.7); font-family: inherit }
+.g-fun .l13-stamp.click { color: #4ade80 }
+.g-fun .l13-stage.fx-bang::after { background: radial-gradient(circle, rgba(255,176,32,.35), transparent 70%) }
+.g-fun .l13-caption b.red { color: #ffb020 }
+.g-fun .l13-big.red em { color: #ffb020 }
+.thrill-card.g-card .cover { background-color: #15151c; background-size: cover; background-position: center }
+.thrill-card.g-card.soon { opacity: .72; cursor: default }
+.thrill-card.g-card h3 { color: var(--c) }

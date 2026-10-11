@@ -159,7 +159,7 @@ def jobs_stills_B(sid):
     J += [(f'w{i}', c['style'] + c['win'] + ' The person is image 1, exactly their face; the location is image 2.', '1:1', [f'p{i}', 'set']) for i in range(1, 9)]
     return J
 def run_img(sid, J, force=False):
-    with cf.ThreadPoolExecutor(6) as ex:
+    with cf.ThreadPoolExecutor(int(os.environ.get('G_IMG', '3'))) as ex:
         for k, st in ex.map(lambda j: img(sid, j[0], j[1], j[2], j[3], force), J): log(sid, k, st)
 
 def clips(sid):
@@ -217,7 +217,7 @@ if __name__ == '__main__':
     only = next((a.split('=', 1)[1].split(',') for a in sys.argv if a.startswith('--only=')), None)
     force = '--force' in sys.argv
     if ph == 'render': phase_render(sids, only, force); sys.exit()
-    with cf.ThreadPoolExecutor(len(sids)) as ex:
+    with cf.ThreadPoolExecutor(int(os.environ.get('G_GAMES', '2'))) as ex:
         def one(s):
             if ph == 'refs': run_img(s, [j for j in jobs_refs(s) if not only or j[0] in only], force)
             elif ph == 'stillsA': run_img(s, [j for j in jobs_stills_A(s) if not only or j[0] in only], force)
