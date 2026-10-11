@@ -158,7 +158,9 @@
       if (rc.released?.length) caption(`主持人：<b>${rc.released.map((x) => x + ' 号').join('、')}</b>，你们可以走了。`)
       renderRoster(rc.pair, rc.pair)
       caption(`<b class="red">决斗</b> · ${rc.pair.map((x) => `${x} 号 ${esc(name(x))}`).join(' <b>对</b> ')}`, 'warn')
-      preload('duel_intro'); await play('duel_intro', { max: 4500 })
+      if (rc.pair.every((x) => has('face' + x))) {
+        for (const x of rc.pair) { preload('face' + x); renderRoster(rc.pair, [x]); caption(`<b class="red">决斗</b> · <b>${x} 号 ${esc(name(x))}</b>`, 'warn'); await play('face' + x, { max: 2600 }) }
+      } else { preload('duel_intro'); await play('duel_intro', { max: 4500 }) }
     } else {
       caption(`${rc.extra ? '<b class="red">加赛</b> · ' : ''}第 <b>${rc.k}</b> 轮 · 每把枪装 <b class="red">${rc.bullets}</b> 发 · 每人中枪 ${pct(rc.bullets / 6)}`)
       const lk = 'load' + Math.min(rc.bullets, 5); preload(lk); heart(90 + rc.k * 12)
@@ -167,12 +169,15 @@
     // ② 屏上押注：同时循环播放当轮一个活人的近景脸（决赛 = 真正剩下的人）
     const pool = duel ? rc.pair : rc.alive, who = pool[Math.floor(Math.random() * pool.length)]
     const fk = 'face' + who; if (has(fk)) play(fk, { loop: true })
+    // 少人轮 / 决斗：押注期间轮流切每个真正活着的人的脸
+    let cyc = 0, ci = pool.indexOf(who)
+    if (pool.length <= 4) cyc = setInterval(() => { ci = (ci + 1) % pool.length; const x = pool[ci]; if (has('face' + x)) { play('face' + x, { loop: true }); renderRoster(pool, [x]) } }, 2600)
     caption(duel ? `${rc.pair.map((x) => `<b>${x} 号</b>`).join(' 对 ')} · 每枪加一发` : `<b>${rc.alive.length}</b> 人举枪 · 灯一亮同时扣扳机`)
     renderRoster(pool, [who])
     const arm = await api(`/api/l13/runs/${S.run.run_id}/arm`, { body: {} })
     const lockAt = arm.lock_at + (Date.now() - arm.server_time) - 800
     heart(140 + rc.k * 8)
-    const choice = await betWindow(rc, lockAt)
+    const choice = await betWindow(rc, lockAt); clearInterval(cyc)
     let r
     try { r = await api(`/api/l13/runs/${S.run.run_id}/act`, { body: { k: rc.k, ...(choice || {}) } }) }
     catch (e) { toast(e.message); if (e.code === 'INSUFFICIENT') needChips(); r = await api(`/api/l13/runs/${S.run.run_id}/act`, { body: { k: rc.k } }) }
