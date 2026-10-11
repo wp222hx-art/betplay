@@ -185,7 +185,7 @@
       let bet = M.cfg.bets.includes(S.stake) ? S.stake : 20, placed = null
       SFX.open()
       const odds = (i) => { const f = Math.max(0, Math.min(1, (Date.now() - openAt) / W)), rtp = M.cfg.rtp_hi - (M.cfg.rtp_hi - M.cfg.rtp_lo) * f; return Math.max(1.01, Math.floor((rtp / arm.probs[i]) * 100) / 100) }
-      win.className = 'cb-window'
+      win.className = 'cb-window'; stage.classList.add('win-open')
       win.innerHTML = `<div class="w-h"><span class="w-k">${esc(s.key)}</span><b>${esc(s.q)}</b><em id="w-left">6.0s</em></div><div class="w-bar"><i id="w-bar"></i></div>
         <div class="w-opts">${s.opts.map((o, i) => `<button class="wo" data-i="${i}" data-id="${o.id}"><b>${esc(o.label)}</b><small>${pct(arm.probs[i])}</small><em data-o="${i}">${xm(odds(i))}</em></button>`).join('')}</div>
         <div class="w-f"><div class="w-chips">${M.cfg.bets.map((v) => `<button class="wc ${v === bet ? 'on' : ''}" data-v="${v}">${v}</button>`).join('')}</div><span class="w-note">越早押越高 · 押错不出局</span></div>`
@@ -211,7 +211,7 @@
       }, 100)
       RT.window = { k, pick: (i) => win.querySelectorAll('.wo')[i]?.click() }
     }
-    function closeWindow() { clearInterval(wTimer); win.classList.add('closing'); setTimeout(() => (win.className = 'cb-window hidden'), 350); RT.window = null }
+    function closeWindow() { clearInterval(wTimer); stage.classList.remove('win-open'); win.classList.add('closing'); setTimeout(() => (win.className = 'cb-window hidden'), 350); RT.window = null }
 
     // ─────────── 结局 ───────────
     async function finale() {

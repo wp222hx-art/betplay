@@ -31,7 +31,7 @@
 .cb-cap.in{opacity:1;transform:none}.cb-cap small{display:block;font-size:11px;color:#ffd23f;letter-spacing:2px;margin-bottom:2px}
 .cb-cap b{font-size:18px}.cb-cap .drum{animation:drum .25s infinite alternate}
 @keyframes drum{to{letter-spacing:4px}}
-.cb-window:not(.hidden)~.cb-cap{opacity:0}
+.cb-window:not(.hidden)~.cb-cap,.win-open .cb-cap{opacity:0!important}
 /* 追加窗口：片子不停 */
 .cb-window{position:absolute;left:10px;right:10px;bottom:12px;z-index:9;background:rgba(255,250,240,.96);border-radius:20px;padding:12px;box-shadow:0 14px 40px rgba(0,0,0,.45);border:3px solid var(--c,#ff5a3c);animation:wIn .35s cubic-bezier(.2,1.4,.4,1)}
 .cb-window.hidden{display:none}.cb-window.closing{animation:wOut .35s forwards}
