@@ -162,3 +162,13 @@
 .t-flash.cash div{color:var(--coin)}
 .gate-log li.cash{background:#2a2108;color:#f3dca0}.gate-log li.cash b{color:var(--coin)}
 @media(max-width:900px){.g-opts.two{grid-template-columns:1fr 1fr}}
+
+/* 致命13 卡片 */
+.l13-cover{background:radial-gradient(circle at 50% 40%,#3a0d12,#050304 70%)!important;display:flex;align-items:center;justify-content:center}
+.l13-logo{position:relative;z-index:1;font-family:'Noto Serif SC',serif;font-size:44px;font-weight:900;letter-spacing:6px;color:#e8d6d9;text-shadow:0 0 30px rgba(255,59,79,.6)}
+.l13-logo em{font-style:normal;color:#ff3b4f;font-family:'Fredoka'}
+/* 封面主视觉 */
+.l13-cover.has-art{background:#000 var(--art) center/cover no-repeat!important;justify-content:flex-start;padding-left:7%}
+.l13-cover.has-art .l13-logo{font-size:48px;line-height:1.05;display:flex;flex-direction:column;text-shadow:0 0 24px rgba(255,59,79,.55),0 2px 10px #000}
+.l13-cover.has-art .l13-logo small{font-family:'Noto Sans SC',sans-serif;font-size:12px;font-weight:600;letter-spacing:4px;color:rgba(232,214,217,.7);margin-top:10px;text-shadow:none}
+.thrill-card.l13-card:hover .l13-cover.has-art{background-size:106% auto!important;transition:background-size .6s}

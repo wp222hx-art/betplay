@@ -182,7 +182,7 @@ def phase_publish():
             w = f'{OUT}/p{i}.webp'; sh('ffmpeg', '-loglevel', 'error', '-y', '-i', p, '-vf', 'crop=iw:iw*0.9:0:0,scale=200:-2', '-q:v', '82', w)
             r2put(f'{SID}/img/p{i}.webp', w, 'image/webp')
     if os.path.exists(f'{OUT}/plate13.png'):
-        sh('ffmpeg', '-loglevel', 'error', '-y', '-i', f'{OUT}/plate13.png', '-vf', 'scale=720:-2', '-q:v', '80', f'{OUT}/cover.webp'); r2put(f'{SID}/img/cover.webp', f'{OUT}/cover.webp', 'image/webp')
+        sh('ffmpeg', '-loglevel', 'error', '-y', '-i', f'{OUT}/keyart.png' if os.path.exists(f'{OUT}/keyart.png') else f'{OUT}/plate13.png', '-vf', 'scale=720:-2', '-q:v', '80', f'{OUT}/cover.webp'); r2put(f'{SID}/img/cover.webp', f'{OUT}/cover.webp', 'image/webp')
     body = json.dumps({'clips': man}).encode()
     req = urllib.request.Request('http://localhost:3000/api/admin/l13/media', data=body, headers={'content-type': 'application/json'})
     log('PUBLISHED', urllib.request.urlopen(req, timeout=60).read().decode()[:300])

@@ -1,4 +1,4 @@
-const head = (title: string, extra = '') => `<!DOCTYPE html>
+const head = (title: string, extra = '', og = '/static/brand/og.png') => `<!DOCTYPE html>
 <html lang="zh-CN"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>${title}</title>
@@ -6,7 +6,7 @@ const head = (title: string, extra = '') => `<!DOCTYPE html>
 <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=ZCOOL+KuaiLe&family=Noto+Serif+SC:wght@500;700;900&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="icon" type="image/svg+xml" href="/static/brand/momo.svg"><link rel="icon" type="image/png" sizes="32x32" href="/static/brand/favicon-32.png"><link rel="apple-touch-icon" href="/static/brand/apple-touch-icon.png"><link rel="manifest" href="/static/manifest.webmanifest"><meta name="theme-color" content="#ff5c9f">
-<meta property="og:site_name" content="MoMocash剧场"><meta property="og:title" content="${title}"><meta property="og:description" content="MoMocash剧场 · 边看边猜剧情的互动剧：漫剧 · 真人剧 · 抽象剧"><meta property="og:image" content="/static/brand/og.png"><meta name="twitter:card" content="summary_large_image">
+<meta property="og:site_name" content="MoMocash剧场"><meta property="og:title" content="${title}"><meta property="og:description" content="MoMocash剧场 · 边看边猜剧情的互动剧：漫剧 · 真人剧 · 抽象剧"><meta property="og:image" content="${og}"><meta name="twitter:card" content="summary_large_image">
 <link href="/static/style.css" rel="stylesheet">
 <script src="/static/auth.js"></script>
 ${extra}
@@ -205,7 +205,7 @@ ${nav('thrill')}
 </body></html>`
 
 // 致命13：监狱俄罗斯轮盘（模拟演出版：程序化舞台 + 合成音效；真人片拍完后替换为视频模块）
-export const lethal13Page = () => `${head('致命13 · 监狱俄罗斯轮盘 | 惊心1分钟 | MoMocash剧场', '<link href="/static/thrill.css" rel="stylesheet"><link href="/static/lethal13.css" rel="stylesheet">')}
+export const lethal13Page = () => `${head('致命13 · 监狱俄罗斯轮盘 | 惊心1分钟 | MoMocash剧场', '<link href="/static/thrill.css" rel="stylesheet"><link href="/static/lethal13.css" rel="stylesheet">', '/gimg/l13_deadly13/cover_wide.webp')}
 <body class="thrill-body l13-body">
 ${nav('thrill')}
 <main id="l13-play" class="thrill-play">
@@ -241,7 +241,7 @@ ${nav('fun')}
 <script>FunHub()</script>
 </body></html>`
 
-export const funPage = (sid: string, title: string) => `${head(title + ' · 开心1分钟 | MoMocash剧场', '<link href="/static/fun.css" rel="stylesheet">')}
+export const funPage = (sid: string, title: string) => `${head(title + ' · 开心1分钟 | MoMocash剧场', '<link href="/static/fun.css" rel="stylesheet">', `/gimg/${sid}/cover.webp`)}
 <body class="fun-body play">
 ${nav('fun')}
 <main id="fun-play" class="fun-play" data-sid="${sid}">

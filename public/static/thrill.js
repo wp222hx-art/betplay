@@ -30,7 +30,7 @@
       if (!items.length) { box.innerHTML = '<div class="t-empty">首批剧集制作中，敬请期待</div>'; return }
       box.innerHTML = items.map((it, i) => it.special === 'l13' ? `
         <a class="thrill-card l13-card" href="${it.url}" id="thrill-card-l13">
-          <div class="cover l13-cover"><span class="rank">#${i + 1}</span><span class="demo">模拟演出版</span><b class="l13-logo">致命<em>13</em></b></div>
+          <div class="cover l13-cover${it.cover ? ' has-art' : ''}" style="${it.cover ? `--art:url('${esc(it.cover.replace('cover.webp', 'cover_wide.webp'))}')` : ''}"><span class="rank">#${i + 1}</span><span class="demo">模拟演出版</span><b class="l13-logo">致命<em>13</em><small>13 人 · 一圈 · 一盏灯</small></b></div>
           <div class="info"><div class="tension">${flame(it.tension)}</div><h3>${esc(it.title)}</h3><p>${esc(it.logline)}</p>
             <div class="foot"><span class="pool"><i class="fas fa-sack-dollar"></i> 奖池 ${fmt(it.pool)}</span><span>押存活人数 · 连中 3 把拿连环大奖</span></div></div>
         </a>` : it.soon ? `
