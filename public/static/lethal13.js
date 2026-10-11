@@ -228,7 +228,7 @@
         const shooter = rd.before[(rd.before.indexOf(t) - 1 + n) % n], hit = rd.dead.includes(t)
         const k = (hit ? 'hit' : 'miss') + t, c = CUES[k] ?? 1
         if (seq[j + 1]) preload((rd.dead.includes(seq[j + 1]) ? 'hit' : 'miss') + seq[j + 1])
-        ring.aim(shooter, t); caption(`<b>${shooter}</b> 号 → <b>${t} 号 ${esc(name(t))}</b>`, hit ? '' : 'dim')
+        ring.aim(shooter, t); renderRoster(rd.before.filter((x) => !S.dead.has(x)), [t]); caption(`<b>${shooter}</b> 号 → <b>${t} 号 ${esc(name(t))}</b>`, hit ? '' : 'dim')
         const fast = !hit && j > 2 // 前几枪慢、后面加速
         await play(k, { vol: 0.08, from: Math.max(0, c - (fast ? 0.35 : 0.7)), until: hit ? c + 2.3 : c + (fast ? 0.55 : 0.9), cue: c,
           onCue: () => { if (hit) { shotNo++; bang(1); samp('fall', 0.9, 0.5); if (shotNo === 1) samp('ring', 0.3, 0.2); stamp('砰！', 'bang') } else { clickN(1); flashFx('click') } ring.result(t, hit) } })
