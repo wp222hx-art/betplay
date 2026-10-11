@@ -36,7 +36,9 @@ export const L13_CFG = {
   max_mult: 2000,
   seed_pool: 30000,
   max_open_per_ip: 2,
-  jackpot_min_age_h: 24
+  jackpot_min_age_h: 24,
+  // v4 屏上下注：每轮押一次；连中 streak_need 轮触发「连中大奖」（奖池出资）
+  streak_need: 3, streak_share: 0.05, streak_cap_mult: 30, side_rake: 0.02
 }
 const POOL = `pool:thrill:${L13_SERIES}`
 export const bulletsAt = (k: number) => Math.min(k, 5)
@@ -216,10 +218,11 @@ export async function l13Meta(env: Env, userId?: string) {
 }
 
 export async function l13Start(env: Env, p: { userId: string; stake: number; picks: string[]; ipHash: string; sybil?: boolean; champ?: number; champStake?: number }) {
-  const stake = Math.floor(+p.stake)
-  if (!L13_CFG.stakes.includes(stake)) throw new GameError('BAD_STAKE', `注金只能是 ${L13_CFG.stakes.join(' / ')}`)
-  const quote = slipQuote((p.picks || []).map(String))
-  if (!quote.ok) throw new GameError('SLIP_IMPOSSIBLE', '这三档几乎不可能同时成立，换个组合')
+  const v4 = !p.picks || !p.picks.length
+  const stake = v4 ? 0 : Math.floor(+p.stake)
+  if (!v4 && !L13_CFG.stakes.includes(stake)) throw new GameError('BAD_STAKE', `注金只能是 ${L13_CFG.stakes.join(' / ')}`)
+  const quote: any = v4 ? null : slipQuote((p.picks || []).map(String))
+  if (quote && !quote.ok) throw new GameError('SLIP_IMPOSSIBLE', '这三档几乎不可能同时成立，换个组合')
   const champ = p.champ ? Math.floor(+p.champ) : 0, champStake = champ ? Math.floor(+(p.champStake || 0)) : 0
   if (champ && (champ < 1 || champ > 13 || !L13_CFG.stakes.includes(champStake))) throw new GameError('BAD_CHAMP', '押冠军：号码 1~13，注金同档位')
   const u: any = await ensureUser(env, p.userId)
@@ -233,13 +236,13 @@ export async function l13Start(env: Env, p: { userId: string; stake: number; pic
   if ((ipOpen?.n || 0) >= L13_CFG.max_open_per_ip) { await riskEvent(env as any, p.userId, 'thrill_multi_open', 2, { series: L13_SERIES }); throw new GameError('MULTI_OPEN', '同一网络下同时进行的局数已达上限') }
   await ensurePool(env)
   const rid = uid('tr_'), seed = randomHex(32), commit = await sha256(`${seed}|${rid}`)
-  const rake = Math.max(1, Math.round(stake * L13_CFG.rake))
-  await post(env, '致命13·押注单托管', rid, [[`user:${p.userId}:available`, 'D', stake + champStake], [`escrow:thrill:${rid}`, 'C', stake - rake], [POOL, 'C', rake], ...(champStake ? [[`escrow:thrill:${rid}:champ`, 'C', champStake] as [string, 'C', number]] : [])])
+  const rake = v4 ? 0 : Math.max(1, Math.round(stake * L13_CFG.rake))
+  if (stake + champStake > 0) await post(env, '致命13·押注单托管', rid, [[`user:${p.userId}:available`, 'D', stake + champStake], [`escrow:thrill:${rid}`, 'C', stake - rake], [POOL, 'C', rake], ...(champStake ? [[`escrow:thrill:${rid}:champ`, 'C', champStake] as [string, 'C', number]] : [])])
   const g = await fullGame(seed)
   await env.DB.batch([
     env.DB.prepare('UPDATE users SET chips=chips-? WHERE id=?').bind(stake + champStake, p.userId),
     env.DB.prepare(`INSERT INTO thrill_runs (id,user_id,series_id,ip_hash,stake,gates,seed,commit_hash,outcomes,cfg,status,gate,mult,started_at) VALUES (?,?,?,?,?,?,?,?,'[]',?,'playing',0,0,?)`)
-      .bind(rid, p.userId, L13_SERIES, p.ipHash, stake, g.length, seed, commit, JSON.stringify({ ...L13_CFG, sybil: !!p.sybil, rake_amt: rake, champ, champ_stake: champStake, picks: quote.picks, slip: { P: quote.P, mult: quote.mult } }), now())
+      .bind(rid, p.userId, L13_SERIES, p.ipHash, stake, g.length, seed, commit, JSON.stringify({ ...L13_CFG, sybil: !!p.sybil, rake_amt: rake, champ, champ_stake: champStake, v4, streak: 0, picks: quote ? quote.picks : [], slip: quote ? { P: quote.P, mult: quote.mult } : null }), now())
   ])
   return { run_id: rid, commit, stake, quote, champ, champ_stake: champStake, champ_odds: CHAMP_ODDS, pool: await poolBalance(env), round: roundCard(g[0], g.length), balance: u.chips - stake - champStake }
 }
@@ -279,12 +282,15 @@ export async function l13Act(env: Env, p: { runId: string; userId: string; k: nu
   const res: any = { k: rd.k, type: rd.type, survivors: rd.after.length, winner: rd.type === 'duel' ? rd.after[0] : null, round: reveal(rd), side: null }
   if (tier) {
     const hit = surv >= tier.lo && surv <= tier.hi, pay = hit ? Math.floor(bet * tier.odds) : 0
-    const lines: [string, 'D' | 'C', number][] = [[`user:${r.user_id}:available`, 'D', bet], ['platform:house', 'C', bet]]
+    const srake = Math.round(bet * L13_CFG.side_rake)
+    const lines: [string, 'D' | 'C', number][] = [[`user:${r.user_id}:available`, 'D', bet], ['platform:house', 'C', bet - srake]]
+    if (srake) lines.push([POOL, 'C', srake])
     if (pay) lines.push(['platform:house', 'D', pay], [`user:${r.user_id}:available`, 'C', pay])
     await post(env, `致命13·第${rd.k}轮追注${hit ? '命中' : '未中'} ${tier.label}`, r.id, lines)
     await env.DB.prepare('UPDATE users SET chips=chips-?+? WHERE id=?').bind(bet, pay, r.user_id).run()
     res.side = { tier: tier.id, label: tier.label, odds: tier.odds, bet, hit, payout: pay }
   }
+  res.streak = await bumpStreak(env, r, res.side)
   await env.DB.prepare(`INSERT INTO thrill_picks (run_id,gate,option_id,outcome_id,hit,streak,mult,payout,stake,picked_at) VALUES (?,?,?,?,?,0,?,?,?,?)`)
     .bind(r.id, idx, tier ? tier.id : late ? 'timeout' : 'watch', String(surv), res.side?.hit ? 1 : 0, tier ? tier.odds : 0, res.side?.payout || 0, bet, now()).run()
   if (rd.k === RING_ROUNDS || (idx + 1 >= g.length && rd.k < RING_ROUNDS)) res.slip = await settleSlip(env, r.id) // 押注单在第 3 轮揭晓（不足 3 轮按最终人数）
@@ -293,10 +299,30 @@ export async function l13Act(env: Env, p: { runId: string; userId: string; k: nu
   return res
 }
 
+/** 连中：每轮押中 +1，押错或不押归零；每满 streak_need 轮发一次「连中大奖」（奖池 5%，≤ 本轮注金 ×30） */
+async function bumpStreak(env: Env, r: any, side: any) {
+  const cfg: any = J((await env.DB.prepare('SELECT cfg FROM thrill_runs WHERE id=?').bind(r.id).first<any>())?.cfg, {})
+  const n = side?.hit ? (cfg.streak || 0) + 1 : 0
+  let bonus: any = null
+  if (n && n % L13_CFG.streak_need === 0) {
+    const pool = await poolBalance(env), amt = Math.max(0, Math.min(Math.floor(pool * L13_CFG.streak_share), side.bet * L13_CFG.streak_cap_mult))
+    if (amt) {
+      if (cfg.sybil) { await post(env, `致命13·连中${n}大奖待审核`, r.id, [[POOL, 'D', amt], [`hold:thrill:${r.id}`, 'C', amt]]); bonus = { amount: amt, status: 'held' } }
+      else { await post(env, `致命13·连中${n}大奖`, r.id, [[POOL, 'D', amt], [`user:${r.user_id}:available`, 'C', amt]]); await env.DB.prepare('UPDATE users SET chips=chips+? WHERE id=?').bind(amt, r.user_id).run(); bonus = { amount: amt, status: 'paid' } }
+      cfg.bonus_total = (cfg.bonus_total || 0) + (bonus.status === 'paid' ? amt : 0)
+    }
+  }
+  cfg.streak = n; cfg.best_streak = Math.max(cfg.best_streak || 0, n)
+  await env.DB.prepare('UPDATE thrill_runs SET cfg=? WHERE id=?').bind(JSON.stringify(cfg), r.id).run()
+  const u: any = await env.DB.prepare('SELECT chips FROM users WHERE id=?').bind(r.user_id).first()
+  return { n, need: L13_CFG.streak_need, bonus, balance: u?.chips, pool: await poolBalance(env) }
+}
+
 async function settleSlip(env: Env, rid: string) {
   const r: any = await env.DB.prepare('SELECT * FROM thrill_runs WHERE id=?').bind(rid).first()
   const cfg: any = J(r.cfg, L13_CFG)
   if (cfg.slip_done) return cfg.slip_done
+  if (!cfg.picks?.length) { cfg.slip_done = { rows: [], hits: 0, mult: 0, payout: 0, stake: 0, jackpot: null, none: true }; await env.DB.prepare('UPDATE thrill_runs SET cfg=? WHERE id=?').bind(JSON.stringify(cfg), rid).run(); return cfg.slip_done }
   const u = await env.DB.prepare(`UPDATE thrill_runs SET end_reason='slip' WHERE id=? AND end_reason IS NULL`).bind(rid).run()
   if (!u.meta.changes) return J((await env.DB.prepare('SELECT cfg FROM thrill_runs WHERE id=?').bind(rid).first<any>())?.cfg, {}).slip_done || { rows: [], hits: 0, mult: 0, payout: 0, stake: r.stake, jackpot: null }
   const g = await fullGame(r.seed), sr = slipResult(g, cfg.picks)
@@ -354,7 +380,7 @@ async function finish(env: Env, rid: string, reason: string) {
   return {
     ended: true, reason, winner, slip, champ, side_total: { staked: sides.s, paid: sides.p },
     hits: slip.hits, mult: slip.mult, payout: slip.payout, stake: r.stake, jackpot: r.jackpot, jackpot_status: r.jackpot_status,
-    net: slip.payout - r.stake + jp + (champ ? champ.payout - champ.stake : 0) + (sides.p - sides.s),
+    net: slip.payout - r.stake + jp + (champ ? champ.payout - champ.stake : 0) + (sides.p - sides.s) + (cfg.bonus_total || 0), bonus_total: cfg.bonus_total || 0, best_streak: cfg.best_streak || 0,
     balance: usr?.chips, pool: await poolBalance(env), verify: { seed: r.seed, commit: r.commit_hash }
   }
 }

@@ -170,7 +170,7 @@ def r2put(key, path, ctype):
     if o.returncode: raise RuntimeError('r2 put failed ' + key + (o.stderr or '')[-200:])
 
 def phase_publish():
-    C = clips(); man = {}
+    C = {**clips(), **v4_clips()}; man = {}
     for k in C:
         mp4 = f'{OUT}/{k}.mp4'
         if not os.path.exists(mp4): log('missing', k); continue
@@ -187,6 +187,75 @@ def phase_publish():
     req = urllib.request.Request('http://localhost:3000/api/admin/l13/media', data=body, headers={'content-type': 'application/json'})
     log('PUBLISHED', urllib.request.urlopen(req, timeout=60).read().decode()[:300])
 
+# ─────────── v4（2026-10-11）：倒地必须落在画面下方 · 决赛用真人脸特写 · 规范上弹 ───────────
+# 每人 3 条：face{i} 近景举枪（决赛/少人轮用真实存活者的脸）· dry{i} 扣扳机空响 · death{i} 中枪即刻倒地、尸体留在画面下方（首尾帧锁定）
+# load{k}：规范的摆出式左轮上弹（甩出转轮 → 逐发塞 k 发 → 拨转转轮 → 手掌推回 → 拇指扳击锤），首尾帧锁定
+# voidC：主持人近景敲杖作废
+NOBLOOD = 'No blood, no wound, no gore. '
+def v4_stills():
+    S = {}
+    for i in range(1, 14):
+        j = (i - 2) % 13 + 1
+        S[f'fa{i}'] = ([f'p{i}', 'set'], BW + 'Tight close-up portrait, three-quarter front view, of the man from image 1 — exactly his face, his age and his features — in the dark concrete basement of image 2. '
+            'His right arm is extended forward past the camera holding one old revolver (only the arm and the back of the gun are visible at the frame edge). Sweat on his forehead, jaw clenched, eyes fixed straight ahead, a single bare bulb above. One person only. ' + ONEGUN)
+        S[f'dA{i}'] = ([f'p{i}', 'set'], BW + 'Medium-wide side view, camera at chest height, locked off. In the centre of the frame: the man from image 1, exactly his face, in full figure from head to shoes, standing in profile facing right on the white floor circle of the basement in image 2, '
+            'his right arm extended forward holding an old revolver. From the left edge of the frame only one outstretched arm of an unseen man enters, holding an old revolver aimed at the back of his head; the shooter himself is outside the frame. '
+            'The concrete floor is clearly visible across the lower third of the frame. ' + ONEGUN)
+        S[f'dB{i}'] = ([f'dA{i}'], BW + 'Exactly the same image, same camera, same lighting. Change only this: the man has collapsed and now lies motionless flat on his side on the concrete floor along the bottom of the frame, '
+            'his face turned toward the camera and still recognisable, eyes closed, his revolver lying on the floor beside his open hand. The outstretched arm with the revolver still enters from the left edge, a thin wisp of gun smoke at its muzzle. ' + NOBLOOD)
+    S['dA5'] = (['p5', 'set'], BW + 'Medium-wide side view, camera at chest height. The man from image 1, exactly his face, full figure from head to shoes, stands in profile facing right on the white floor circle of the basement in image 2, his right arm extended forward holding an old revolver. At the left edge of the frame an outstretched arm of an unseen man holds an old revolver pointed toward him. The concrete floor fills the lower third of the frame. ' + ONEGUN)
+    S['ld0'] = (['set'], 'Extreme close-up photograph, high-contrast black and white, deep blacks, a thin red emergency glow. Two dirty sweating hands hold a blued steel double-action six-shot revolver (classic police service revolver with a swing-out cylinder). '
+        'The cylinder is correctly swung out to the left side of the frame on its crane, all six empty chambers visible and facing the camera, the ejector rod in the centre. The left palm holds several brass cartridges. Photorealistic, correct firearm mechanics, film grain.')
+    S['le'] = (['ld0'], 'Same lighting, same background, same dirty hands and the same revolver as the reference image, same camera distance. The revolver is now fully assembled and ready: its cylinder is CLOSED, swung back inside the frame and locked, in line with the barrel, no chambers visible from the front. The right hand grips the handle with the index finger outside the trigger guard, and the right thumb holds the hammer fully pulled back (cocked). The left hand is open and empty, no cartridges. Side view of the gun pointing to the left. Photorealistic, correct firearm mechanics.')
+    S['voidC'] = (['guard', 'set'], BW + 'Medium close-up of the master of ceremonies from image 1, exactly his face, in his dark three-piece suit, standing under the single bulb in the basement of image 2, raising his black walking cane in one hand, about to strike the floor, cold flat expression. One person only.')
+    return S
+def phase_v4_stills(only=None):
+    S = {k: v for k, v in v4_stills().items() if not only or k in only}
+    first = [k for k in S if not k.startswith('dB') and k != 'le']
+    second = [k for k in S if k.startswith('dB') or k == 'le']
+    def go(k): rr = refs(); return img(k, S[k][1], '1:1', [rr[x] for x in S[k][0]])
+    with cf.ThreadPoolExecutor(6) as ex:
+        for k, st in ex.map(go, first): log('v4 still', k, st)
+    with cf.ThreadPoolExecutor(6) as ex:
+        for k, st in ex.map(go, second): log('v4 still', k, st)
+
+LOCK = 'Locked-off camera, no camera movement. The same person keeps exactly the same face throughout; nobody new enters the frame. '
+CN_NUM = {1: 'one single brass cartridge', 2: 'two brass cartridges, one after the other,', 3: 'three brass cartridges, one by one,', 4: 'four brass cartridges, one by one,', 5: 'five brass cartridges, one by one,'}
+def v4_clips():
+    C = {}
+    for i in range(1, 14):
+        C[f'face{i}'] = dict(dur=5, frames=[f'fa{i}'], text=LOCK + 'The camera does not move or zoom at all. He holds his aim steadily, the revolver stays fully in frame, breathing hard through his nose, a bead of sweat runs down his temple, his eyes flick once to the side and back, his jaw tightens. He does not pull the trigger. Low heartbeat, dripping water, no dialogue.')
+        C[f'dry{i}'] = dict(dur=4, frames=[f'fa{i}'], text=LOCK + 'He squeezes his eyes shut and pulls the trigger: only a sharp dry metallic click, no flash, no shot. His whole body flinches, he opens his eyes and exhales shakily, still standing, still aiming. No dialogue.')
+        C[f'death{i}'] = dict(dur=4, frames=[f'dA{i}', f'dB{i}'], text=LOCK + 'He holds still for one second, eyes shut. The revolver at the left edge fires: a bright muzzle flash and one deafening gunshot. Instantly he goes limp, his knees buckle and he collapses straight down onto the concrete floor and lies motionless along the bottom of the frame, his revolver clattering beside him. '
+            'The arm at the left edge stays exactly where it is, gun smoke drifting. ' + NOBLOOD + 'No dialogue.')
+    for k in range(1, 6):
+        C[f'load{k}'] = dict(dur=8, frames=['ld0', 'le'], text=LOCK + f'Extreme close-up of correct revolver handling. The left thumb pushes {CN_NUM[k]} into the empty chambers of the swung-out cylinder — exactly {k} chamber{"s" if k > 1 else ""} loaded, the other {6 - k} stay empty and visible. '
+            'Then the left palm spins the open cylinder with a ratcheting whir; the left hand flips it closed into the frame with a solid metal clack; the right thumb slowly pulls the hammer back to full cock — click. Real firearm mechanics, nothing bends or morphs. Ragged breathing, a fast heartbeat, no dialogue.')
+    C['voidC'] = dict(dur=4, frames=['voidC'], text=LOCK + 'He brings the cane down hard on the concrete floor — a sharp crack that echoes. He says coldly in Mandarin Chinese: "作废。重来。" The bulb flickers to black.')
+    return C
+def render_v4(key, c, force=False):
+    mp4 = f'{OUT}/{key}.mp4'
+    if os.path.exists(mp4) and os.path.getsize(mp4) > 100000 and not force: return key, 'skip'
+    if force and os.path.exists(mp4): os.rename(mp4, f'{OUT}/old_v3_{key}.mp4')
+    r = refs()
+    args = ['gsk', 'video', f"{c['text']} {REAL}", '-m', MODEL, '--tier', 'standard', '-r', RATIO, '-d', str(c['dur']), '--audio_enable', 'true', '--video_size', '720p', '-o', mp4, '-i', *[r[x] for x in c['frames']]]
+    err = ''
+    for attempt in range(2):
+        t0 = time.time(); o = sh(*args, timeout=2400)
+        open(f'{OUT}/{key}.log', 'w').write(' '.join(args[:3])[:3000] + '\n---\n' + (o.stdout or '')[-3000:] + '\n---\n' + (o.stderr or '')[-800:])
+        if os.path.exists(mp4) and os.path.getsize(mp4) > 100000: log(key, 'OK', f'{time.time() - t0:.0f}s'); return key, 'ok'
+        err = (re.search(r'"(?:failure_reason|error_code|message)"\s*:\s*"([^"]{3,200})"', o.stdout or '') or [None, (o.stderr or o.stdout or '')[-200:]])[1]
+        if re.search(r'"status"\s*:\s*"(PENDING|PROCESSING|RUNNING)"', o.stdout or ''): log(key, 'pending on server'); return key, 'pending'
+        log(key, 'FAIL', attempt, err); time.sleep(20)
+    return key, 'fail: ' + str(err)
+def phase_v4_render(only=None, force=False):
+    C = v4_clips(); keys = [k for k in C if not only or k in only]
+    log('v4 render', len(keys), 'clips, concurrency', CONC)
+    res = {}
+    with cf.ThreadPoolExecutor(CONC) as ex:
+        for k, st in ex.map(lambda k: render_v4(k, C[k], force), keys): res[k] = st
+    log('v4 render done', {k: v for k, v in res.items() if v not in ('ok', 'skip')})
+
 if __name__ == '__main__':
     ph = sys.argv[1]
     only = next((a.split('=', 1)[1].split(',') for a in sys.argv if a.startswith('--only=')), None)
@@ -196,3 +265,5 @@ if __name__ == '__main__':
     elif ph == 'test': phase_render(only or ['fire13', 'death4'], '--force' in sys.argv)
     elif ph == 'render': phase_render(only, '--force' in sys.argv)
     elif ph == 'publish': phase_publish()
+    elif ph == 'v4stills': phase_v4_stills(only)
+    elif ph == 'v4render': phase_v4_render(only, '--force' in sys.argv)

@@ -206,21 +206,22 @@ ${nav('thrill')}
 
 // 致命13：监狱俄罗斯轮盘（模拟演出版：程序化舞台 + 合成音效；真人片拍完后替换为视频模块）
 export const lethal13Page = () => `${head('致命13 · 监狱俄罗斯轮盘 | 惊心1分钟 | MoMocash剧场', '<link href="/static/thrill.css" rel="stylesheet"><link href="/static/lethal13.css" rel="stylesheet">', '/gimg/l13_deadly13/cover_wide.webp')}
-<body class="thrill-body l13-body">
+<body class="thrill-body l13-body l13v4">
 ${nav('thrill')}
-<main id="l13-play" class="thrill-play">
+<main id="l13-play" class="l13-main">
   <section id="l13-stage" class="l13-stage">
-    <video id="l13-video" class="l13-video" playsinline></video>
-    <div id="l13-ring" class="l13-ring"></div>
-    <div id="l13-center" class="l13-center"></div>
+    <video id="l13-v0" class="l13-video" playsinline preload="auto"></video>
+    <video id="l13-v1" class="l13-video" playsinline preload="auto"></video>
     <div id="l13-dark" class="l13-dark"></div>
+    <header id="l13-hud" class="l13-hud"></header>
+    <nav id="l13-roster" class="l13-roster"></nav>
     <div id="l13-caption" class="l13-caption"></div>
-    <div id="l13-hud" class="t-hud"></div>
-    <div id="thrill-flash" class="t-flash"></div>
+    <div id="l13-big" class="l13-big"></div>
+    <canvas id="l13-fx" class="l13-fx"></canvas>
+    <div id="l13-over" class="l13-over"></div>
+    <section id="l13-bet" class="l13-betbar"></section>
   </section>
-  <aside id="l13-side" class="thrill-side"></aside>
 </main>
-<div id="thrill-modal" class="t-modal hidden"></div>
 <script src="/static/lethal13.js"></script>
 </body></html>`
 
