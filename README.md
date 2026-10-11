@@ -385,4 +385,5 @@ npx wrangler d1 migrations apply webapp-production                              
 - **API**：`GET /api/fun`、`/api/fun/:sid/meta`、`POST /api/fun/:sid/quote|start`、`/api/fun/runs/:id/arm|act|skip|verify`、`POST /api/admin/fun/:sid/media`
 - **素材**：62 条 Seedance 2.0 竖屏片段（停车 15、霸总 21、办公室 26）→ R2 `webapp-media/<sid>/`，通过 `/m/:series/:clip` 带票据播放
 - **生产**：`python3 scripts/fun/produce.py <park|ceo|office|all> refs|stills|render|publish [--only=] [--force]`（定角色 → 多参考首帧 → i2v，保证人脸一致）
+- **晒战绩海报**：结算卡「晒战绩」在浏览器端用 Canvas 生成 1080×1920 竖版海报（结局画面 + 押注单逐条结果 + 净额 + commit），支持保存 / Web Share / 复制文案
 - **测试**：`npx tsx tests/fun.test.ts`（21 项：EV ≤ 0.93、单局约 56–63 秒、结局覆盖）

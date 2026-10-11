@@ -36,11 +36,11 @@
     video.controls = false; video.disablePictureInPicture = true
     video.addEventListener('pause', () => { if (video.dataset.playing === '1' && !video.ended) video.play().catch(() => {}) })
     const face = (id) => MEDIA?.faces?.[id] || ''
-    function clip(key, maxMs) {
+    function clip(key, maxMs, onEnd) {
       const c = MEDIA?.clips?.[key]; if (!c?.url) return sleep(Math.min(maxMs || 3200, 3200))
       return new Promise(async (res) => {
         stage.classList.add('film'); video.src = c.url; video.dataset.playing = '1'; video.muted = false
-        let done = false; const fin = () => { if (done) return; done = true; video.dataset.playing = '0'; res() }
+        let done = false; const fin = () => { if (done) return; done = true; try { onEnd?.() } catch {} video.dataset.playing = '0'; res() }
         video.onended = fin; setTimeout(fin, Math.min(maxMs || 1e9, (c.dur + 2.5) * 1000))
         try { await video.play() } catch { video.muted = true; await video.play().catch(fin) }
       })
@@ -135,9 +135,68 @@
         for (const s of r.rest) { caption(`<small>${esc(s.title)}</small>${esc(s.cap)}`); await clip(s.pre[0], 4500); caption(`<small>${esc(s.title)}</small><b class="out">${esc(s.out_label)}</b>`, 'reveal'); for (const k of s.post.clips) await clip(k); S.log.push({ title: s.title, out: s.out_label, cls: '', tag: '只看' }); liveSide() }
         finale(r) } catch (e) { S.skipped = false; toast(e.message) }
     }
+    function grabFrame() {
+      try { if (!video.videoWidth) return; const c = document.createElement('canvas'); c.width = video.videoWidth; c.height = video.videoHeight; c.getContext('2d').drawImage(video, 0, 0); c.toDataURL(); S.frame = c } catch (e) { S.frame = null }
+    }
+    const loadImg = (u) => new Promise((ok) => { if (!u) return ok(null); const i = new Image(); i.onload = () => ok(i); i.onerror = () => ok(null); i.src = u })
+    function rr(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath() }
+    function wrap(g, t, x, y, maxW, lh, maxL) { let line = '', n = 0; for (const ch of t) { if (g.measureText(line + ch).width > maxW) { g.fillText(line, x, y); y += lh; line = ch; if (++n >= maxL - 1) { line = t.slice(t.indexOf(line)); break } } else line += ch } let rest = line; while (g.measureText(rest).width > maxW && rest.length > 1) rest = rest.slice(0, -2) + '…'; g.fillText(rest, x, y); return y + lh }
+    async function drawPoster(r) {
+      const W = 1080, H = 1920, c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d'), C = M.color || '#ffb020', s = r.slip
+      const bg = S.frame || await loadImg(MEDIA?.cover)
+      g.fillStyle = '#1b1210'; g.fillRect(0, 0, W, H)
+      if (bg) { const k = Math.max(W / bg.width, H / bg.height), w = bg.width * k, h = bg.height * k; g.drawImage(bg, (W - w) / 2, (H - h) / 2, w, h) }
+      let gr = g.createLinearGradient(0, 0, 0, 520); gr.addColorStop(0, 'rgba(0,0,0,.72)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, W, 520)
+      gr = g.createLinearGradient(0, H * 0.36, 0, H); gr.addColorStop(0, 'rgba(20,12,8,0)'); gr.addColorStop(.3, 'rgba(20,12,8,.82)'); gr.addColorStop(1, 'rgba(20,12,8,.97)'); g.fillStyle = gr; g.fillRect(0, H * 0.36, W, H * 0.64)
+      const F = '"PingFang SC","Noto Sans CJK SC","Microsoft YaHei",sans-serif'; g.textBaseline = 'top'
+      // header
+      g.fillStyle = C; rr(g, 64, 72, 230, 64, 32); g.fill(); g.fillStyle = '#1b1210'; g.font = `800 32px ${F}`; g.fillText('开心1分钟', 92, 86)
+      g.fillStyle = '#fff'; g.font = `900 92px ${F}`; g.fillText(M.title, 64, 168)
+      g.fillStyle = 'rgba(255,255,255,.8)'; g.font = `500 34px ${F}`; g.fillText(M.tag || '', 66, 280)
+      // big result
+      let y = 760
+      g.fillStyle = s.hits === 3 ? '#ffd23f' : '#fff'; g.font = `900 120px ${F}`
+      g.fillText(s.hits === 3 ? '三条全中！' : `押注单 中 ${s.hits}/3`, 64, y); y += 150
+      if (s.mult) { g.fillStyle = C; g.font = `900 84px ${F}`; g.fillText(`${xm(s.mult)}  ·  ${fmt(s.stake)} → ${fmt(s.payout)}`, 64, y); y += 112 }
+      g.fillStyle = 'rgba(255,255,255,.88)'; g.font = `600 38px ${F}`; y = wrap(g, r.ending.cap || '', 64, y + 10, W - 128, 54, 3) + 24
+      // legs
+      for (const x of s.rows) {
+        g.fillStyle = x.hit ? 'rgba(46,204,113,.2)' : 'rgba(255,255,255,.08)'; rr(g, 64, y, W - 128, 104, 24); g.fill()
+        g.fillStyle = x.hit ? '#2ecc71' : '#ff5470'; g.font = `900 52px ${F}`; g.fillText(x.hit ? '✓' : '✕', 96, y + 24)
+        g.fillStyle = 'rgba(255,255,255,.65)'; g.font = `600 30px ${F}`; g.fillText(x.title, 168, y + 16)
+        g.fillStyle = '#fff'; g.font = `800 38px ${F}`; g.fillText(`押 ${x.pick_label}`, 168, y + 54)
+        g.textAlign = 'right'; g.fillStyle = x.hit ? '#2ecc71' : 'rgba(255,255,255,.75)'; g.font = `700 34px ${F}`; g.fillText(`实际：${x.actual_label}`, W - 96, y + 36); g.textAlign = 'left'
+        y += 124
+      }
+      // net
+      y += 10; g.fillStyle = 'rgba(255,255,255,.65)'; g.font = `600 34px ${F}`; g.fillText(r.final ? `押主角 · ${r.final.label} ${r.final.hit ? '命中 +' + fmt(r.final.payout) : '未中'}` : `结局 · ${r.final_actual.label}`, 64, y)
+      g.textAlign = 'right'; g.fillStyle = r.net >= 0 ? '#2ecc71' : '#ff5470'; g.font = `900 46px ${F}`; g.fillText(`本局 ${r.net >= 0 ? '+' : ''}${fmt(r.net)}`, W - 64, y - 6); g.textAlign = 'left'
+      // footer
+      g.fillStyle = C; rr(g, 64, H - 210, W - 128, 140, 36); g.fill()
+      g.fillStyle = '#1b1210'; g.font = `900 48px ${F}`; g.fillText('你能押得比我准吗？', 108, H - 186)
+      g.font = `600 28px ${F}`; g.fillText(location.host + location.pathname, 108, H - 122)
+      g.fillStyle = 'rgba(255,255,255,.45)'; g.font = `500 24px ${F}`; g.fillText('结果开局锁定 · 可公开复算 · commit ' + String(r.verify.commit).slice(0, 12), 64, H - 50)
+      return c
+    }
+    async function sharePoster(r) {
+      const txt = `我在《${M.title}》押注单中了 ${r.slip.hits}/3${r.slip.mult ? ' ' + xm(r.slip.mult) : ''}！结局：${r.final_actual.label} ${location.href}`
+      let c; try { c = await drawPoster(r) } catch (e) { navigator.clipboard?.writeText(txt); return toast('战绩已复制') }
+      let url; try { url = c.toDataURL('image/jpeg', .9) } catch (e) { S.frame = null; c = await drawPoster(r); url = c.toDataURL('image/jpeg', .9) }
+      const ov = document.createElement('div'); ov.className = 'f-share'; ov.id = 'fun-poster-modal'
+      ov.innerHTML = `<div class="pp"><img src="${url}" alt="战绩海报"><div class="acts"><a class="btn" id="pdl" download="${M.title}-战绩.jpg" href="${url}"><i class="fas fa-download"></i> 保存海报</a><button class="btn ghost" id="psh"><i class="fas fa-share-nodes"></i> 分享</button><button class="btn ghost" id="pcl">关闭</button></div><p>长按图片也可保存，发到小红书 / 抖音 / 朋友圈</p></div>`
+      document.body.appendChild(ov)
+      ov.onclick = (e) => { if (e.target === ov) ov.remove() }; $('#pcl').onclick = () => ov.remove()
+      $('#psh').onclick = async () => {
+        try { const blob = await (await fetch(url)).blob(), file = new File([blob], 'poster.jpg', { type: 'image/jpeg' })
+          if (navigator.canShare?.({ files: [file] })) return await navigator.share({ files: [file], text: txt })
+        } catch (e) { if (e.name === 'AbortError') return }
+        navigator.clipboard?.writeText(txt); toast('文案和链接已复制，配上海报去发吧')
+      }
+    }
     async function finale(r) {
       S.res = r; liveSide()
-      caption(esc(r.ending.cap), 'ending'); await clip(r.ending.clip)
+      caption(esc(r.ending.cap), 'ending'); S.frame = null; await clip(r.ending.clip, 0, () => grabFrame())
+      if (!S.frame) grabFrame()
       const s = r.slip; s.hits >= 2 || r.final?.hit ? SFX.win() : SFX.lose()
       modal.innerHTML = `<div class="f-card ${s.hits === 3 ? 'perfect' : ''}">
         <div class="k">${s.hits === 3 ? '押注单 · 三条全中！' : `押注单 · 中 ${s.hits}/3`}</div>
@@ -151,7 +210,7 @@
         <div class="acts"><button class="btn" id="again"><i class="fas fa-rotate-right"></i> 再押一单</button><button class="btn ghost" id="share"><i class="fas fa-share-nodes"></i> 晒战绩</button><a class="btn ghost" href="/fun">换一部</a></div></div>`
       modal.classList.remove('hidden')
       $('#again').onclick = async () => { modal.classList.add('hidden'); M = await api(`/api/fun/${sid}/meta`); MEDIA = M.media; Object.assign(S, { run: null, res: null, log: [] }); lobby() }
-      $('#share').onclick = () => { const t = `我在《${M.title}》押注单中了 ${s.hits}/3${s.mult ? ' ' + xm(s.mult) : ''}！结局：${r.final_actual.label}`; navigator.clipboard?.writeText(t + ' ' + location.href); toast('战绩已复制，去发给朋友吧') }
+      $('#share').onclick = () => sharePoster(r)
     }
 
     try { M = await api(`/api/fun/${sid}/meta`); MEDIA = M.media } catch (e) { side.innerHTML = `<div class="f-empty">${esc(e.message)}</div>`; return }
