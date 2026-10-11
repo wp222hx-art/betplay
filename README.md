@@ -396,3 +396,4 @@ npx wrangler d1 migrations apply webapp-production                              
 - **数据**：内容表（series/nodes/outcomes/variants/voice_cast/extensions/branch_registry/published_series/thrill_series）已导入云 D1；用户、账本未从本地导入（沿用线上原有的少量测试数据）
 - **密钥**：AUTH_SECRET、ADMIN_KEY 已设为 Worker secret（值存放在沙箱 ~/.hosted_secrets，不入库）；未配置 OPENAI/FAL/DASHSCOPE，线上不跑 AI 生成
 - **重新部署**：`npm run build && gsk hosted deploy` → 界面批准；媒体增量上传用 `gsk hosted r2_put`
+- **2026-10-11 线上修复**：开局失败时不再静默（余额不足 → 一键领 500 免费币）；另一部剧没看完的旧局不再挡住开局（15 分钟窗口）；视频播放加手势解锁 + 「点一下继续观看」兜底，加载超时从真正开播起算
