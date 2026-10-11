@@ -39,6 +39,7 @@ P['g_elevator'] = dict(style=DARK, looks=[
     'Chinese man, 35, lean, faded black baseball cap pulled low, dark grey work jacket, thin scar through left eyebrow'],
   set='A large old freight elevator car at night: scratched brushed-steel walls, a steel handrail running along the back wall at waist height, a red digital floor indicator above the closed doors, a flickering fluorescent ceiling panel, dim red emergency light.',
   A='Medium-wide shot inside the elevator, camera at chest height, locked off. In the centre of the frame: the person from image 1, exactly their face, full figure from head to shoes, standing with both hands gripping the steel handrail, braced, terrified, looking up. The steel floor fills the lower third of the frame. Red emergency light. One person in focus; the dark shoulders of others at the frame edges.',
+  A_soft='Unretouched cinematic photograph. Medium-wide shot inside an old freight elevator, camera at chest height. In the centre: the person from image 1, exactly their face, full figure, standing with both hands holding the steel handrail, tense, looking up at the ceiling. Steel floor fills the lower third. Red emergency light.',
   B='Exactly the same image, same camera, same light. Change only this: the person has been thrown off their feet and now lies sprawled on the steel floor along the bottom of the frame, dazed, one hand still reaching up toward the handrail, face visible. ' + NOGORE,
   out='The elevator suddenly drops and slams to a violent stop: the whole frame jolts hard, sparks flicker outside the door gap. The person loses their grip on the handrail, is thrown off their feet and lands sprawled on the steel floor along the bottom of the frame, and stays there, dazed. ' + NOGORE,
   safe='The elevator suddenly drops and slams to a violent stop: the whole frame jolts hard, sparks flicker outside the door gap. The person is jerked violently but clings to the handrail with both hands, knees buckling, and stays on their feet, panting, eyes wide.',
@@ -155,7 +156,8 @@ def jobs_refs(sid):
     c = P[sid]; J = [(f'p{i + 1}', PORTRAIT + l + '.', '3:4', None) for i, l in enumerate(c['looks'])]
     J.append(('set', 'Unretouched wide photograph, no people. ' + c['set'] + ' Realistic, no CGI.', '1:1', None)); return J
 def jobs_stills_A(sid):
-    c = P[sid]; J = [(f'a{i}', c['style'] + c['A'] + ' The person is image 1; the location is image 2.', '1:1', [f'p{i}', 'set']) for i in range(1, 9)]
+    c = P[sid]; A2 = os.environ.get('G_SOFT_A') and c.get('A_soft') or c['A']
+    J = [(f'a{i}', c['style'] + A2 + ' The person is image 1; the location is image 2.', '1:1', [f'p{i}', 'set']) for i in range(1, 9)]
     J.append(('intro0', c['style'] + c['intro'] + ' The eight people are the people from images 1 to 8, one each, exactly their faces; the location is image 9.', '1:1', [f'p{i}' for i in range(1, 9)] + ['set']))
     J.append(('rit0', c['style'] + c['ritual'] + ' The location is image 1. No faces.', '1:1', ['set']))
     return J

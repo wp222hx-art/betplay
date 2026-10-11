@@ -355,6 +355,29 @@ npx wrangler d1 migrations apply webapp-production                              
 - **生产管线**：`python3 scripts/thrill/produce.py <sid…>`（nano-banana-2.1 定妆照/场景 → Seedance 2.0 参考模式 9:16 720p 带同期声 → R2 → 上架 live；幂等、可 `--only=` 重拍单片）；素材归档 `/home/user/webapp_media_archive/thrill/`
 - **已上线**：《坠梯》《人质谈判》《最后一把》各 22 片（66 片，约 6.3 万积分）
 
+## 🎯 逐个揭晓淘汰赛 · 致命13 机制推广到 6 部（2026-10-11）
+把致命13 的核心机制做成**配置驱动的通用引擎**，应用到惊心 1 分钟 3 部和开心 1 分钟 3 部：
+**8 人一排、每轮公开风险递增、同时判定后逐个揭晓、每轮开局前 8 秒在屏上押「这轮之后还剩几人」（三档）、押错不出局、最后 2 人对决、连中 3 轮拿奖池大奖、局与局自动衔接。**
+
+| 剧 | 板块 | 出局条件 | 每轮出局率 |
+|---|---|---|---|
+| 坠梯 `/g/g_elevator` | 惊心 | 急停时被甩倒 | 15%→55% |
+| 人质谈判 `/g/g_hostage` | 惊心 | 摸到黑球 | 15%→55% |
+| 最后一把 `/g/g_lasthand` | 惊心 | 翻出的牌比门槛小 | 20%→60% |
+| 摸鱼大逃杀 `/g/g_slacker` | 开心 | 被老板抓包 | 15%→55% |
+| 抢车位 `/g/g_parking` | 开心 | 倒车刮到柱子 | 15%→55% |
+| 霸总选妃 `/g/g_ceo` | 开心 | 被说「下一位」 | 20%→60% |
+
+- **引擎** `src/thrill/gauntlet.ts`：每人每轮 `HMAC(seed, r:k:t:i) < risk[k]` 判定出局；全员出局则作废重来；每轮 ≥3 人才继续；最后 2 人用 `f:t:i` 逐次判定，直到恰好 1 人出局。三档赔率 = rtp(0.94) / 概率。连中 3 轮发奖池 5%（上限注金 ×30），每单抽 2% 进奖池。开局公布 commit，结束后公开 seed 可复算。
+- **API**：`GET /api/g`、`GET /api/g/:sid/meta`、`POST /api/g/:sid/start`、`POST /api/g/runs/:id/arm`、`POST /api/g/runs/:id/act {k,tier,bet}`、`GET /api/g/runs/:id/verify`、`POST /api/admin/gauntlet/:sid/media`。
+- **大厅**：`/api/thrill` 第 2~4 位、`/api/fun` 前 3 位；没有媒体时标「拍摄中」。
+- **播放器** `public/static/gauntlet.js`：双缓冲无缝拼片；每部剧有自己的合成音效（砸地 / 闷响 / 翻牌 / 刮擦 / 叮）；cue 点自动测量后写入 `public/static/sfx/g_cues.json`；没有视频时退化为静帧预演，整局仍可玩。
+- **制作**：
+  - `scripts/thrill/gauntlet_produce.py <sid|all> refs|stillsA|stillsB|render|publish`：每部 8 张定妆照 + A/B 同机位帧 + 26 段 Seedance 首尾帧视频。
+  - `gauntlet_cues.py` 测量 cue 点。
+  - `gauntlet_cloud.py <sid>` 压缩后写入云端 R2，并写 D1 媒体清单。
+- **测试**：`npx tsx tests/gauntlet.test.ts`（35,270 项检查）；API 端到端与 Playwright 整局点击测试 6 部全部通过。
+
 ## 💀 致命13 v5（2026-10-11 圈内依次开枪 · 不给特写）
 - **演出逻辑**：灯亮后不再“齐射 + 逐个倒地特写”，改为沿圈**依次扣扳机**：每一枪都是同一中景机位（被瞄准的人居中，身后枪手只露持枪手臂，枪口指向后背要害），空膛 = 「咔」+ 一抖继续站着，打响 = 「砰」+ 原地倒下，尸体留在画面下方
 - **顺序保证“死人不开枪”**：从一个本轮活下来的人开始沿圈往回走（目标 s, s-1, s-2…），每一枪的枪手就是下一枪的目标 → 被打死的人一定已经扣完自己那一枪（2 万次随机局面验证 0 违例）
