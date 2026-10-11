@@ -19,3 +19,12 @@
 .thrill-card.g-card .cover { background-color: #15151c; background-size: cover; background-position: center }
 .thrill-card.g-card.soon { opacity: .72; cursor: default }
 .thrill-card.g-card h3 { color: var(--c) }
+/* 大厅：紧凑、可滚动，押注条在大厅期间隐藏 */
+.g-body .l13-over.lobby { overflow-y: auto; align-items: flex-start; padding: 54px 14px 18px }
+.g-body .l13-over.lobby .lb { margin: 0 auto; max-width: 520px }
+.g-body .l13-over.lobby .lb h1 { font-size: 40px; margin: 0 0 2px }
+.g-body .l13-over.lobby ol { text-align: left; font-size: 13px; line-height: 1.55; padding-left: 1.3em; margin: 6px 0; list-style: decimal }
+.g-body .l13-over.lobby ol li { margin: 3px 0 }
+.g-body .l13-over.lobby .g-cast span { width: 44px; height: 56px }
+.g-body:has(.l13-over.lobby) .l13-betbar.idle { display: none }
+.g-lstake { display:flex; gap:8px; justify-content:center; margin: 4px 0 12px }

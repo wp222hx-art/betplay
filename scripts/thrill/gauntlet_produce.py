@@ -140,9 +140,14 @@ def img(sid, key, prompt, ratio='1:1', ref_keys=None, force=False):
     out = f'{d(sid)}/{key}.png'
     if os.path.exists(out) and refs(sid).get(key) and not force: return key, 'skip'
     if force and os.path.exists(out): os.remove(out)
+    R = refs(sid); miss = [k for k in (ref_keys or []) if k not in R]
+    if miss: return key, 'WAIT 缺参考 ' + ','.join(miss)
     args = ['gsk', 'img', '-m', 'nano-banana-2.1', '-r', ratio, '-o', out, prompt]
-    if ref_keys: args += ['-i', *[refs(sid)[k] for k in ref_keys]]
-    o = sh(*args, timeout=600)
+    if ref_keys: args += ['-i', *[R[k] for k in ref_keys]]
+    for tr in range(3):
+        o = sh(*args, timeout=600)
+        if os.path.exists(out): break
+        time.sleep(8 + tr * 10)
     if not os.path.exists(out): return key, 'FAIL ' + ((re.search(r'"(?:failure_reason|message|error_code)"\s*:\s*"([^"]+)"', o.stdout or '') or [None, (o.stderr or o.stdout)[-200:]])[1])
     save_ref(sid, key, upload(out)); return key, 'ok'
 

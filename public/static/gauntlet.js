@@ -274,16 +274,18 @@
 
   // ─────────── 大厅 ───────────
   function showLobby() {
-    stopVideo(); showStill(MEDIA?.cover || face(1)); renderRoster(); renderHud(); betIdle('选好注金，开局后每轮在这里押')
+    stopVideo(); showStill(MEDIA?.cover || face(1)); renderRoster(); renderHud(); betIdle('')
     caption('')
     const live = !!MEDIA && Object.keys(MEDIA.clips || {}).length > 0
     over.className = 'l13-over lobby'
     over.innerHTML = `<div class="lb"><h1>${esc(M.title)}</h1><p class="g-log">${esc(M.logline)}</p>
       <ol>${M.rules.map((x) => `<li>${esc(x)}</li>`).join('')}<li>押错不出局，下一轮接着押；连中 <b>${M.cfg.streak_need} 轮</b>拿奖池大奖。</li></ol>
       <div class="g-cast">${M.cast.map((c) => `<span style="background-image:url('${face(c.id)}')"><b>${c.id}</b><small>${esc(c.name)}</small></span>`).join('')}</div>
+      <div class="bb-stake g-lstake">${STK().map((v) => `<button class="ck ${v === S.bet ? 'on' : ''}" data-v="${v}">${v}</button>`).join('')}</div>
       <button class="btn gold big" id="lb-go"><i class="fas fa-play"></i> 进场</button>
       <p class="mut">${live ? '' : '<b>影片拍摄中 · 当前为静帧预演版</b> · '}奖池 ${fmt(M.pool)} · 已开 ${fmt(M.stats.plays)} 局 · 一局约 2 分钟</p></div>`
     $('#lb-go').onclick = startRun
+    over.querySelectorAll('.g-lstake .ck').forEach((b) => (b.onclick = () => { S.bet = +b.dataset.v; over.querySelectorAll('.g-lstake .ck').forEach((x) => x.classList.toggle('on', x === b)); SFX.chip() }))
   }
 
   ;(async () => {
