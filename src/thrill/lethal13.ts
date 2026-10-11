@@ -227,9 +227,9 @@ export async function l13Start(env: Env, p: { userId: string; stake: number; pic
   if (u.cooloff_until && new Date(u.cooloff_until).getTime() > now()) throw new GameError('COOLOFF', '冷静期中')
   if (u.chips < stake + champStake) throw new GameError('INSUFFICIENT', `需要 ${stake + champStake} Chips`)
   await l13Expire(env)
-  const mine: any = await env.DB.prepare(`SELECT id FROM thrill_runs WHERE user_id=? AND status='playing' LIMIT 1`).bind(p.userId).first()
-  if (mine) throw new GameError('ONE_AT_A_TIME', '你还有一局没结束')
-  const ipOpen: any = await env.DB.prepare(`SELECT COUNT(*) n FROM thrill_runs WHERE ip_hash=? AND status='playing'`).bind(p.ipHash).first()
+  const mine: any = await env.DB.prepare(`SELECT id, series_id FROM thrill_runs WHERE user_id=? AND status='playing' AND started_at>? LIMIT 1`).bind(p.userId, now() - 15 * 60000).first()
+  if (mine) throw new GameError('ONE_AT_A_TIME', mine.series_id === L13_SERIES ? '你还有一局没结束' : '你在另一部剧还有一局没看完（15 分钟后自动结算）')
+  const ipOpen: any = await env.DB.prepare(`SELECT COUNT(*) n FROM thrill_runs WHERE ip_hash=? AND status='playing' AND started_at>?`).bind(p.ipHash, now() - 15 * 60000).first()
   if ((ipOpen?.n || 0) >= L13_CFG.max_open_per_ip) { await riskEvent(env as any, p.userId, 'thrill_multi_open', 2, { series: L13_SERIES }); throw new GameError('MULTI_OPEN', '同一网络下同时进行的局数已达上限') }
   await ensurePool(env)
   const rid = uid('tr_'), seed = randomHex(32), commit = await sha256(`${seed}|${rid}`)

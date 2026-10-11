@@ -104,8 +104,9 @@ export async function funStart(env: Env, sid: string, p: { userId: string; stake
   if (u.self_excluded) throw new GameError('SELF_EXCLUDED', '您已加入自我排除名单，仅可观看')
   if (u.chips < stake + fs) throw new GameError('INSUFFICIENT', `需要 ${stake + fs} Chips`)
   await funExpire(env)
-  if (await env.DB.prepare(`SELECT 1 FROM thrill_runs WHERE user_id=? AND status='playing' LIMIT 1`).bind(p.userId).first()) throw new GameError('ONE_AT_A_TIME', '你还有一局没结束')
-  const ipOpen: any = await env.DB.prepare(`SELECT COUNT(*) n FROM thrill_runs WHERE ip_hash=? AND status='playing'`).bind(p.ipHash).first()
+  const mine: any = await env.DB.prepare(`SELECT series_id FROM thrill_runs WHERE user_id=? AND status='playing' AND started_at>? LIMIT 1`).bind(p.userId, now() - FUN_CFG.stale_ms).first()
+  if (mine) throw new GameError('ONE_AT_A_TIME', String(mine.series_id).startsWith('fun_') ? '你还有一局没结束' : '你在另一部剧还有一局没看完（15 分钟后自动结算）')
+  const ipOpen: any = await env.DB.prepare(`SELECT COUNT(*) n FROM thrill_runs WHERE ip_hash=? AND status='playing' AND started_at>?`).bind(p.ipHash, now() - FUN_CFG.stale_ms).first()
   if ((ipOpen?.n || 0) >= FUN_CFG.max_open_per_ip) { await riskEvent(env as any, p.userId, 'thrill_multi_open', 2, { series: sid }); throw new GameError('MULTI_OPEN', '同一网络下同时进行的局数已达上限') }
   const rid = uid('fn_'), seed = randomHex(32), commit = await sha256(`${seed}|${rid}`)
   await post(env, `开心1分钟·${g.title}·押注单托管`, rid, [[`user:${p.userId}:available`, 'D', stake + fs], [`escrow:fun:${rid}`, 'C', stake + fs]])
