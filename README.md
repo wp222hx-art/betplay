@@ -393,6 +393,6 @@ npx wrangler d1 migrations apply webapp-production                              
 - **平台**：Genspark 托管 Workers for Platform（D1 ×1 + R2 ×1，绑定 DB / MEDIA）
 - **最近部署**：2026-10-11，迁移 0001–0021 全部应用
 - **压缩**：public/static 77MB → 45MB（音频重编码、图片 WebP 降采样，同名替换，原件备份在 webapp_media_archive/public_static_orig_2026-10-11.tar）；R2 媒体 666MB → 287MB（H.264 CRF28 + faststart，单文件 ≤5MiB），studio/ 制作中间件不上线
-- **数据**：内容表（series/nodes/outcomes/variants/voice_cast/extensions/branch_registry/published_series/thrill_series）已导入云 D1；用户、账本从零开始
+- **数据**：内容表（series/nodes/outcomes/variants/voice_cast/extensions/branch_registry/published_series/thrill_series）已导入云 D1；用户、账本未从本地导入（沿用线上原有的少量测试数据）
 - **密钥**：AUTH_SECRET、ADMIN_KEY 已设为 Worker secret（值存放在沙箱 ~/.hosted_secrets，不入库）；未配置 OPENAI/FAL/DASHSCOPE，线上不跑 AI 生成
 - **重新部署**：`npm run build && gsk hosted deploy` → 界面批准；媒体增量上传用 `gsk hosted r2_put`
