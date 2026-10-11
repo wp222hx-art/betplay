@@ -28,8 +28,27 @@
     shot() { noise(0.6, 1.3, 0, 3500); tone(140, 40, 0.35, 0.8, 'triangle') },
     win() { [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => tone(f, f, 0.25, 0.25, 'triangle'), i * 100)) },
     big() { [392, 523, 659, 784, 1046, 1318].forEach((f, i) => setTimeout(() => tone(f, f * 1.01, 0.4, 0.3, 'triangle'), i * 90)); setTimeout(() => noise(1.2, 0.25, 4000), 500) },
-    lose() { tone(220, 70, 0.8, 0.35, 'sawtooth') }
+    lose() { tone(220, 70, 0.8, 0.35, 'sawtooth') },
+    dry() { noise(0.025, 0.45, 4500) }
   }
+  // 真实采样：开枪 vs 空膛（WebAudio 解码，零延迟触发）
+  const BUF = {}, CUES = {}, SLOG = []
+  async function loadSfx() {
+    try { Object.assign(CUES, await (await fetch('/static/sfx/l13_cues.json')).json()) } catch {}
+    await Promise.all(['shot_a', 'shot_b', 'click', 'fall', 'cock', 'ring'].map(async (k) => { try { BUF[k] = await ac().decodeAudioData(await (await fetch(`/static/sfx/${k}.mp3`)).arrayBuffer()) } catch {} }))
+  }
+  function samp(k, gain = 1, delay = 0, rate = 1) {
+    const b = BUF[k]; SLOG.push([k, +(performance.now() / 1000).toFixed(2), V[cur]?.dataset.k, +(V[cur]?.currentTime || 0).toFixed(2)]); if (!b) return false
+    const c = ac(), src = c.createBufferSource(), g = c.createGain(); src.buffer = b; src.playbackRate.value = rate; g.gain.value = gain
+    src.connect(g); g.connect(c.destination); src.start(c.currentTime + delay); return true
+  }
+  /** 枪响：n 把同时响（齐射时多把错开几毫秒，听得出"不止一把"） */
+  function bang(n = 1) { for (let i = 0; i < Math.min(n, 4); i++) samp(i % 2 ? 'shot_b' : 'shot_a', i ? 0.75 : 1.1, i * 0.035 + Math.random() * 0.02, 0.94 + Math.random() * 0.12) || SFX.shot(); flashFx('bang') }
+  /** 空膛：n 把扣空 → 一串清脆"咔"，没有任何回响 */
+  function clickN(n = 1, d0 = 0) { for (let i = 0; i < Math.min(n, 6); i++) samp('click', 0.9, d0 + i * 0.07 + Math.random() * 0.03, 0.9 + Math.random() * 0.25) || SFX.dry?.() }
+  function flashFx(kind) { const st = $('#l13-stage'); st.classList.remove('fx-bang', 'fx-click'); void st.offsetWidth; st.classList.add('fx-' + kind); setTimeout(() => st.classList.remove('fx-' + kind), 700) }
+  function stamp(txt, cls) { const e = document.createElement('div'); e.className = 'l13-stamp ' + cls; e.innerHTML = txt; $('#l13-stage').appendChild(e); setTimeout(() => e.remove(), 1500) }
+
   function heart(bpm) { hb = bpm; if (hbT) return; const L = () => { if (!hb) { hbT = null; return } SFX.beat(); hbT = setTimeout(L, 60000 / hb) }; L() }
   const heartStop = () => { hb = 0 }
 
@@ -52,7 +71,8 @@
     return new Promise(async (res) => {
       const nv = V[1 - cur], ov = V[cur]
       if (nv.dataset.k !== k) { nv.dataset.k = k; nv.src = c.url }
-      nv.currentTime = 0; nv.muted = false; nv.loop = !!opts.loop
+      nv.currentTime = 0; nv.muted = false; nv.loop = !!opts.loop; nv.volume = opts.vol ?? 1
+      if (opts.cue != null) { let fired = false, pre = false; const cueT = opts.cue; const tick = () => { if (done) return; const t = nv.currentTime; if (!pre && t >= cueT - 0.55) { pre = true; heartStop(); opts.onPre?.() } if (!fired && t >= cueT - 0.03) { fired = true; opts.onCue?.() } else requestAnimationFrame(tick) }; requestAnimationFrame(tick) }
       let done = false, t = 0
       const fin = () => { if (done) return; done = true; clearTimeout(t); res(true) }
       const arm = () => { clearTimeout(t); t = setTimeout(fin, Math.min(opts.max || 1e9, (c.dur + 2) * 1000)) }
@@ -138,7 +158,7 @@
 
   // ─────────── 一局 ───────────
   async function startRun() {
-    ac().resume?.(); unlock()
+    ac().resume?.(); unlock(); if (!BUF.shot_a) loadSfx()
     over.className = 'l13-over'; over.innerHTML = ''
     let r
     try { r = await api('/api/l13/start', { body: { picks: [] } }) } catch (e) {
@@ -194,14 +214,29 @@
     if (rd.type === 'duel') return performDuel(rd)
     for (let v = 0; v <= rd.voids; v++) {
       if (v < rd.voids) { caption('<b class="red">敲杖！</b> 这一枪会让所有人死——作废，重来。', 'warn'); preload('voidC'); await play(has('voidC') ? 'voidC' : 'void'); continue }
-      caption('<b>灯亮——</b>', 'dim'); preload('fire' + rd.before.length)
-      await play('fire' + rd.before.length, { max: 3200 })
-      SFX.shot()
-      // 倒地：最多 3 人特写；尸体留在画面下方（death 片段尾帧即尸体）
-      const shown = rd.dead.slice(0, 3)
-      for (const id of shown) { preload('death' + id); caption(`<b class="red">${id} 号 ${esc(name(id))}</b>`); await play('death' + id); S.dead.add(id); renderRoster(rd.after); await sleep(500) }
+      const n = rd.before.length, nf = rd.fired.length, nd = n - nf
+      if (nf) {
+        // 有人开火：齐射片原声压低，在闪光那一帧叠真实枪声（几把枪响就叠几层）+ 其余空膛的"咔"
+        caption('<b>灯亮——</b>', 'dim'); preload('death' + rd.dead[0])
+        await play('fire' + n, { max: 3400, vol: 0.12, cue: CUES['fire' + n] ?? 1.5,
+          onCue: () => { bang(nf); clickN(Math.min(nd, 5), 0.02); samp('ring', 0.35, 0.25); stamp(`砰！<small>${nf} 把枪响了 · ${nd} 把空膛</small>`, 'bang') } })
+        // 倒地：最多 3 人特写；中枪声与画面闪光对齐，随后倒地闷响，尸体留在画面下方
+        const shown = rd.dead.slice(0, 3)
+        for (const [j, id] of shown.entries()) {
+          if (shown[j + 1]) preload('death' + shown[j + 1])
+          caption(`<b class="red">${id} 号 ${esc(name(id))}</b>`)
+          await play('death' + id, { vol: 0.1, cue: CUES['death' + id] ?? 1, onCue: () => { bang(1); samp('fall', 0.9, 0.45) } })
+          S.dead.add(id); renderRoster(rd.after); await sleep(350)
+        }
+      } else {
+        // 全是空膛：不放齐射片（没有一把枪响），镜头给一个人的脸——只有一串干巴巴的"咔"，然后死寂
+        const w = pick(rd.before); preload('dry' + w)
+        caption('<b>灯亮——</b>', 'dim')
+        await play(has('dry' + w) ? 'dry' + w : 'face' + w, { max: 4200, vol: 0.08, cue: CUES['dry' + w] ?? 1,
+          onCue: () => { clickN(Math.min(n, 6)); stamp(`咔。<small>${n} 把全是空膛</small>`, 'click'); flashFx('click') } })
+        caption('<b>全是空膛。</b>没有人倒下。')
+      }
       rd.dead.forEach((id) => S.dead.add(id)); renderRoster(rd.after)
-      if (!rd.dead.length) { const w = pick(rd.before); preload('dry' + w); caption('<b>全是空膛。</b>没有人倒下。'); await play(has('dry' + w) ? 'dry' + w : 'fire' + rd.before.length, { max: 4200 }) }
       await bigText(rd.dead.length ? `倒下 <em>${rd.dead.length}</em> 人<small>还剩 ${rd.after.length} 人</small>` : `<em>0</em> 人倒下<small>${rd.after.length} 人都还站着</small>`, rd.dead.length ? 'red' : '', 1300)
     }
   }
@@ -213,10 +248,12 @@
         const lk = 'load' + Math.min(sh.bullets, 5); preload(lk); await play(has(lk) ? lk : 'duel_load', { max: 5000 })
         if (v < sh.voids) { caption('<b class="red">敲杖！</b> 两人都会死——重来。', 'warn'); await play(has('voidC') ? 'voidC' : 'void'); continue }
         if (sh.dead.length) {
-          const d = sh.dead[0]; caption(`<b class="red">${d} 号 ${esc(name(d))}</b>`); SFX.shot()
-          await play('death' + d); S.dead.add(d); renderRoster(rd.pair)
+          // 一把响一把空：先"咔"（活下来的人扣空），紧跟着"砰"
+          const d = sh.dead[0]; caption(`<b class="red">${d} 号 ${esc(name(d))}</b>`)
+          await play('death' + d, { vol: 0.1, cue: CUES['death' + d] ?? 1, onPre: () => { if (sh.fired.length === 1) setTimeout(() => clickN(1), 250) }, onCue: () => { bang(1); samp('fall', 0.9, 0.45); samp('ring', 0.35, 0.25); stamp('砰！', 'bang') } })
+          S.dead.add(d); renderRoster(rd.pair)
         } else {
-          for (const x of [a, b]) { caption(`<b>${x} 号</b> 扣下扳机——`); await play(has('dry' + x) ? 'dry' + x : 'duel_dry', { max: 3800 }) }
+          for (const x of [a, b]) { renderRoster(rd.pair, [x]); caption(`<b>${x} 号</b> 扣下扳机——`); await play(has('dry' + x) ? 'dry' + x : 'duel_dry', { max: 3800, vol: 0.08, cue: CUES['dry' + x] ?? 1, onCue: () => { clickN(1); stamp('咔。', 'click'); flashFx('click') } }) }
           await bigText('<em>两声空响</em><small>两个人都还站着</small>', '', 1100)
         }
       }
@@ -275,7 +312,7 @@
   ;(async () => {
     try { M = await api('/api/l13/meta'); MEDIA = M.media } catch (e) { over.innerHTML = `<div class="lb"><p>${esc(e.message)}</p></div>`; return }
     const me = await api('/api/me').catch(() => null); S.balance = me?.chips ?? me?.user?.chips ?? 0
-    showLobby()
-    window.L13RT = { S, M }
+    loadSfx(); showLobby()
+    window.L13RT = { S, M, SLOG, BUF }
   })()
 })()
