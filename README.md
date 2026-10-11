@@ -388,6 +388,16 @@ npx wrangler d1 migrations apply webapp-production                              
 - **晒战绩海报**：结算卡「晒战绩」在浏览器端用 Canvas 生成 1080×1920 竖版海报（结局画面 + 押注单逐条结果 + 净额 + commit），支持保存 / Web Share / 复制文案
 - **测试**：`npx tsx tests/fun.test.ts`（21 项：EV ≤ 0.93、单局约 56–63 秒、结局覆盖）
 
+## 🚗 阿木系列 · 三元素组合结局（开心1分钟 v2，试点《阿木停车》/f/fun_amu_park）
+- **主角**：原创默剧喜剧人"阿木"（高瘦、橡皮脸、小一号灰呢西装+细红领带），无台词，憨豆式肢体喜剧，Seedance 2.0 实拍感渲染
+- **结局 = ①怎么弄进去(4) × ②半路杀出(4) × ③谁最后倒霉(4) + 8% 反转卡** → 64 种组合 + 2 种反转 ≈ 70 种结局；条件概率公开（`src/fun/combo.ts` AMU_PARK）
+- **押注节奏**：开演前下"押注单"（三项全押，中3/中2/中1 阶梯赔付，可加反转卡）→ 片中三次 6.5s 追加窗口（赔率随时间从 RTP 95% 线性降到 85%，视频不暂停）→ 每次揭晓盖章、实时赔率跳变 → 结局卡 + 公平性验证 + 晒结局海报
+- **防剧透**：结果片段的签名票据只在揭晓时下发；种子 commit = sha256(seed|rid)，结局后公开
+- **API**：`/api/combo/:sid/meta|quote|start`、`/api/combo/:sid/runs/:id/arm|bet|reveal|skip|verify`，媒体登记 `/api/admin/combo/:sid/media`
+- **生产**：`python3 scripts/fun/produce.py amu refs|stills|render|publish`（19 段，单段约 940 积分）；线上媒体压到 ≤3.7MB 后 `gsk hosted r2_put`
+- **测试**：`npx tsx tests/combo.test.ts`（136 项：概率归一、EV≤0.93、窗口赔率、确定性/频率）
+- **待做**：阿木求婚、阿木下班（同结构复用引擎，只需新配置+素材）
+
 ## 部署（Genspark Hosting）
 - **线上地址**：https://d808764a-3919-46fc-b4ba-647053f6d4d8.vip.gensparksite.com
 - **平台**：Genspark 托管 Workers for Platform（D1 ×1 + R2 ×1，绑定 DB / MEDIA）
