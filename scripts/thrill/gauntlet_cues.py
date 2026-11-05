@@ -14,9 +14,12 @@ def frames(mp4):
     return np.frombuffer(raw, np.uint8).reshape(-1, W, W).astype(np.float32)
 
 def cue_out(f):
-    d = np.abs(f - f[0]).mean(axis=(1, 2)); fin = d[-FPS // 2:].mean()
-    if fin < 2: return None
-    i = int(np.argmax(d >= fin * 0.5)); return round(max(0.8, min(i / FPS, 3.4)), 2)
+    # 出局瞬间 = 1.0~3.2s 内「平滑后的帧间运动」峰值（相对首帧差异法会被开头的镜头微动误触发到 0.8s 下限）
+    m = np.abs(np.diff(f, axis=0)).mean(axis=(1, 2))
+    if len(m) < 8: return None
+    k = np.convolve(m, np.ones(3) / 3, mode='same'); lo, hi = int(1.0 * FPS), min(len(k), int(3.2 * FPS))
+    if hi <= lo: return None
+    i = lo + int(np.argmax(k[lo:hi])); return round(i / FPS, 2)
 
 def cue_safe(f):
     m = np.abs(np.diff(f, axis=0)).mean(axis=(1, 2)); lo, hi = int(1.0 * FPS), int(3.2 * FPS)
