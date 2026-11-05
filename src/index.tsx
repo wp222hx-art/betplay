@@ -9,6 +9,7 @@ import { modelHealth, predictiveQueue, rankVideoModels, submitVideo, buildVideoP
 import { branches, overview, scriptTree } from './agents/console'
 import { applyClipPlan, approveExtension, clipPairs, derive, generatePoems, ingestSignals, regulate } from './agents/deriver'
 import type { Bindings } from './gateway/llm'
+import { d13Page } from './pages/d13'
 import { playerPage, consolePage, agentsPage, comicPage, filmPage, voicePage, lovePage, discoverPage, marketPage, archPage, seriesPage, thrillHubPage, thrillPage, lethal13Page, gauntletPage, funHubPage, funPage, comboPage } from './pages/shell'
 import CATALOG from './catalog/data.json'
 import * as Tax from './catalog/taxonomy'
@@ -24,6 +25,7 @@ import { createEngine } from './comic/factory'
 import { createThrill, ladderTable, MAX_RTP } from './thrill/engine'
 import { THRILL_SCRIPTS } from './thrill/scripts'
 import * as L13 from './thrill/lethal13'
+import * as D13R from './d13/room'
 import * as GT from './thrill/gauntlet'
 import * as Fun from './fun/engine'
 import { FUN_GAMES } from './fun/games'
@@ -237,7 +239,7 @@ const isSybil = async (env: any, u: string) => !!(await env.DB.prepare(`SELECT 1
 app.get('/api/thrill', async (c) => {
   await thrillSeed(c.env)
   const rows = (await c.env.DB.prepare(`SELECT id,title,logline,tension,cover,status FROM thrill_series WHERE status IN ('live','demo','draft') ORDER BY tension DESC, updated_at DESC`).all()).results as any[]
-  const out: any[] = [{ id: L13.L13_SERIES, title: '致命13', logline: '一封死人的信、一张单程车票，把穷小子阿森带进了森林深处的庄园。13 个人围成一圈，富人们在身后下注。开局一张押注单押三轮，枪响 3~5 轮之后，还有一场决斗。', tension: 5, cover: (await c.env.DB.prepare(`SELECT 1 FROM thrill_series WHERE id='l13_media'`).first()) ? `/gimg/${L13.L13_SERIES}/cover.webp` : null, pool: await (async () => { await L13.l13Meta(c.env as any); const r: any = await c.env.DB.prepare(`SELECT COALESCE(SUM(CASE WHEN direction='C' THEN amount ELSE -amount END),0) b FROM ledger WHERE account=?`).bind('pool:thrill:' + L13.L13_SERIES).first(); return r?.b || 0 })(), special: 'l13', url: '/l13' }]
+  const out: any[] = [{ id: L13.L13_SERIES, title: '致命13', logline: '13 个座位，一盏灯。入座押自己能活几轮，或者在外围押别人——和朋友开一个房间，一起坐进这一圈。', tension: 5, cover: (await c.env.DB.prepare(`SELECT 1 FROM thrill_series WHERE id='l13_media'`).first()) ? `/gimg/${L13.L13_SERIES}/cover.webp` : null, pool: await (async () => { await L13.l13Meta(c.env as any); const r: any = await c.env.DB.prepare(`SELECT COALESCE(SUM(CASE WHEN direction='C' THEN amount ELSE -amount END),0) b FROM ledger WHERE account=?`).bind('pool:thrill:' + L13.L13_SERIES).first(); return r?.b || 0 })(), special: 'l13', url: '/d13' }]
   for (const r of rows) {
     if (r.status === 'draft') { out.push({ id: r.id, title: r.title, logline: r.logline, tension: r.tension, cover: r.cover, soon: true }); continue }
     const E = await thrillOf(c.env, r.id).catch(() => null); if (!E) continue
@@ -261,6 +263,17 @@ app.post('/api/g/runs/:id/act', async (c) => { const b = await body(c); return c
 app.get('/api/g/runs/:id/verify', async (c) => c.json(await GT.gVerify(c.env as any, c.req.param('id'))))
 app.post('/api/admin/gauntlet/:sid/media', async (c) => { const b = await body(c); return c.json(await GT.gSaveMedia(c.env as any, c.req.param('sid'), b.clips || {})) })
 app.get('/g/:sid', (c) => { const g = GT.GAUNTLETS[c.req.param('sid')]; return g ? c.html(gauntletPage(g.sid, g.title, g.board)) : c.notFound() })
+// ─── 致命13 · 社交房间（独立产品）：公共厅 / 私人房 / 入座或外围（每局一个身份）/ 同步时间线 / 聊天 ───
+app.get('/api/d13/lobby', async (c) => c.json(await D13R.lobby(c.env as any, uidOf(c) || undefined)))
+app.post('/api/d13/rooms', async (c) => { const b = await body(c), u = uidOf(c, b); await rateLimit(c.env as any, 'd13room:' + u, 10, 3600000); return c.json(await D13R.createPrivate(c.env as any, u, b.title)) })
+app.get('/api/d13/code/:code', async (c) => c.json(await D13R.byCode(c.env as any, c.req.param('code'))))
+app.get('/api/d13/rooms/:id', async (c) => c.json(await D13R.state(c.env as any, c.req.param('id'), uidOf(c) || undefined)))
+app.post('/api/d13/rooms/:id/join', async (c) => { const b = await body(c), u = uidOf(c, b); await rateLimit(c.env as any, 'd13join:' + u, 120, 3600000); return c.json(await D13R.join(c.env as any, { roomId: c.req.param('id'), userId: u, role: String(b.role || ''), seat: +b.seat, pick: String(b.pick || ''), stake: +b.stake, ipHash: await ipKey(c), sybil: await isSybil(c.env, u) })) })
+app.post('/api/d13/rooms/:id/start', async (c) => { const b = await body(c); return c.json(await D13R.hostStart(c.env as any, c.req.param('id'), uidOf(c, b))) })
+app.post('/api/d13/rooms/:id/chat', async (c) => { const b = await body(c), u = uidOf(c, b); await rateLimit(c.env as any, 'd13chat:' + u, 20, 60000); return c.json(await D13R.say(c.env as any, c.req.param('id'), u, b.text)) })
+app.get('/api/d13/rooms/:id/verify', async (c) => c.json(await D13R.verify(c.env as any, c.req.param('id'))))
+app.get('/api/d13/media', async (c) => { const u = uidOf(c); return c.json(u ? await D13R.media(c.env as any, u) : null) })
+app.get('/api/d13/me', async (c) => { const u = uidOf(c); if (!u) return c.json({ history: [] }); return c.json({ history: await D13R.history(c.env as any, u) }) })
 app.get('/api/l13/meta', async (c) => c.json(await L13.l13Meta(c.env as any, uidOf(c) || undefined)))
 app.post('/api/l13/start', async (c) => { const b = await body(c), u = uidOf(c, b); await rateLimit(c.env as any, 'l13:' + u, 60, 3600000); return c.json(await L13.l13Start(c.env as any, { userId: u, stake: +b.stake, picks: Array.isArray(b.picks) ? b.picks : [], ipHash: await ipKey(c), sybil: await isSybil(c.env, u), champ: +b.champ || 0, champStake: +b.champ_stake || 0 })) })
 app.post('/api/l13/quote', async (c) => { const b = await body(c); return c.json(L13.slipQuote(Array.isArray(b.picks) ? b.picks : [])) })
@@ -335,6 +348,8 @@ app.post('/api/admin/fun/:sid/media', async (c) => { const b = await body(c); re
 app.get('/fun', (c) => c.html(funHubPage()))
 app.get('/f/:sid', (c) => { const cg = Combo.COMBO_GAMES[c.req.param('sid')]; if (cg) return c.html(comboPage(cg.sid, cg.title)); const g = FUN_GAMES[c.req.param('sid')]; if (!g) return c.notFound(); return c.html(funPage(g.sid, g.title)) })
 app.get('/l13', (c) => c.html(lethal13Page()))
+app.get('/d13', (c) => c.html(d13Page()))
+app.get('/d13/r/:code', (c) => c.html(d13Page(c.req.param('code'))))
 app.get('/t/:sid', async (c) => { await thrillSeed(c.env); const r: any = await c.env.DB.prepare(`SELECT title FROM thrill_series WHERE id=? AND status IN ('live','demo')`).bind(c.req.param('sid')).first(); if (!r) return c.notFound(); return c.html(thrillPage(c.req.param('sid'), r.title)) })
 app.get('/love', (c) => c.html(lovePage()))
 app.get('/voice', (c) => c.html(voicePage()))
